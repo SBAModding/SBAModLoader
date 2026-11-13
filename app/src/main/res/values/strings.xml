@@ -28,9 +28,12 @@
     <string name="step_patches_no_source">Mandatory patches: no patch source yet</string>
     <string name="dashboard_launch">Launch Super Bear Adventure</string>
     <string name="mods_add">Add mod</string>
-    <string name="mods_empty">No mods yet. Add a .dll to get started.</string>
+    <string name="mods_empty">No mods yet. Add a .dll or a .zip to get started.</string>
     <string name="mods_copy_failed">Could not add that file.</string>
     <string name="settings_about_format">SBAModLoader %1$s</string>
     <string name="loading">Loading...</string>
     <string name="settings_data_location">Mods and data location</string>
+    <string name="mods_unsupported">Pick a .dll or a .zip file.</string>
+    <string name="mods_remove">Remove</string>
+    <string name="mods_remove_title">Remove this mod?</string>
 </resources>

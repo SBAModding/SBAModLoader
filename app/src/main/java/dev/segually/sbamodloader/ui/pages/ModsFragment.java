@@ -81,27 +81,86 @@ public class ModsFragment extends Fragment {
         list.getAdapter().notifyDataSetChanged();
     }
 
+    private String displayName(Uri uri) {
+        try (android.database.Cursor c = requireContext().getContentResolver()
+                .query(uri, new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                String n = c.getString(0);
+                if (n != null && !n.isEmpty()) return new File(n).getName();
+            }
+        } catch (Exception ignored) {
+        }
+        String seg = uri.getLastPathSegment();
+        return seg == null ? null : new File(seg).getName();
+    }
+
+    /** Adds a mod: a plain .dll, or a .zip whose contents are unpacked into the plugins folder. */
     private void importMod(Uri uri) {
         if (uri == null) return;
-        File dir = pluginsDir();
-        String name = uri.getLastPathSegment();
-        if (name == null || !name.toLowerCase().endsWith(".dll")) {
-            Toast.makeText(requireContext(), R.string.mods_copy_failed, Toast.LENGTH_SHORT).show();
+        String name = displayName(uri);
+        String lower = name == null ? "" : name.toLowerCase(java.util.Locale.ROOT);
+        if (!lower.endsWith(".dll") && !lower.endsWith(".zip")) {
+            Toast.makeText(requireContext(), R.string.mods_unsupported, Toast.LENGTH_SHORT).show();
             return;
         }
-        name = name.substring(name.lastIndexOf('/') + 1).substring(name.lastIndexOf(':') + 1);
-        File out = new File(dir, new File(name).getName());
-        try (InputStream in = requireContext().getContentResolver().openInputStream(uri)) {
-            if (in == null || (!dir.exists() && !dir.mkdirs())) throw new java.io.IOException();
-            try (FileOutputStream os = new FileOutputStream(out)) {
-                byte[] buf = new byte[8192];
-                int n;
-                while ((n = in.read(buf)) != -1) os.write(buf, 0, n);
+        android.content.Context app = requireContext().getApplicationContext();
+        File dir = pluginsDir();
+        new Thread(() -> {
+            boolean ok;
+            try (InputStream in = app.getContentResolver().openInputStream(uri)) {
+                if (in == null || (!dir.exists() && !dir.mkdirs())) throw new java.io.IOException("no stream");
+                if (lower.endsWith(".dll")) copy(in, new File(dir, name));
+                else unzipInto(in, dir);
+                ok = true;
+            } catch (Exception e) {
+                android.util.Log.e("ModsFragment", "Failed to import mod " + name, e);
+                ok = false;
             }
-            reload();
-        } catch (Exception e) {
-            Toast.makeText(requireContext(), R.string.mods_copy_failed, Toast.LENGTH_SHORT).show();
+            boolean success = ok;
+            if (isAdded()) requireActivity().runOnUiThread(() -> {
+                if (!success) Toast.makeText(requireContext(), R.string.mods_copy_failed, Toast.LENGTH_SHORT).show();
+                reload();
+            });
+        }, "mod-import").start();
+    }
+
+    private static void copy(InputStream in, File out) throws java.io.IOException {
+        try (FileOutputStream os = new FileOutputStream(out)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) os.write(buf, 0, n);
         }
+    }
+
+    private static void unzipInto(InputStream in, File dir) throws java.io.IOException {
+        String root = dir.getCanonicalPath() + File.separator;
+        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(in)) {
+            java.util.zip.ZipEntry e;
+            while ((e = zis.getNextEntry()) != null) {
+                File out = new File(dir, e.getName());
+                if (!out.getCanonicalPath().startsWith(root)) continue; // zip-slip guard
+                if (e.isDirectory()) {
+                    out.mkdirs();
+                } else {
+                    File parent = out.getParentFile();
+                    if (parent != null) parent.mkdirs();
+                    copy(zis, out);
+                }
+            }
+        }
+    }
+
+    private void confirmRemove(File f) {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.mods_remove_title)
+                .setMessage(f.getName().replace(DISABLED, ""))
+                .setPositiveButton(R.string.mods_remove, (d, w) -> {
+                    //noinspection ResultOfMethodCallIgnored
+                    f.delete();
+                    reload();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private class Adapter extends RecyclerView.Adapter<Adapter.Holder> {
@@ -119,6 +178,7 @@ public class ModsFragment extends Fragment {
             h.name.setText(label);
             h.toggle.setOnCheckedChangeListener(null);
             h.toggle.setChecked(enabled);
+            h.remove.setOnClickListener(v -> confirmRemove(mods.get(h.getBindingAdapterPosition())));
             h.toggle.setOnCheckedChangeListener((b, on) -> {
                 File target = new File(f.getParentFile(), on ? label : label + DISABLED);
                 if (f.renameTo(target)) mods.set(h.getBindingAdapterPosition(), target);
@@ -134,11 +194,13 @@ public class ModsFragment extends Fragment {
         class Holder extends RecyclerView.ViewHolder {
             final TextView name;
             final MaterialSwitch toggle;
+            final View remove;
 
             Holder(View v) {
                 super(v);
                 name = v.findViewById(R.id.mod_name);
                 toggle = v.findViewById(R.id.mod_switch);
+                remove = v.findViewById(R.id.mod_remove);
             }
         }
     }
