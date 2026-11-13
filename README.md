@@ -1,49 +1,69 @@
 # SBAModLoader
 
-Unity modding framework for Android IL2CPP games.
+A mod loader for **Super Bear Adventure** on Android. It runs the game from inside the loader app, so mods can
+change it without modifying the installed game.
 
-## Compatibility
+- **Fusion mods**: BepInEx plugins (.NET 10) that hook into the game's IL2CPP code.
+- **Native mods**: `.so` libraries loaded into the game before its runtime starts.
+- **SBA packs** (`.sbapack`): texture packs, asset replacements, native code and Java code in one file.
+- **Mod browser**: every listed mod is audited by the project and pinned by hash, so a file that changes after the
+  audit is refused. The list lives in the [mod repository](https://github.com/SBAModding/ModRepository).
+- **Mandatory patches**: the game's protection needs a patch, which the loader downloads and applies by itself
+  ([patches repository](https://github.com/SBAModding/patches)).
+- **In-game menu** (press back): freeze the game, a floating logcat view, and exit to the dashboard.
 
-Current minimum supported Android version is 7.0 (API level 24).
-No guarantees it will work on that version though, 
-as it has only been tested on Android 11 (API level 30) and above.
+## Requirements
 
-As of writing this, PC versions of BepInEx and MelonLoader still use .NET 6.0 and legacy MonoMod.
-However, SBAModLoader uses .NET 10.0 and MonoMod reorganized, so if you directly use MonoMod in your mods,
-you will need to make it compatible with the newer MonoMod version.
+- Android 7.0 or newer on an arm64 device. Tested on Android 13 and 16.
+- Super Bear Adventure (`com.Earthkwak.Platformer`) installed from your own copy. The loader does not include the
+  game. Version 13.0.8 has a patch today.
+- An internet connection the first time, for the patch and for mods.
 
-There is no Lemon/Melonloader support yet, just a custom BepInEx fork.
+## Using it
 
-SBAModLoader automatically detects Unity version, then downloads the unstripped libunity.so file. You only need to follow the configuration steps below to make things work.
+1. Install the loader and the game, then open **Dashboard**. It checks the game, the loader version and the patch,
+   and downloads the patch if one exists for your build of the game.
+2. Find mods in **Browse** and install them. Installed mods appear in **Mods**, where you can switch them off,
+   remove them, and change the load order of native mods and packs.
+3. Press **Launch**.
 
-## Can you add support for "X" game?
+Adding files by hand in **Mods** is a developer feature: turn on *Developer features* in **Settings**. That also
+unlocks loading a local patch and using a custom patch source.
 
-Make a new issue with the following information:
-- Game name and version
-- Android package name (e.g. `com.example.game`)
-- Unity version (if known, otherwise I can check it myself)
-- Any other relevant information (e.g. if the game uses a custom UnityPlayerActivity, or if it has anti-cheat)
+## Making mods
 
-We will try to add support, but there are no guarantees. If you want to help, you can also submit a pull request with the necessary changes to support the game.
+| You want to ship | Make |
+|---|---|
+| A BepInEx plugin | a `.dll` (or a `.zip` of one) |
+| Native code | a `.so`, loaded before the game's runtime and before BepInEx |
+| Replaced or extra assets, texture packs, Java code, or a mix | an `.sbapack` |
 
-## Configuration
+To get a mod into the browser, follow the
+[mod repository's contributing guide](https://github.com/SBAModding/ModRepository/blob/main/CONTRIBUTING.md).
 
-Previous versions of SBAModLoader required adding the game activity to the manifest and modifying the list of supported games. This is no longer required as SBAModLoader scans installed apps for IL2CPP unity games and can launch them without manifest requirements.
+## Building
 
-Just download the APK (or build the app, if not available), and run!
-
-IF you are using il2cpp2mono in your game, you CANNOT just use all of the original PC dlls. Unity's managed dlls are platform specific. this also goes for libraries like FMOD too.
-
-## Build
-
-Use the Gradle wrapper from the repository root:
+You need JDK 17 and an Android SDK with platform 37, build tools, CMake 3.22.1 and an NDK (28 works).
 
 ```sh
+export ANDROID_HOME=/path/to/android-sdk
 ./gradlew :app:assembleDebug
 ```
 
-Optional clean build:
+The APK is written to `app/build/outputs/apk/debug/`. Release builds read `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`,
+`KEY_ALIAS` and `KEY_PASSWORD` from the environment.
 
-```sh
-./gradlew clean :app:assembleDebug
-```
+## Credits and license
+
+SBAModLoader is a fork of [FusionCore](https://github.com/All-Of-Us-Mods/FusionCore) by All Of Us Mods and its
+contributors, whose work (the Android hosting layer, the native bootstrap and the IL2CPP hooking) this project is
+built on; their commits are preserved in this repository's history. The BepInEx build bundled in the app is that
+project's BepInEx fork.
+
+It also uses [BepInEx](https://github.com/BepInEx/BepInEx), [Il2CppInterop](https://github.com/BepInEx/Il2CppInterop),
+the [.NET runtime](https://github.com/dotnet/runtime), [Dobby](https://github.com/jmpews/Dobby) and Material
+Components for Android.
+
+Licensed under the GNU General Public License v3.0; see [LICENSE](LICENSE).
+
+SBAModLoader is not affiliated with Earthkwak Games. Super Bear Adventure and its assets belong to their owners.
