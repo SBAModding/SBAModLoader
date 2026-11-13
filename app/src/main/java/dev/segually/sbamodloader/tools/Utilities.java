@@ -194,7 +194,9 @@ public class Utilities {
                 while (entries.hasMoreElements()) {
                     ZipEntry entry = entries.nextElement();
                     String name = entry.getName();
-                    if (entry.isDirectory() || !name.startsWith("assets/")) continue;
+                    // Only the Unity data folder is needed (BepInEx reads it); overlay packs can add hundreds
+                    // of megabytes of other assets that must not be copied again.
+                    if (entry.isDirectory() || !name.startsWith("assets/bin/Data/")) continue;
 
                     File target = new File(outputFolder, name.substring("assets/".length()));
                     if (!target.getCanonicalPath().startsWith(outputRoot)) continue;

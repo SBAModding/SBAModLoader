@@ -110,8 +110,24 @@ public class BootstrapActivity extends AppCompatActivity {
             Log.i(TAG, "Applying patch '" + patch.manifest.name + "' for game " + patch.manifest.gameVersion);
         }
 
+        // Native mods and asset packs. The overlay APK has to exist before the class loader and the game's data.
+        setPhaseStatus(getString(R.string.bootstrap_status_applying_overlays));
+        final ModPacks.Prepared mods;
         try {
-            gameContext = GameRuntime.prepareGameContext(gameContext, getClassLoader(), patch);
+            File runtimeScoped = new File(getRuntimeDir(getApplicationContext()), targetPackage);
+            File baseApk = new File(getPackageManager().getApplicationInfo(targetPackage, 0).sourceDir);
+            mods = ModPacks.prepare(getApplicationContext(), runtimeScoped, baseApk, patch);
+        } catch (Throwable t) {
+            failAndFinish("Failed to prepare mods: " + t.getMessage(), t);
+            return;
+        }
+
+        try {
+            gameContext = GameRuntime.prepareGameContext(gameContext, getClassLoader(), patch,
+                    mods.overlayApk, mods.libDirs);
+            if (mods.overlayApk != null) {
+                GameRuntime.useOverlayApk(gameContext, mods.overlayApk.getAbsolutePath());
+            }
         } catch (Exception e) {
             failAndFinish("Failed to configure classes.", e);
             return;
@@ -134,20 +150,14 @@ public class BootstrapActivity extends AppCompatActivity {
         }
 
         final int targetOrientation = resolveTargetOrientation(launcherComponent);
-
-        // Native mods and asset packs. The overlay APK has to exist before the game's data is copied below.
-        setPhaseStatus(getString(R.string.bootstrap_status_applying_overlays));
-        ModPacks.Prepared mods;
-        try {
-            File runtimeScoped = new File(getRuntimeDir(getApplicationContext()), targetPackage);
-            File baseApk = new File(getPackageManager().getApplicationInfo(targetPackage, 0).sourceDir);
-            mods = ModPacks.prepare(getApplicationContext(), runtimeScoped, baseApk, patch);
-            if (mods.overlayApk != null) {
-                GameRuntime.useOverlayApk(gameContext, mods.overlayApk.getAbsolutePath());
+        if (mods.activity != null) {
+            try {
+                gameContext.getClassLoader().loadClass(mods.activity);
+                launcherComponent = new ComponentName(targetPackage, mods.activity);
+                Log.i(TAG, "Launching the activity supplied by a pack: " + mods.activity);
+            } catch (ClassNotFoundException e) {
+                Log.e(TAG, "The pack's launch activity " + mods.activity + " was not found; using the game's", e);
             }
-        } catch (Throwable t) {
-            failAndFinish("Failed to prepare mods: " + t.getMessage(), t);
-            return;
         }
 
         boolean useOriginalLibUnity = !SBASettings.getUseUnstrippedLibUnity(this);
@@ -445,7 +455,7 @@ public class BootstrapActivity extends AppCompatActivity {
         File Assets = new File(dataOnSdCard, "Assets");
         // The copy comes from the overlay APK when there is one, so redo it whenever the overlay changes.
         File overlayMarker = new File(Assets, ".sba_overlay");
-        String overlayId = mods.overlayApk == null ? "none" : mods.overlayApk.getName();
+        String overlayId = mods.overlayApk == null ? "none" : mods.overlayApk.getParentFile().getName();
         String copiedFor = "";
         try {
             if (overlayMarker.isFile()) copiedFor = new String(java.nio.file.Files.readAllBytes(overlayMarker.toPath()));

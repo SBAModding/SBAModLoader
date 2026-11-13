@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -27,9 +28,13 @@ import dev.segually.sbamodloader.TargetGame;
  * <ul>
  *   <li>A native mod is a {@code .so} file in the NativeMods folder.</li>
  *   <li>An {@code .sbapack} (a renamed zip) lives in the Packs folder. It may contain native mods
- *       ({@code .so} files at its root) and an {@code overlay/} folder whose files are laid over the game's
- *       assets: {@code overlay/assets/aa/Android/x.bundle} adds or replaces {@code assets/aa/Android/x.bundle}.
- *       Both parts are optional.</li>
+ *       ({@code .so} files at its root), an {@code overlay/} folder whose files are laid over the game's
+ *       APK ({@code overlay/assets/aa/Android/x.bundle} adds or replaces {@code assets/aa/Android/x.bundle}), and
+ *       libraries for the game's Java code in {@code lib/arm64-v8a/}. All parts are optional.
+ *       Dex files in the overlay with a number higher than the game's ({@code overlay/classes5.dex}) are
+ *       picked up by the game's class loader like the rest of the APK.</li>
+ *   <li>An optional {@code sbapack.json} at the root of a pack can name an {@code "activity"}: a class from the
+ *       pack's dex files that replaces the game's launch activity (it should extend that activity).</li>
  * </ul>
  *
  * Packs, native mods and the patch's own overlay all go through the same asset overlay: the loader builds one
@@ -41,6 +46,8 @@ public final class ModPacks {
     private static final String TAG = "ModPacks";
     public static final String PACK_EXTENSION = ".sbapack";
     public static final String DISABLED = ".disabled";
+    /** File name of the merged APK; see {@link #prepare}. */
+    public static final String OVERLAY_APK_NAME = "ovly.apk";
 
     private ModPacks() {
     }
@@ -99,23 +106,28 @@ public final class ModPacks {
         SBASettings.setModOrder(context, names);
     }
 
-    /** What a pack contains, for display. */
-    public static String describe(File pack) {
+    /** What a pack contains, for display: a combination of "native", "java" and "assets" (or empty). */
+    public static List<String> describe(File pack) {
         boolean natives = false;
+        boolean java = false;
         boolean assets = false;
         try (ZipFile zip = new ZipFile(pack)) {
             for (Enumeration<? extends ZipEntry> e = zip.entries(); e.hasMoreElements(); ) {
                 ZipEntry entry = e.nextElement();
                 String name = entry.getName();
                 if (entry.isDirectory()) continue;
-                if (isRootNative(name)) natives = true;
+                if (isRootNative(name) || (name.startsWith("lib/") && name.endsWith(".so"))) natives = true;
+                else if (name.startsWith("overlay/classes") && name.endsWith(".dex")) java = true;
                 else if (name.startsWith("overlay/")) assets = true;
             }
         } catch (IOException e) {
-            return "";
+            return Collections.emptyList();
         }
-        if (natives && assets) return "both";
-        return natives ? "native" : assets ? "assets" : "empty";
+        List<String> parts = new ArrayList<>();
+        if (natives) parts.add("native");
+        if (java) parts.add("java");
+        if (assets) parts.add("assets");
+        return parts;
     }
 
     private static boolean isRootNative(String entryName) {
@@ -130,10 +142,16 @@ public final class ModPacks {
         public final String[] natives;
         /** The APK to present as the game's, or null when there are no overlay files. */
         public final File overlayApk;
+        /** Directories with libraries for the game's Java code, highest priority first. */
+        public final List<File> libDirs;
+        /** Class name of a launch activity supplied by a pack, or null. */
+        public final String activity;
 
-        Prepared(String[] natives, File overlayApk) {
+        Prepared(String[] natives, File overlayApk, List<File> libDirs, String activity) {
             this.natives = natives;
             this.overlayApk = overlayApk;
+            this.libDirs = libDirs;
+            this.activity = activity;
         }
     }
 
@@ -147,8 +165,12 @@ public final class ModPacks {
     public static Prepared prepare(Context context, File runtimeScoped, File baseApk,
                                    PatchManager.ActivePatch patch) throws IOException {
         File nativeRoot = new File(runtimeScoped, "native-mods");
+        File libRoot = new File(runtimeScoped, "pack-libs");
         Utilities.deleteRecursive(nativeRoot);
+        Utilities.deleteRecursive(libRoot);
         List<String> natives = new ArrayList<>();
+        List<File> libDirs = new ArrayList<>();
+        String activity = null;
         List<AssetOverlayBuilder.Entry> overlay = new ArrayList<>();
         List<AutoCloseable> open = new ArrayList<>();
         StringBuilder signature = new StringBuilder();
@@ -177,7 +199,25 @@ public final class ModPacks {
                         ZipEntry entry = e.nextElement();
                         String entryName = entry.getName();
                         if (entry.isDirectory()) continue;
-                        if (isRootNative(entryName)) {
+                        if (entryName.equals("sbapack.json")) {
+                            String declared = readActivity(zip, entry);
+                            if (declared != null) {
+                                if (activity != null) Log.w(TAG, name + " replaces the launch activity " + activity);
+                                activity = declared;
+                            }
+                        } else if (entryName.startsWith("lib/arm64-v8a/") && entryName.endsWith(".so")
+                                && entryName.indexOf('/', "lib/arm64-v8a/".length()) < 0) {
+                            File libDir = new File(libRoot, String.format(Locale.ROOT, "%02d", index));
+                            File out = new File(libDir, entryName.substring("lib/arm64-v8a/".length()));
+                            out.getParentFile().mkdirs();
+                            try (InputStream in = zip.getInputStream(entry)) {
+                                java.nio.file.Files.copy(in, out.toPath());
+                            }
+                            //noinspection ResultOfMethodCallIgnored
+                            out.setReadOnly();
+                            if (!libDirs.contains(libDir)) libDirs.add(libDir);
+                            Log.i(TAG, "Library from " + name + ": " + out.getName());
+                        } else if (isRootNative(entryName)) {
                             File out = new File(dest, entryName);
                             out.getParentFile().mkdirs();
                             try (InputStream in = zip.getInputStream(entry)) {
@@ -198,10 +238,13 @@ public final class ModPacks {
             File dir = new File(runtimeScoped, "overlay");
             if (!overlay.isEmpty()) {
                 String id = sha1(signature.toString());
-                overlayApk = new File(dir, "overlay-" + id + ".apk");
+                // The file name is fixed and distinctive: native mods that look for the game's APK among the
+                // process's mapped files can tell the overlay APK from the game's own base.apk.
+                File idDir = new File(dir, id);
+                overlayApk = new File(idDir, OVERLAY_APK_NAME);
                 if (!overlayApk.isFile()) {
                     Utilities.deleteRecursive(dir);
-                    if (!dir.mkdirs()) throw new IOException("Cannot create " + dir);
+                    if (!idDir.mkdirs()) throw new IOException("Cannot create " + idDir);
                     Log.i(TAG, "Building overlay APK with " + overlay.size() + " files");
                     AssetOverlayBuilder.build(baseApk, overlayApk, overlay);
                 } else {
@@ -212,7 +255,8 @@ public final class ModPacks {
             } else {
                 Utilities.deleteRecursive(dir);
             }
-            return new Prepared(natives.toArray(new String[0]), overlayApk);
+            Collections.reverse(libDirs); // a later pack's libraries win over an earlier one's
+            return new Prepared(natives.toArray(new String[0]), overlayApk, libDirs, activity);
         } finally {
             for (AutoCloseable c : open) {
                 try {
@@ -220,6 +264,17 @@ public final class ModPacks {
                 } catch (Exception ignored) {
                 }
             }
+        }
+    }
+
+    private static String readActivity(ZipFile zip, ZipEntry entry) {
+        try (InputStream in = zip.getInputStream(entry)) {
+            String name = new org.json.JSONObject(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8))
+                    .optString("activity", "");
+            return name.isEmpty() ? null : name;
+        } catch (Exception e) {
+            Log.w(TAG, "Unreadable sbapack.json", e);
+            return null;
         }
     }
 

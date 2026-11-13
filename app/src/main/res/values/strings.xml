@@ -69,10 +69,11 @@
     <string name="logcat_clear">Clear</string>
     <string name="mods_kind_plugin">BepInEx plugin</string>
     <string name="mods_kind_native">Native mod</string>
-    <string name="mods_kind_pack_both">Native mod + asset pack</string>
-    <string name="mods_kind_pack_native">Native mod pack</string>
-    <string name="mods_kind_pack_assets">Asset pack</string>
     <string name="mods_kind_pack_empty">Empty pack</string>
     <string name="mods_order_hint">Native mods and packs load from top to bottom; a later one replaces what an earlier one changed. Drag the handle to reorder.</string>
     <string name="mods_drag_handle">Drag to change load order</string>
+    <string name="mods_kind_pack">Pack: %1$s</string>
+    <string name="mods_part_native">native code</string>
+    <string name="mods_part_java">Java</string>
+    <string name="mods_part_assets">assets</string>
 </resources>

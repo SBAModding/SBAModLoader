@@ -75,7 +75,8 @@ public final class GameRuntime {
     }
 
     public static Context prepareGameContext(Context gameContext, ClassLoader sbaLoader,
-                                             PatchManager.ActivePatch patch)
+                                             PatchManager.ActivePatch patch,
+                                             File overlayApk, java.util.List<File> packLibDirs)
             throws ReflectiveOperationException {
         android.content.pm.ApplicationInfo info = gameContext.getApplicationInfo();
         clearAppComponentFactory(info);
@@ -88,8 +89,13 @@ public final class GameRuntime {
             for (File dex : patch.dexFiles) apks.add(dex.getAbsolutePath());
             if (patch.libDir != null) libraryPath = patch.libDir.getAbsolutePath() + File.pathSeparator + libraryPath;
         }
-        apks.add(info.sourceDir);
+        // With overlays the class loader reads the merged APK, so dex files a pack added to it (classes5.dex...)
+        // load like the rest of the game's code.
+        apks.add(overlayApk != null ? overlayApk.getAbsolutePath() : info.sourceDir);
         if (info.splitSourceDirs != null) Collections.addAll(apks, info.splitSourceDirs);
+        StringBuilder libs = new StringBuilder();
+        for (File dir : packLibDirs) libs.append(dir.getAbsolutePath()).append(File.pathSeparator);
+        libraryPath = libs + libraryPath;
         ClassLoader gameLoader = new GameClassLoader(String.join(File.pathSeparator, apks),
                 libraryPath, sbaLoader);
         return new ContextWrapper(gameContext) {
@@ -210,8 +216,17 @@ public final class GameRuntime {
                 Field resources = ContextThemeWrapper.class.getDeclaredField("mResources");
                 resources.setAccessible(true);
                 resources.set(activity, null);
-                ActivityInfo info = gameContext.getPackageManager().getActivityInfo(
-                        new android.content.ComponentName(gameContext.getPackageName(), activity.getClass().getName()), 0);
+                // A launch activity supplied by a pack is not in the game's manifest; its superclass is.
+                ActivityInfo info = null;
+                for (Class<?> c = activity.getClass(); info == null && c != null; c = c.getSuperclass()) {
+                    try {
+                        info = gameContext.getPackageManager().getActivityInfo(
+                                new android.content.ComponentName(gameContext.getPackageName(), c.getName()), 0);
+                    } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
+                        // try the superclass
+                    }
+                }
+                if (info == null) throw new IllegalStateException("No manifest entry for " + activity.getClass().getName());
                 android.content.res.Resources.Theme theme = activity.getResources().newTheme();
                 theme.applyStyle(info.getThemeResource() != 0 ? info.getThemeResource()
                         : android.R.style.Theme_Black_NoTitleBar, true);

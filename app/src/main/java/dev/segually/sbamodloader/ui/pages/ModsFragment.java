@@ -250,12 +250,13 @@ public class ModsFragment extends Fragment {
             String base = ModPacks.baseName(f);
             String kind;
             if (base.endsWith(ModPacks.PACK_EXTENSION)) {
-                switch (ModPacks.describe(f)) {
-                    case "both" -> kind = getString(R.string.mods_kind_pack_both);
-                    case "native" -> kind = getString(R.string.mods_kind_pack_native);
-                    case "assets" -> kind = getString(R.string.mods_kind_pack_assets);
-                    default -> kind = getString(R.string.mods_kind_pack_empty);
+                List<String> parts = new ArrayList<>();
+                for (String p : ModPacks.describe(f)) {
+                    parts.add(getString("native".equals(p) ? R.string.mods_part_native
+                            : "java".equals(p) ? R.string.mods_part_java : R.string.mods_part_assets));
                 }
+                kind = parts.isEmpty() ? getString(R.string.mods_kind_pack_empty)
+                        : getString(R.string.mods_kind_pack, String.join(", ", parts));
             } else if (base.endsWith(".so")) {
                 kind = getString(R.string.mods_kind_native);
             } else {
