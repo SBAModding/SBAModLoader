@@ -1,4 +1,0 @@
--keep class dev.allofus.fusioncore.tools.JniBridge { *; }
--keepclasseswithmembernames,includedescriptorclasses class * {
-    native <methods>;
-}

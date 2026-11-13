@@ -48,18 +48,18 @@ jobs:
         if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v6
         with:
-          name: fusionApp-debug
-          path: fusionApp/build/outputs/apk/debug/*.apk
+          name: app-debug
+          path: app/build/outputs/apk/debug/*.apk
 
       - name: Upload Release APK
         if: github.ref_type == 'tag'
         uses: actions/upload-artifact@v6
         with:
-          name: fusionApp-release-${{ github.ref_name }}
-          path: fusionApp/build/outputs/apk/release/*.apk
+          name: app-release-${{ github.ref_name }}
+          path: app/build/outputs/apk/release/*.apk
 
       - uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
         with:
           draft: true
-          files: fusionApp/build/outputs/apk/release/*.apk
+          files: app/build/outputs/apk/release/*.apk

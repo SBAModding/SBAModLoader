@@ -1,0 +1,4 @@
+-keep class dev.segually.sbamodloader.tools.JniBridge { *; }
+-keepclasseswithmembernames,includedescriptorclasses class * {
+    native <methods>;
+}
