@@ -71,6 +71,10 @@ public class SettingsFragment extends Fragment {
         libunity.setChecked(SBASettings.getUseUnstrippedLibUnity(requireContext()));
         libunity.setOnCheckedChangeListener((b, on) -> SBASettings.setUseUnstrippedLibUnity(requireContext(), on));
 
+        MaterialSwitch skipFusion = v.findViewById(R.id.switch_skipfusion);
+        skipFusion.setChecked(SBASettings.getSkipFusionWhenUnused(requireContext()));
+        skipFusion.setOnCheckedChangeListener((b, on) -> SBASettings.setSkipFusionWhenUnused(requireContext(), on));
+
         devSection = v.findViewById(R.id.dev_section);
         patchInfo = v.findViewById(R.id.patch_info);
         MaterialSwitch dev = v.findViewById(R.id.switch_developer);

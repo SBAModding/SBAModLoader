@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">SBAModLoader</string>
     <string name="settings_libunity_title">Download unstripped libunity</string>
+    <string name="settings_skipfusion_title">Skip Fusion when unused</string>
+    <string name="settings_skipfusion_desc">Does not start the .NET runtime and BepInEx unless a Fusion mod (.dll) is enabled. Saves a lot of memory.</string>
     <string name="settings_libunity_desc">You should turn this on if the game you\'re using crashes due to Unity getting mad.</string>
     <string name="bootstrap_title">Launching selected game</string>
     <string name="bootstrap_status_preparing">Preparing target package…</string>

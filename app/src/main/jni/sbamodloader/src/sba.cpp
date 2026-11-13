@@ -71,7 +71,7 @@ int il2cpp_init_hook(char *domain_name)
     // call the original il2cpp_init function
     int result = il2cpp_init(domain_name);
 
-    if (runtime_config.initialized)
+    if (runtime_config.initialized && runtime_config.fusionEnabled)
     {
         // setup environment variables
         setenv("BEPINEX_GAME_ASSEMBLY_PATH", libmain_get_override_il2cpp_path(), 1);
@@ -126,6 +126,10 @@ int il2cpp_init_hook(char *domain_name)
         // change working directory to sba's scoped data directory
         chdir(runtime_config.appDataDirectory.c_str());
         dotnet_execute_assembly(dotNetConfig, &list);
+    }
+    else if (runtime_config.initialized)
+    {
+        log(LogLevel::INFO, TAG, "Fusion is off or has no enabled mods: not starting the .NET runtime or BepInEx.");
     }
     else
     {

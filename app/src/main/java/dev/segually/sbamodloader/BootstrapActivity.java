@@ -557,13 +557,21 @@ public class BootstrapActivity extends AppCompatActivity {
             }
         }
 
-        setPhaseStatus(getString(R.string.bootstrap_status_extracting_runtime));
         File dotnetDir = new File(getRuntimeDir(appContext), "dotnet");
-        Utilities.extractZipFromAssets(appContext, "BepInEx-arm64.zip", bepInExDir, "config/");
-        if (!BACKUP_UNITY_VERSION.equals(version)) {
-            UnityBaseLibraries.resolve(bepInExDir, version);
+        // Fusion (the .NET runtime and BepInEx) is memory hungry. Without an enabled Fusion mod there is
+        // nothing for it to run, so by default it is not started at all.
+        final boolean fusionEnabled = !SBASettings.getSkipFusionWhenUnused(appContext)
+                || dev.segually.sbamodloader.tools.ModFiles.hasEnabledFusionMods();
+        if (fusionEnabled) {
+            setPhaseStatus(getString(R.string.bootstrap_status_extracting_runtime));
+            Utilities.extractZipFromAssets(appContext, "BepInEx-arm64.zip", bepInExDir, "config/");
+            if (!BACKUP_UNITY_VERSION.equals(version)) {
+                UnityBaseLibraries.resolve(bepInExDir, version);
+            }
+            Utilities.extractZipFromAssets(appContext, "dotnet-arm64.zip", dotnetDir);
+        } else {
+            Log.i(TAG, "No enabled Fusion mods: skipping the .NET runtime and BepInEx");
         }
-        Utilities.extractZipFromAssets(appContext, "dotnet-arm64.zip", dotnetDir);
 
         Map<String, String> il2cppMap = resolveIl2CppApiMap(new File(gameLibDir), codeCacheScoped, useOriginalLibUnity, DeobfuscationDir);
 
@@ -582,7 +590,8 @@ public class BootstrapActivity extends AppCompatActivity {
                 new String[]{},
                 new String[]{},
                 mods.natives,
-                il2cppMap
+                il2cppMap,
+                fusionEnabled
         );
     }
 

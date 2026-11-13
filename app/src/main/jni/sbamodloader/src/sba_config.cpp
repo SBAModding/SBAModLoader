@@ -154,9 +154,11 @@ SBAConfig sba_parse_config(JNIEnv *env, jobject jSBAConfig)
         log(LogLevel::ERROR, TAG, "Failed to find SBAConfig class!");
         config.initialized = false;
         config.useOriginalLibUnity = true;
+        config.fusionEnabled = false;
         return config;
     }
     GET_JBOOLEAN_FIELD(useOriginalLibUnity);
+    GET_JBOOLEAN_FIELD(fusionEnabled);
     GET_JSTRING_FIELD(gameLibraryDirectory);
     GET_JSTRING_FIELD(appLibraryDirectory);
     GET_JSTRING_FIELD(appDataDirectory);
@@ -186,5 +188,6 @@ void sba_print_config(const SBAConfig &config)
     log_format(LogLevel::DEBUG, TAG, "Dotnet Path: {}", config.dotnetDirectory);
     log_format(LogLevel::DEBUG, TAG, "Unity Data Directory: {}", config.unityDataDirectory);
     log_format(LogLevel::DEBUG, TAG, "Unity Version: {}", config.unityVersion);
+    log_format(LogLevel::DEBUG, TAG, "Fusion enabled: {}", config.fusionEnabled);
     log_format(LogLevel::DEBUG, TAG, "Native mods: {}", config.nativeMods.size());
 }

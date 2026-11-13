@@ -47,4 +47,23 @@ public final class ModFiles {
             }
         }
     }
+
+    /** True when at least one enabled Fusion mod (a ".dll" that is not switched off) is installed. */
+    public static boolean hasEnabledFusionMods() {
+        File bepInEx = Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, "BepInEx");
+        return containsDll(new File(bepInEx, "plugins")) || containsDll(new File(bepInEx, "patchers"));
+    }
+
+    private static boolean containsDll(File dir) {
+        File[] files = dir.listFiles();
+        if (files == null) return false;
+        for (File f : files) {
+            if (f.isDirectory()) {
+                if (containsDll(f)) return true;
+            } else if (f.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".dll")) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

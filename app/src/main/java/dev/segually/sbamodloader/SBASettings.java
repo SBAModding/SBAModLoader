@@ -9,6 +9,7 @@ public final class SBASettings {
     private static final String KEY_DEVELOPER_FEATURES = "developer_features";
     private static final String KEY_CUSTOM_PATCH_URL = "custom_patch_url";
     private static final String KEY_DOWNLOAD_UNSTRIPPED_LIBUNITY = "download_unstripped_libunity";
+    private static final String KEY_SKIP_FUSION_WHEN_UNUSED = "skip_fusion_when_unused";
 
     private SBASettings() {
     }
@@ -23,6 +24,15 @@ public final class SBASettings {
 
     public static void setUseUnstrippedLibUnity(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_DOWNLOAD_UNSTRIPPED_LIBUNITY, enabled).apply();
+    }
+
+    /** When on (the default), the .NET runtime and BepInEx are not started unless a Fusion mod is enabled. */
+    public static boolean getSkipFusionWhenUnused(Context context) {
+        return prefs(context).getBoolean(KEY_SKIP_FUSION_WHEN_UNUSED, true);
+    }
+
+    public static void setSkipFusionWhenUnused(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_SKIP_FUSION_WHEN_UNUSED, enabled).apply();
     }
 
     public static boolean getDeveloperFeatures(Context context) {

@@ -9,6 +9,7 @@
 struct SBAConfig {
     bool initialized;
     bool useOriginalLibUnity;
+    bool fusionEnabled;
     std::string gameLibraryDirectory;
     std::string appLibraryDirectory;
     std::string appDataDirectory;

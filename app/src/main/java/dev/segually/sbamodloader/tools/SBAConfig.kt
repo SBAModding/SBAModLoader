@@ -36,5 +36,7 @@ class SBAConfig(
     /** Absolute paths of the native mods (.so files) to load, in load order. */
     @JvmField var nativeMods: Array<String>,
     /** Mapped IL2CPP api calls. Format: original_name:mapped_name */
-    @JvmField var il2cppApiMap: Map<String, String>
+    @JvmField var il2cppApiMap: Map<String, String>,
+    /** Whether to start the .NET runtime and BepInEx (Fusion). Off when no Fusion mod is enabled. */
+    @JvmField var fusionEnabled: Boolean
 ) : Parcelable
