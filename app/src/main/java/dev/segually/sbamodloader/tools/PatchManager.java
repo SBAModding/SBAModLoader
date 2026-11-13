@@ -7,11 +7,15 @@ import android.net.Uri;
 
 import org.json.JSONObject;
 
+import android.util.Log;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,8 +33,8 @@ import dev.segually.sbamodloader.TargetGame;
  * game's protection requires. A patch is a zip file:
  *
  * <pre>
- * manifest.json                      {"name", "gameVersion", "gameHash", "skipHashVerification",
- *                                      "applicationClass"}
+ * manifest.json                      {"id", "name", "patchVersion", "gameVersion", "gameHash",
+ *                                      "skipHashVerification", "applicationClass"}
  * dex/*.dex                          replacement classes, searched before the game's own
  * lib/arm64-v8a/*.so                 replacement native libraries
  * </pre>
@@ -40,24 +44,47 @@ import dev.segually.sbamodloader.TargetGame;
  * off, but only while developer features are enabled. {@code applicationClass} replaces the game's
  * manifest Application class (use "android.app.Application" when the patch removes a wrapper class).
  *
- * Patches will be published as releases of a patch repository; until then they can only be loaded
- * from local storage when developer features are on.
+ * Patches are published in a patch repository (see {@link #DEFAULT_SOURCE_URL}). The loader reads the
+ * repository's index.json, picks the entry matching the installed game's version and hash, downloads
+ * it and checks its SHA-256. Developer features also allow a custom source URL (an index.json, or a
+ * patch zip directly) and loading a patch zip from local storage.
  */
 public final class PatchManager {
-    /** Releases API endpoint of the patch repository. Empty until the repository exists. */
-    public static final String RELEASES_URL = "";
+    private static final String TAG = "PatchManager";
+
+    /** Index of the official patch repository. */
+    public static final String DEFAULT_SOURCE_URL =
+            "https://raw.githubusercontent.com/SBAModding/patches/main/index.json";
+
+    private static final int MAX_INDEX_BYTES = 1 << 20;
+    private static final long MAX_PATCH_BYTES = 200L * 1024 * 1024;
 
     public static final String ABI = "arm64-v8a";
 
-    public enum Status {
-        /** No patch is installed and no patch source is configured, so none is required. */
-        NO_SOURCE,
-        /** A patch is required (or the installed one no longer matches the game). */
-        MISSING,
-        INSTALLED
+    public enum SyncState {
+        /** A patch matching the installed game is installed. */
+        INSTALLED,
+        /** The source has no patch for this build of the game. */
+        NOT_AVAILABLE,
+        /** The source could not be reached. */
+        OFFLINE,
+        /** A patch exists for this build but could not be installed. */
+        FAILED
+    }
+
+    public static final class SyncResult {
+        public final SyncState state;
+        public final String message;
+
+        SyncResult(SyncState state, String message) {
+            this.state = state;
+            this.message = message;
+        }
     }
 
     public static final class Manifest {
+        public String id = "";
+        public int patchVersion = 1;
         public String name = "";
         public String gameVersion = "";
         public String gameHash = "";
@@ -140,6 +167,8 @@ public final class PatchManager {
         try {
             JSONObject o = new JSONObject(json);
             Manifest m = new Manifest();
+            m.id = o.optString("id", "");
+            m.patchVersion = o.optInt("patchVersion", 1);
             m.name = o.optString("name", "");
             m.gameVersion = o.getString("gameVersion");
             m.gameHash = o.optString("gameHash", "").toLowerCase(Locale.ROOT);
@@ -201,12 +230,228 @@ public final class PatchManager {
         return new ActivePatch(m, dex, lib.isDirectory() ? lib : null);
     }
 
-    /** Blocking: may hash the game APK. */
-    public static Status status(Context context) {
-        if (getActive(context) != null) return Status.INSTALLED;
-        if (installedManifest(context) != null) return Status.MISSING;
-        return RELEASES_URL.isEmpty() ? Status.NO_SOURCE : Status.MISSING;
+    // ---- where the patch came from -------------------------------------------------------------
+
+    private static final class Source {
+        String url = "";
+        String id = "";
+        int patchVersion;
     }
+
+    private static File sourceFile(Context context) {
+        return new File(patchDir(context), "source.json");
+    }
+
+    /** Null for a patch loaded from local storage. */
+    private static Source readSource(Context context) {
+        File f = sourceFile(context);
+        if (!f.isFile()) return null;
+        try (InputStream in = new FileInputStream(f)) {
+            JSONObject o = new JSONObject(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            Source r = new Source();
+            r.url = o.optString("url", "");
+            r.id = o.optString("id", "");
+            r.patchVersion = o.optInt("patchVersion", 0);
+            return r;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static void writeSource(Context context, Source source) throws IOException {
+        try (FileOutputStream out = new FileOutputStream(sourceFile(context))) {
+            JSONObject o = new JSONObject();
+            o.put("url", source.url);
+            o.put("id", source.id);
+            o.put("patchVersion", source.patchVersion);
+            out.write(o.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (org.json.JSONException e) {
+            throw new IOException(e);
+        }
+    }
+
+    /** The configured source: the custom URL while developer features are on, else the official index. */
+    public static String sourceUrl(Context context) {
+        if (SBASettings.getDeveloperFeatures(context)) {
+            String custom = SBASettings.getCustomPatchUrl(context).trim();
+            if (!custom.isEmpty()) return custom;
+        }
+        return DEFAULT_SOURCE_URL;
+    }
+
+    // ---- remote sync ---------------------------------------------------------------------------
+
+    private static final class Entry {
+        String url;
+        String sha256;
+        long size;
+        String id = "";
+        int patchVersion;
+    }
+
+    /**
+     * Makes sure a patch matching the installed game is installed, downloading it if needed.
+     * Blocking: hashes the game APK and uses the network.
+     */
+    public static SyncResult sync(Context context) {
+        ActivePatch active = getActive(context);
+        Source recorded = readSource(context);
+        // A patch loaded from local storage is never replaced by a downloaded one.
+        if (active != null && recorded == null) return new SyncResult(SyncState.INSTALLED, "");
+
+        String hash;
+        String version;
+        try {
+            hash = gameHash(context);
+            version = gameInfo(context).versionName;
+        } catch (PatchException e) {
+            return new SyncResult(SyncState.FAILED, e.getMessage());
+        }
+
+        String source = sourceUrl(context);
+        Entry entry;
+        try {
+            entry = resolve(source, version, hash);
+        } catch (IOException e) {
+            Log.w(TAG, "Could not read patch source " + source, e);
+            return active != null
+                    ? new SyncResult(SyncState.INSTALLED, "")
+                    : new SyncResult(SyncState.OFFLINE, e.getMessage());
+        } catch (PatchException e) {
+            return new SyncResult(SyncState.FAILED, e.getMessage());
+        }
+        if (entry == null) {
+            return active != null
+                    ? new SyncResult(SyncState.INSTALLED, "")
+                    : new SyncResult(SyncState.NOT_AVAILABLE, "");
+        }
+
+        if (active != null && recorded != null) {
+            boolean upToDate = entry.sha256 == null
+                    ? entry.url.equals(recorded.url)
+                    : entry.id.equals(recorded.id) && recorded.patchVersion >= entry.patchVersion;
+            if (upToDate) return new SyncResult(SyncState.INSTALLED, "");
+        }
+
+        File tmpZip = new File(context.getCacheDir(), "patch-download.zip");
+        try {
+            download(entry, tmpZip);
+            Source record = new Source();
+            record.url = entry.url;
+            Manifest installed = installZip(context, tmpZip, record, entry);
+            Log.i(TAG, "Installed patch " + installed.id + " v" + installed.patchVersion + " from " + entry.url);
+            return new SyncResult(SyncState.INSTALLED, "");
+        } catch (PatchException | IOException e) {
+            Log.e(TAG, "Patch download/install failed", e);
+            return new SyncResult(SyncState.FAILED, e.getMessage());
+        } finally {
+            //noinspection ResultOfMethodCallIgnored
+            tmpZip.delete();
+        }
+    }
+
+    /** Finds the patch for this game build in the source, or null when there is none. */
+    private static Entry resolve(String source, String version, String hash) throws IOException, PatchException {
+        if (!source.startsWith("https://")) throw new PatchException("The patch source must be an https URL");
+        if (source.toLowerCase(Locale.ROOT).split("[?#]")[0].endsWith(".zip")) {
+            Entry direct = new Entry();
+            direct.url = source;
+            return direct;
+        }
+        JSONObject index;
+        try {
+            index = new JSONObject(new String(httpGet(source, MAX_INDEX_BYTES), java.nio.charset.StandardCharsets.UTF_8));
+        } catch (org.json.JSONException e) {
+            throw new PatchException("The patch index is not valid JSON");
+        }
+        org.json.JSONObject games = index.optJSONObject("games");
+        org.json.JSONObject game = games == null ? null : games.optJSONObject(TargetGame.PACKAGE_NAME);
+        org.json.JSONArray patches = game == null ? null : game.optJSONArray("patches");
+        if (patches == null) return null;
+        Entry best = null;
+        for (int i = 0; i < patches.length(); i++) {
+            JSONObject p = patches.optJSONObject(i);
+            if (p == null) continue;
+            if (!version.equals(p.optString("gameVersion"))) continue;
+            if (!hash.equalsIgnoreCase(p.optString("gameHash"))) continue;
+            int pv = p.optInt("patchVersion", 0);
+            if (best != null && pv <= best.patchVersion) continue;
+            Entry e = new Entry();
+            e.id = p.optString("id", "");
+            e.patchVersion = pv;
+            e.sha256 = p.optString("sha256", "").toLowerCase(Locale.ROOT);
+            e.size = p.optLong("size", -1);
+            String url = p.optString("url", "");
+            try {
+                e.url = new java.net.URI(source).resolve(url).toString();
+            } catch (java.net.URISyntaxException ex) {
+                continue;
+            }
+            if (e.sha256.isEmpty() || !e.url.startsWith("https://")) continue;
+            best = e;
+        }
+        return best;
+    }
+
+    private static HttpURLConnection open(String url) throws IOException {
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        c.setConnectTimeout(10_000);
+        c.setReadTimeout(30_000);
+        c.setRequestProperty("User-Agent", "SBAModLoader");
+        int code = c.getResponseCode();
+        if (code != HttpURLConnection.HTTP_OK) {
+            c.disconnect();
+            throw new IOException("HTTP " + code + " for " + url);
+        }
+        return c;
+    }
+
+    private static byte[] httpGet(String url, int maxBytes) throws IOException {
+        HttpURLConnection c = open(url);
+        try (InputStream in = c.getInputStream()) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                out.write(buf, 0, n);
+                if (out.size() > maxBytes) throw new IOException("Response too large: " + url);
+            }
+            return out.toByteArray();
+        } finally {
+            c.disconnect();
+        }
+    }
+
+    private static void download(Entry entry, File dest) throws IOException, PatchException {
+        HttpURLConnection c = open(entry.url);
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("SHA-256");
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IOException(e);
+        }
+        long total = 0;
+        try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(dest)) {
+            byte[] buf = new byte[1 << 16];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                total += n;
+                if (total > MAX_PATCH_BYTES) throw new PatchException("The patch download is too large");
+                md.update(buf, 0, n);
+                out.write(buf, 0, n);
+            }
+        } finally {
+            c.disconnect();
+        }
+        if (entry.sha256 != null && !entry.sha256.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (byte b : md.digest()) sb.append(String.format(Locale.ROOT, "%02x", b));
+            if (!sb.toString().equals(entry.sha256)) throw new PatchException("The downloaded patch failed its integrity check");
+            if (entry.size > 0 && total != entry.size) throw new PatchException("The downloaded patch has the wrong size");
+        }
+    }
+
+    // ---- installing ----------------------------------------------------------------------------
 
     /** Installs a patch zip picked from local storage. Requires developer features. */
     public static Manifest installLocal(Context context, Uri uri) throws PatchException {
@@ -221,9 +466,24 @@ public final class PatchManager {
         } catch (IOException e) {
             throw new PatchException("Could not read the selected file", e);
         }
+        try {
+            return installZip(context, tmpZip, null, null);
+        } finally {
+            //noinspection ResultOfMethodCallIgnored
+            tmpZip.delete();
+        }
+    }
+
+    /**
+     * Verifies and installs a patch zip, replacing any installed patch.
+     *
+     * @param source where it was downloaded from, or null for a locally loaded patch
+     * @param entry  the index entry it was resolved from (its id and version must match the zip), or null
+     */
+    private static Manifest installZip(Context context, File zipFile, Source source, Entry entry) throws PatchException {
         File root = patchDir(context);
         File staging = new File(root.getParentFile(), "Patch.new");
-        try (ZipFile zip = new ZipFile(tmpZip)) {
+        try (ZipFile zip = new ZipFile(zipFile)) {
             ZipEntry me = zip.getEntry("manifest.json");
             if (me == null) throw new PatchException("The zip has no manifest.json");
             Manifest manifest;
@@ -231,22 +491,26 @@ public final class PatchManager {
                 manifest = parseManifest(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
             }
             verify(context, manifest);
+            if (entry != null && !entry.id.isEmpty()
+                    && (!entry.id.equals(manifest.id) || entry.patchVersion != manifest.patchVersion)) {
+                throw new PatchException("The patch does not match its index entry");
+            }
 
             Utilities.deleteRecursive(staging);
             if (!staging.mkdirs()) throw new PatchException("Could not create the patch folder");
             String stagingRoot = staging.getCanonicalPath() + File.separator;
             int files = 0;
             for (Enumeration<? extends ZipEntry> e = zip.entries(); e.hasMoreElements(); ) {
-                ZipEntry entry = e.nextElement();
-                String name = entry.getName();
+                ZipEntry ze = e.nextElement();
+                String name = ze.getName();
                 boolean wanted = name.equals("manifest.json")
                         || (name.startsWith("dex/") && name.endsWith(".dex"))
                         || (name.startsWith("lib/" + ABI + "/") && name.endsWith(".so"));
-                if (entry.isDirectory() || !wanted) continue;
+                if (ze.isDirectory() || !wanted) continue;
                 File target = new File(staging, name);
                 if (!target.getCanonicalPath().startsWith(stagingRoot)) continue; // zip-slip guard
                 target.getParentFile().mkdirs();
-                try (InputStream in = zip.getInputStream(entry); FileOutputStream out = new FileOutputStream(target)) {
+                try (InputStream in = zip.getInputStream(ze); FileOutputStream out = new FileOutputStream(target)) {
                     in.transferTo(out);
                 }
                 // Android 14+ refuses to load writable dex files.
@@ -256,6 +520,11 @@ public final class PatchManager {
             if (files <= 1) throw new PatchException("The patch contains no dex files or libraries");
             Utilities.deleteRecursive(root);
             if (!staging.renameTo(root)) throw new PatchException("Could not install the patch");
+            if (source != null) {
+                source.id = manifest.id;
+                source.patchVersion = manifest.patchVersion;
+                writeSource(context, source);
+            }
             return manifest;
         } catch (PatchException e) {
             Utilities.deleteRecursive(staging);
@@ -263,9 +532,6 @@ public final class PatchManager {
         } catch (Exception e) {
             Utilities.deleteRecursive(staging);
             throw new PatchException("Could not install the patch: " + e.getMessage(), e);
-        } finally {
-            //noinspection ResultOfMethodCallIgnored
-            tmpZip.delete();
         }
     }
 

@@ -84,6 +84,19 @@ public class SettingsFragment extends Fragment {
             PatchManager.remove(requireContext());
             refreshDeveloper();
         });
+        com.google.android.material.textfield.TextInputEditText url = v.findViewById(R.id.patch_url);
+        com.google.android.material.textfield.TextInputLayout urlLayout = v.findViewById(R.id.patch_url_layout);
+        url.setText(SBASettings.getCustomPatchUrl(requireContext()));
+        v.findViewById(R.id.btn_save_patch_url).setOnClickListener(x -> {
+            String value = String.valueOf(url.getText()).trim();
+            if (!value.isEmpty() && !value.startsWith("https://")) {
+                urlLayout.setError(getString(R.string.settings_patch_url_invalid));
+                return;
+            }
+            urlLayout.setError(null);
+            SBASettings.setCustomPatchUrl(requireContext(), value);
+            Toast.makeText(requireContext(), R.string.settings_saved, Toast.LENGTH_SHORT).show();
+        });
         refreshDeveloper();
 
         ((TextView) v.findViewById(R.id.data_path)).setText(

@@ -15,23 +15,28 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.color.MaterialColors;
 
 import dev.segually.sbamodloader.BootstrapActivity;
 import dev.segually.sbamodloader.BuildConfig;
 import dev.segually.sbamodloader.MainActivity;
 import dev.segually.sbamodloader.R;
 import dev.segually.sbamodloader.TargetGame;
-import dev.segually.sbamodloader.tools.UpdateChecker;
 import dev.segually.sbamodloader.tools.PatchManager;
-import com.google.android.material.color.MaterialColors;
+import dev.segually.sbamodloader.tools.UpdateChecker;
 import dev.segually.sbamodloader.ui.Insets;
 
 public class DashboardFragment extends Fragment {
+    private enum State { OK, ERROR, PENDING }
+
     private View stepGame, stepVersion, stepPatches;
     private TextView setupTitle;
-    private MaterialButton btnLaunch;
+    private MaterialButton btnRetry, btnLaunch;
     private UpdateChecker.State updateState = UpdateChecker.State.UNKNOWN;
-    private PatchManager.Status patchStatus = PatchManager.Status.NO_SOURCE;
+
+    /** Null while the patch source is being checked. */
+    private PatchManager.SyncResult patchResult;
+    private boolean patchSyncing;
 
     @Nullable
     @Override
@@ -42,15 +47,17 @@ public class DashboardFragment extends Fragment {
         stepVersion = v.findViewById(R.id.step_version);
         stepPatches = v.findViewById(R.id.step_patches);
         setupTitle = v.findViewById(R.id.setup_title);
+        btnRetry = v.findViewById(R.id.btn_retry_patches);
         btnLaunch = v.findViewById(R.id.btn_launch);
 
+        btnRetry.setOnClickListener(x -> syncPatches());
         btnLaunch.setOnClickListener(x -> startBootstrap());
 
         new Thread(() -> {
             UpdateChecker.State s = UpdateChecker.check(BuildConfig.VERSION_NAME);
             if (isAdded()) requireActivity().runOnUiThread(() -> {
                 updateState = s;
-                refresh();
+                render();
             });
         }, "update-check").start();
         return v;
@@ -59,7 +66,7 @@ public class DashboardFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        refresh();
+        syncPatches();
     }
 
     private boolean gameInstalled() {
@@ -71,41 +78,67 @@ public class DashboardFragment extends Fragment {
         }
     }
 
-    private void refresh() {
+    /** Checks the patch source and installs the matching patch. Hashing and downloading are off the main thread. */
+    private void syncPatches() {
+        if (!isAdded() || patchSyncing) return;
+        if (!gameInstalled()) {
+            patchResult = null;
+            render();
+            return;
+        }
+        patchSyncing = true;
+        patchResult = null;
+        render();
+        android.content.Context app = requireContext().getApplicationContext();
+        new Thread(() -> {
+            PatchManager.SyncResult r = PatchManager.sync(app);
+            if (isAdded()) requireActivity().runOnUiThread(() -> {
+                patchSyncing = false;
+                patchResult = r;
+                render();
+            });
+            else patchSyncing = false;
+        }, "patch-sync").start();
+    }
+
+    private void render() {
         if (!isAdded()) return;
         boolean game = gameInstalled();
         boolean latest = updateState != UpdateChecker.State.OUTDATED;
         bind(stepGame, game ? State.OK : State.ERROR, getString(game ? R.string.step_game_ok : R.string.step_game_missing));
         bind(stepVersion, latest ? State.OK : State.ERROR, getString(latest ? R.string.step_version_ok : R.string.step_version_outdated));
-        applyPatchStatus(game, latest, patchStatus);
 
-        // Hashing the game APK is slow, so the patch status is resolved off the main thread.
-        android.content.Context app = requireContext().getApplicationContext();
-        new Thread(() -> {
-            PatchManager.Status s = game ? PatchManager.status(app) : PatchManager.Status.NO_SOURCE;
-            if (isAdded()) requireActivity().runOnUiThread(() -> {
-                patchStatus = s;
-                applyPatchStatus(game, latest, s);
-            });
-        }, "patch-status").start();
-    }
-
-    private void applyPatchStatus(boolean game, boolean latest, PatchManager.Status status) {
-        if (!isAdded()) return;
-        switch (status) {
-            case INSTALLED -> bind(stepPatches, State.OK, getString(R.string.step_patches_ok));
-            case MISSING -> bind(stepPatches, State.ERROR, getString(R.string.step_patches_missing));
-            default -> bind(stepPatches, State.PENDING, getString(R.string.step_patches_no_source));
+        boolean patchesOk = false;
+        boolean failed = false;
+        if (!game) {
+            bind(stepPatches, State.PENDING, getString(R.string.step_patches_no_source));
+        } else if (patchResult == null) {
+            bind(stepPatches, State.PENDING, getString(R.string.step_patches_checking));
+        } else {
+            switch (patchResult.state) {
+                case INSTALLED -> {
+                    patchesOk = true;
+                    bind(stepPatches, State.OK, getString(R.string.step_patches_ok));
+                }
+                case NOT_AVAILABLE -> bind(stepPatches, State.PENDING, getString(R.string.step_patches_not_available));
+                case OFFLINE -> bind(stepPatches, State.PENDING, getString(R.string.step_patches_offline));
+                case FAILED -> {
+                    failed = true;
+                    String detail = patchResult.message == null || patchResult.message.isEmpty() ? "" : "\n" + patchResult.message;
+                    bind(stepPatches, State.ERROR, getString(R.string.step_patches_failed) + detail);
+                }
+            }
         }
-        int done = (game ? 1 : 0) + (latest ? 1 : 0) + (status == PatchManager.Status.INSTALLED ? 1 : 0);
-        setupTitle.setText(getString(R.string.setup_progress, done, 3));
-        btnLaunch.setEnabled(game && status != PatchManager.Status.MISSING);
-    }
 
-    private enum State { OK, ERROR, PENDING }
+        int done = (game ? 1 : 0) + (latest ? 1 : 0) + (patchesOk ? 1 : 0);
+        setupTitle.setText(getString(R.string.setup_progress, done, 3));
+        btnRetry.setVisibility(failed ? View.VISIBLE : View.GONE);
+        // Launching while a patch is being installed (or failed to install) would start an unpatched game.
+        btnLaunch.setEnabled(game && patchResult != null && !failed);
+    }
 
     private void bind(View step, State state, String text) {
-        int iconRes = state == State.OK ? R.drawable.ic_check_circle : state == State.ERROR ? R.drawable.ic_warning : R.drawable.ic_pending;
+        @DrawableRes int iconRes = state == State.OK ? R.drawable.ic_check_circle : state == State.ERROR ? R.drawable.ic_warning : R.drawable.ic_pending;
         int attr = state == State.ERROR ? androidx.appcompat.R.attr.colorError
                 : state == State.OK ? androidx.appcompat.R.attr.colorPrimary
                 : com.google.android.material.R.attr.colorOnSurfaceVariant;

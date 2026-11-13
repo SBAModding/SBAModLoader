@@ -24,8 +24,6 @@
     <string name="step_version_ok">Be on the latest version of SBAML</string>
     <string name="step_version_outdated">A newer version of SBAML is available</string>
     <string name="step_patches_ok">Mandatory patches installed</string>
-    <string name="step_patches_missing">Install mandatory patches (none matches this game)</string>
-    <string name="step_patches_no_source">Mandatory patches: no patch source yet</string>
     <string name="dashboard_launch">Launch Super Bear Adventure</string>
     <string name="mods_add">Add mod</string>
     <string name="mods_empty">No mods yet. Add a .dll or a .zip to get started.</string>
@@ -47,4 +45,15 @@
     <string name="patch_hash_skipped">Game hash verification is skipped.</string>
     <string name="patch_installing">Installing patch…</string>
     <string name="patch_install_ok">Patch installed</string>
+    <string name="settings_saved">Saved</string>
+    <string name="step_patches_no_source">Mandatory patches</string>
+    <string name="step_patches_checking">Checking for mandatory patches…</string>
+    <string name="step_patches_not_available">No patch available for this game build</string>
+    <string name="step_patches_offline">Could not check for patches (offline)</string>
+    <string name="step_patches_failed">Install mandatory patches</string>
+    <string name="dashboard_retry_patches">Retry patch download</string>
+    <string name="settings_patch_url_hint">Custom patch source URL</string>
+    <string name="settings_patch_url_help">An https link to a patch index.json, or directly to a patch .zip. Leave empty for the official source.</string>
+    <string name="settings_patch_url_save">Save</string>
+    <string name="settings_patch_url_invalid">The URL must start with https://</string>
 </resources>
