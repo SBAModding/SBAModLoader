@@ -32,9 +32,9 @@ public class CustomContextWrapper extends ContextWrapper {
         if (application != null) {
             this.applicationContext = application;
         } else {
-            Application application = (Application) sbaContext.getApplicationContext();
-            GameApplication gameApplication = new GameApplication(application);
-            gameApplication.attach(new CustomContextWrapper(gameContext, application, gameApplication));
+            Application sbaApplication = (Application) sbaContext.getApplicationContext();
+            GameApplication gameApplication = new GameApplication(sbaApplication);
+            gameApplication.attach(new CustomContextWrapper(gameContext, sbaApplication, gameApplication));
             this.applicationContext = gameApplication;
         }
         this.getApplicationInfo().dataDir = Utilities.getExternalSBAModLoaderDirectory(gameContext.getPackageName(), "PersistentData").getAbsolutePath();
@@ -174,22 +174,22 @@ public class CustomContextWrapper extends ContextWrapper {
     }
 
     private static final class GameApplication extends Application {
-        private final Application application;
+        private final Application sbaApplication;
 
-        GameApplication(Application application) { this.application = application; }
+        GameApplication(Application sbaApplication) { this.sbaApplication = sbaApplication; }
         void attach(Context context) { attachBaseContext(context); }
 
         @Override public void registerActivityLifecycleCallbacks(ActivityLifecycleCallbacks callback) {
-            application.registerActivityLifecycleCallbacks(callback);
+            sbaApplication.registerActivityLifecycleCallbacks(callback);
         }
         @Override public void unregisterActivityLifecycleCallbacks(ActivityLifecycleCallbacks callback) {
-            application.unregisterActivityLifecycleCallbacks(callback);
+            sbaApplication.unregisterActivityLifecycleCallbacks(callback);
         }
         @Override public void registerComponentCallbacks(android.content.ComponentCallbacks callback) {
-            application.registerComponentCallbacks(callback);
+            sbaApplication.registerComponentCallbacks(callback);
         }
         @Override public void unregisterComponentCallbacks(android.content.ComponentCallbacks callback) {
-            application.unregisterComponentCallbacks(callback);
+            sbaApplication.unregisterComponentCallbacks(callback);
         }
     }
 }
