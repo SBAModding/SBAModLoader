@@ -207,6 +207,13 @@ public final class GameRuntime {
                     oldTheme.set(activity, theme);
                 }
                 InstrumentationHooks.applyTargetOrientation(activity);
+                // The game sees its own package name, and Android copies the activity's package name into the
+                // window's attributes. Left like that, the window manager treats our window as the game's and
+                // applies the game's Game Mode resolution downscale to it, which crops the game because the
+                // process itself was never told. The window belongs to this app, so register it as ours.
+                android.view.WindowManager.LayoutParams windowAttributes = activity.getWindow().getAttributes();
+                windowAttributes.packageName = dev.segually.sbamodloader.BuildConfig.APPLICATION_ID;
+                activity.getWindow().setAttributes(windowAttributes);
                 if (target.hasExtra(InstrumentationHooks.EXTRA_SBA_CONFIG)) {
                     ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
                     Context loadingTheme = new ContextThemeWrapper(sbaBase, androidx.appcompat.R.style.Theme_AppCompat);
