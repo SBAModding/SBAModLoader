@@ -10,6 +10,7 @@
 #include <hooking/allocator.h>
 #include <hooking/libunity.h>
 #include <dotnet.h>
+#include <native_mods.h>
 #include <external/dobby.h>
 #include <utilities/java.h>
 #include <dlfcn.h>
@@ -59,6 +60,13 @@ int il2cpp_init_hook(char *domain_name)
     const char *d_name = domain_name ? domain_name : "Unknown Domain Name";
     log_format(LogLevel::INFO, TAG, "il2cpp_init called with domain: {}", d_name);
     il2cpp_destroy_init_hook();
+
+    // Native mods load before the runtime initialises and before BepInEx (and so before every managed mod).
+    // Unity and il2cpp are already mapped by now, which is where native mods look for them.
+    if (runtime_config.initialized)
+    {
+        native_mods_load(runtime_config.nativeMods);
+    }
 
     // call the original il2cpp_init function
     int result = il2cpp_init(domain_name);

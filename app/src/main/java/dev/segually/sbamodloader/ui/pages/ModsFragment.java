@@ -63,6 +63,14 @@ public class ModsFragment extends Fragment {
         reload();
     }
 
+    private File nativeDir() {
+        return Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, "NativeMods");
+    }
+
+    private static boolean isNative(File f) {
+        return f.getName().contains(".so");
+    }
+
     private File pluginsDir() {
         return new File(Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, "BepInEx"), "plugins");
     }
@@ -75,8 +83,15 @@ public class ModsFragment extends Fragment {
                 String n = f.getName();
                 if (f.isFile() && (n.endsWith(".dll") || n.endsWith(".dll" + DISABLED))) mods.add(f);
             }
-            mods.sort(Comparator.comparing(f -> f.getName().toLowerCase()));
         }
+        File[] natives = nativeDir().listFiles();
+        if (natives != null) {
+            for (File f : natives) {
+                String n = f.getName();
+                if (f.isFile() && (n.endsWith(".so") || n.endsWith(".so" + DISABLED))) mods.add(f);
+            }
+        }
+        mods.sort(Comparator.comparing(f -> f.getName().toLowerCase()));
         empty.setVisibility(mods.isEmpty() ? View.VISIBLE : View.GONE);
         list.getAdapter().notifyDataSetChanged();
     }
@@ -99,17 +114,17 @@ public class ModsFragment extends Fragment {
         if (uri == null) return;
         String name = displayName(uri);
         String lower = name == null ? "" : name.toLowerCase(java.util.Locale.ROOT);
-        if (!lower.endsWith(".dll") && !lower.endsWith(".zip")) {
+        if (!lower.endsWith(".dll") && !lower.endsWith(".zip") && !lower.endsWith(".so")) {
             Toast.makeText(requireContext(), R.string.mods_unsupported, Toast.LENGTH_SHORT).show();
             return;
         }
         android.content.Context app = requireContext().getApplicationContext();
-        File dir = pluginsDir();
+        File dir = lower.endsWith(".so") ? nativeDir() : pluginsDir();
         new Thread(() -> {
             boolean ok;
             try (InputStream in = app.getContentResolver().openInputStream(uri)) {
                 if (in == null || (!dir.exists() && !dir.mkdirs())) throw new java.io.IOException("no stream");
-                if (lower.endsWith(".dll")) copy(in, new File(dir, name));
+                if (lower.endsWith(".dll") || lower.endsWith(".so")) copy(in, new File(dir, name));
                 else unzipInto(in, dir);
                 ok = true;
             } catch (Exception e) {
@@ -176,6 +191,7 @@ public class ModsFragment extends Fragment {
             boolean enabled = !f.getName().endsWith(DISABLED);
             String label = f.getName().replace(DISABLED, "");
             h.name.setText(label);
+            h.kind.setText(isNative(f) ? R.string.mods_kind_native : R.string.mods_kind_plugin);
             h.toggle.setOnCheckedChangeListener(null);
             h.toggle.setChecked(enabled);
             h.remove.setOnClickListener(v -> confirmRemove(mods.get(h.getBindingAdapterPosition())));
@@ -193,12 +209,14 @@ public class ModsFragment extends Fragment {
 
         class Holder extends RecyclerView.ViewHolder {
             final TextView name;
+            final TextView kind;
             final MaterialSwitch toggle;
             final View remove;
 
             Holder(View v) {
                 super(v);
                 name = v.findViewById(R.id.mod_name);
+                kind = v.findViewById(R.id.mod_kind);
                 toggle = v.findViewById(R.id.mod_switch);
                 remove = v.findViewById(R.id.mod_remove);
             }

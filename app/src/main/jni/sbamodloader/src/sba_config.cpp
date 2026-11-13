@@ -168,6 +168,7 @@ SBAConfig sba_parse_config(JNIEnv *env, jobject jSBAConfig)
     config.sbaVariables = get_string_array_field(env, jSBAConfig, "sbaVariables");
     config.auxiliaryPluginFolders = get_string_array_field(env, jSBAConfig,
                                                            "auxiliaryPluginFolders");
+    config.nativeMods = get_string_array_field(env, jSBAConfig, "nativeMods");
     config.il2cppApiMap = get_string_map_field(env, jSBAConfig, "il2cppApiMap");
     config.initialized = true;
 
@@ -185,4 +186,5 @@ void sba_print_config(const SBAConfig &config)
     log_format(LogLevel::DEBUG, TAG, "Dotnet Path: {}", config.dotnetDirectory);
     log_format(LogLevel::DEBUG, TAG, "Unity Data Directory: {}", config.unityDataDirectory);
     log_format(LogLevel::DEBUG, TAG, "Unity Version: {}", config.unityVersion);
+    log_format(LogLevel::DEBUG, TAG, "Native mods: {}", config.nativeMods.size());
 }

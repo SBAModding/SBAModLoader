@@ -110,6 +110,10 @@ jobject get_sba_config(JNIEnv *env) {
     return config;
 }
 
+JavaVM *get_java_vm() {
+    return g_vm;
+}
+
 extern "C" void init_java(JavaVM *vm) {
     if (g_vm != nullptr) {
         log(LogLevel::INFO, TAG, "Already loaded JNI...");

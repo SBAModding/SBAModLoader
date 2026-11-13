@@ -19,6 +19,7 @@ struct SBAConfig {
     std::string unityVersion;
     std::vector<std::string> sbaVariables;
     std::vector<std::string> auxiliaryPluginFolders;
+    std::vector<std::string> nativeMods;
     std::unordered_map<std::string, std::string> il2cppApiMap;
 };
 

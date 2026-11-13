@@ -33,6 +33,8 @@ class SBAConfig(
     @JvmField var sbaVariables: Array<String>,
     /** Auxiliary folders to load BepInEx plugins from. */
     @JvmField var auxiliaryPluginFolders: Array<String>,
+    /** Absolute paths of the native mods (.so files) to load, in load order. */
+    @JvmField var nativeMods: Array<String>,
     /** Mapped IL2CPP api calls. Format: original_name:mapped_name */
     @JvmField var il2cppApiMap: Map<String, String>
 ) : Parcelable

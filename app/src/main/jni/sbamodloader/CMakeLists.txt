@@ -20,6 +20,7 @@ add_library(sbamodloader SHARED
         src/utilities/elf.cpp
         src/utilities/library.cpp
         src/utilities/java.cpp
+        src/native_mods.cpp
 )
 
 target_include_directories(sbamodloader PUBLIC include)

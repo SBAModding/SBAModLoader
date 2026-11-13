@@ -16,6 +16,9 @@ jclass find_class_in_app_classloader(JNIEnv *env, const char *className);
 
 jobject get_sba_config(JNIEnv *env);
 
+// The JavaVM the loader was initialised with, or null before init_java().
+JavaVM *get_java_vm();
+
 jint getStaticResourceId(JNIEnv* env, const char *name);
 
 jobject getUnityActivity(JNIEnv* env);

@@ -489,8 +489,38 @@ public class BootstrapActivity extends AppCompatActivity {
                 useOriginalLibUnity,
                 new String[]{},
                 new String[]{},
+                prepareNativeMods(codeCacheScoped, targetPackage),
                 il2cppMap
         );
+    }
+
+    /**
+     * Copies the enabled native mods (*.so) next to the runtime files and returns their paths in name order.
+     * External storage is mounted noexec, so they cannot be loaded from where the user put them.
+     */
+    private String[] prepareNativeMods(File runtimeScoped, String targetPackage) {
+        File source = Utilities.getExternalSBAModLoaderDirectory(targetPackage, "NativeMods");
+        File[] mods = source.listFiles((dir, name) -> name.endsWith(".so"));
+        File target = new File(runtimeScoped, "native-mods");
+        Utilities.deleteRecursive(target);
+        if (mods == null || mods.length == 0) return new String[0];
+        java.util.Arrays.sort(mods, java.util.Comparator.comparing(File::getName));
+        if (!target.mkdirs()) throw new IllegalStateException("Cannot create " + target);
+        java.util.List<String> paths = new java.util.ArrayList<>();
+        for (File mod : mods) {
+            File copy = new File(target, mod.getName());
+            try {
+                copyFile(mod, copy);
+                // Android 14+ refuses to load writable native libraries.
+                //noinspection ResultOfMethodCallIgnored
+                copy.setReadOnly();
+                paths.add(copy.getAbsolutePath());
+                Log.i(TAG, "Native mod: " + mod.getName());
+            } catch (IOException e) {
+                Log.e(TAG, "Could not prepare native mod " + mod.getName(), e);
+            }
+        }
+        return paths.toArray(new String[0]);
     }
 
     private void copyUriToFile(Uri sourceUri, File target) throws IOException {

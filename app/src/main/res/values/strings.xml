@@ -26,12 +26,12 @@
     <string name="step_patches_ok">Mandatory patches installed</string>
     <string name="dashboard_launch">Launch Super Bear Adventure</string>
     <string name="mods_add">Add mod</string>
-    <string name="mods_empty">No mods yet. Add a .dll or a .zip to get started.</string>
+    <string name="mods_empty">No mods yet. Add a .dll, .zip or native .so to get started.</string>
     <string name="mods_copy_failed">Could not add that file.</string>
     <string name="settings_about_format">SBAModLoader %1$s</string>
     <string name="loading">Loading...</string>
     <string name="settings_data_location">Mods and data location</string>
-    <string name="mods_unsupported">Pick a .dll or a .zip file.</string>
+    <string name="mods_unsupported">Pick a .dll, .zip or .so file.</string>
     <string name="mods_remove">Remove</string>
     <string name="mods_remove_title">Remove this mod?</string>
     <string name="settings_developer_title">Developer features</string>
@@ -66,4 +66,6 @@
     <string name="game_freeze_unsupported">Could not freeze this game.</string>
     <string name="logcat_title">Logcat</string>
     <string name="logcat_clear">Clear</string>
+    <string name="mods_kind_plugin">BepInEx plugin</string>
+    <string name="mods_kind_native">Native mod</string>
 </resources>
