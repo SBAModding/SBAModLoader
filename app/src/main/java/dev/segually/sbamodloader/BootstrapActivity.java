@@ -118,7 +118,7 @@ public class BootstrapActivity extends AppCompatActivity {
             File baseApk = new File(getPackageManager().getApplicationInfo(targetPackage, 0).sourceDir);
             mods = ModPacks.prepare(getApplicationContext(), runtimeScoped, baseApk, patch);
         } catch (Throwable t) {
-            failAndFinish("Failed to prepare mods: " + t.getMessage(), t);
+            failAndFinish("Failed to prepare mods", t);
             return;
         }
 
@@ -294,6 +294,8 @@ public class BootstrapActivity extends AppCompatActivity {
     }
 
     private void failAndFinish(String message, Throwable error) {
+        final String report = buildErrorReport(message, error);
+        final File reportFile = writeErrorReport(report);
         runOnMainThread(() -> {
             if (error != null) {
                 Log.e(TAG, message, error);
@@ -303,9 +305,53 @@ public class BootstrapActivity extends AppCompatActivity {
             if (statusView != null) {
                 statusView.setText(getString(R.string.bootstrap_status_error));
             }
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-            finish();
+            if (spinnerProgress != null) {
+                spinnerProgress.setVisibility(View.GONE);
+            }
+            if (isFinishing() || isDestroyed()) {
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                return;
+            }
+            String shown = report.length() > 3000 ? report.substring(0, 3000) + "\n..." : report;
+            if (reportFile != null) {
+                shown += "\n\nSaved to:\n" + reportFile.getAbsolutePath();
+            }
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.bootstrap_status_error)
+                    .setMessage(shown)
+                    .setCancelable(false)
+                    .setPositiveButton(android.R.string.ok, (d, w) -> finish())
+                    .show();
         });
+    }
+
+    /** The message, then every exception in the cause chain as "class: message", then the full stack trace. */
+    private static String buildErrorReport(String message, Throwable error) {
+        StringBuilder sb = new StringBuilder(message);
+        for (Throwable t = error; t != null; t = t.getCause()) {
+            sb.append("\n\u2192 ").append(t.getClass().getName()).append(": ").append(t.getMessage());
+            if (t.getCause() == t) break;
+        }
+        if (error != null) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            error.printStackTrace(new java.io.PrintWriter(sw));
+            sb.append("\n\n").append(sw);
+        }
+        return sb.toString();
+    }
+
+    private File writeErrorReport(String report) {
+        try {
+            File dir = Utilities.getExternalSBAModLoaderDirectory(null, "Logs");
+            File out = new File(dir, "last_error.txt");
+            java.nio.file.Files.write(out.toPath(), (java.time.Instant.now() + "\n"
+                    + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + ", Android "
+                    + android.os.Build.VERSION.RELEASE + "\n\n" + report).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return out;
+        } catch (Throwable t) {
+            Log.w(TAG, "Could not save the error report", t);
+            return null;
+        }
     }
 
     private void runOnMainThread(Runnable runnable) {

@@ -164,10 +164,19 @@ public final class ModPacks {
      */
     public static Prepared prepare(Context context, File runtimeScoped, File baseApk,
                                    PatchManager.ActivePatch patch) throws IOException {
-        File nativeRoot = new File(runtimeScoped, "native-mods");
-        File libRoot = new File(runtimeScoped, "pack-libs");
-        Utilities.deleteRecursive(nativeRoot);
-        Utilities.deleteRecursive(libRoot);
+        // Fresh, uniquely named folders for this launch: a leftover from an earlier launch that could not be
+        // deleted (read-only files, a busy filesystem) can then never collide with the new copies.
+        File[] stale = runtimeScoped.listFiles();
+        if (stale != null) {
+            for (File f : stale) {
+                if (f.getName().startsWith("native-mods") || f.getName().startsWith("pack-libs")) {
+                    Utilities.deleteRecursive(f);
+                }
+            }
+        }
+        String launchId = Long.toString(System.currentTimeMillis(), 36);
+        File nativeRoot = new File(runtimeScoped, "native-mods-" + launchId);
+        File libRoot = new File(runtimeScoped, "pack-libs-" + launchId);
         List<String> natives = new ArrayList<>();
         List<File> libDirs = new ArrayList<>();
         String activity = null;
@@ -186,9 +195,10 @@ public final class ModPacks {
             for (File mod : orderedMods(context)) {
                 if (mod.getName().endsWith(DISABLED)) continue;
                 String name = mod.getName();
+                try {
                 File dest = new File(nativeRoot, String.format(Locale.ROOT, "%02d", index++));
                 if (name.endsWith(".so")) {
-                    copyReadOnly(mod, new File(dest, name));
+                    copyFile(mod, new File(dest, name));
                     natives.add(new File(dest, name).getAbsolutePath());
                     Log.i(TAG, "Native mod: " + name);
                 } else if (name.endsWith(PACK_EXTENSION)) {
@@ -209,28 +219,25 @@ public final class ModPacks {
                                 && entryName.indexOf('/', "lib/arm64-v8a/".length()) < 0) {
                             File libDir = new File(libRoot, String.format(Locale.ROOT, "%02d", index));
                             File out = new File(libDir, entryName.substring("lib/arm64-v8a/".length()));
-                            out.getParentFile().mkdirs();
                             try (InputStream in = zip.getInputStream(entry)) {
-                                java.nio.file.Files.copy(in, out.toPath());
+                                copyStream(in, out);
                             }
-                            //noinspection ResultOfMethodCallIgnored
-                            out.setReadOnly();
                             if (!libDirs.contains(libDir)) libDirs.add(libDir);
                             Log.i(TAG, "Library from " + name + ": " + out.getName());
                         } else if (isRootNative(entryName)) {
                             File out = new File(dest, entryName);
-                            out.getParentFile().mkdirs();
                             try (InputStream in = zip.getInputStream(entry)) {
-                                java.nio.file.Files.copy(in, out.toPath());
+                                copyStream(in, out);
                             }
-                            //noinspection ResultOfMethodCallIgnored
-                            out.setReadOnly();
                             natives.add(out.getAbsolutePath());
                             Log.i(TAG, "Native mod from " + name + ": " + entryName);
                         } else if (entryName.startsWith("overlay/") && entryName.length() > "overlay/".length()) {
                             overlay.add(new ZipOverlayEntry(zip, entry, entryName.substring("overlay/".length())));
                         }
                     }
+                }
+                } catch (IOException | RuntimeException e) {
+                    throw new IOException("Could not load the mod \"" + name + "\": " + e, e);
                 }
             }
 
@@ -245,8 +252,22 @@ public final class ModPacks {
                 if (!overlayApk.isFile()) {
                     Utilities.deleteRecursive(dir);
                     if (!idDir.mkdirs()) throw new IOException("Cannot create " + idDir);
+                    long needed = baseApk.length() + 32L * 1024 * 1024;
+                    for (AssetOverlayBuilder.Entry e : overlay) needed += Math.max(0, e.size());
+                    long free = runtimeScoped.getParentFile().getUsableSpace();
+                    if (free < needed) {
+                        Utilities.deleteRecursive(dir);
+                        throw new IOException(String.format(Locale.ROOT,
+                                "Not enough free storage to apply the mods: %d MB needed, %d MB free. Free some space and try again.",
+                                needed >> 20, free >> 20));
+                    }
                     Log.i(TAG, "Building overlay APK with " + overlay.size() + " files");
-                    AssetOverlayBuilder.build(baseApk, overlayApk, overlay);
+                    try {
+                        AssetOverlayBuilder.build(baseApk, overlayApk, overlay);
+                    } catch (IOException | RuntimeException e) {
+                        Utilities.deleteRecursive(dir); // never leave a half-built APK behind
+                        throw new IOException("Could not build the mod overlay (" + (free >> 20) + " MB free): " + e, e);
+                    }
                 } else {
                     Log.i(TAG, "Reusing overlay APK " + overlayApk.getName());
                 }
@@ -278,9 +299,30 @@ public final class ModPacks {
         }
     }
 
-    private static void copyReadOnly(File from, File to) throws IOException {
-        to.getParentFile().mkdirs();
-        java.nio.file.Files.copy(from.toPath(), to.toPath());
+    private static void copyFile(File from, File to) throws IOException {
+        try (InputStream in = new FileInputStream(from)) {
+            copyStream(in, to);
+        }
+    }
+
+    /** Plain stream copy that overwrites, reports exactly what failed, and leaves the result read-only. */
+    private static void copyStream(InputStream in, File to) throws IOException {
+        File parent = to.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) {
+            throw new IOException("Cannot create folder " + parent);
+        }
+        if (to.exists() && !to.delete()) {
+            throw new IOException("Cannot replace existing file " + to);
+        }
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(to)) {
+            byte[] buf = new byte[1 << 16];
+            int n;
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+        } catch (IOException e) {
+            //noinspection ResultOfMethodCallIgnored
+            to.delete();
+            throw new IOException("Cannot write " + to + ": " + e.getMessage(), e);
+        }
         // Android 14+ refuses to load writable native libraries.
         //noinspection ResultOfMethodCallIgnored
         to.setReadOnly();

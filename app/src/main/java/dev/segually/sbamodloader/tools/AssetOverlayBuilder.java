@@ -61,7 +61,16 @@ public final class AssetOverlayBuilder {
         }
 
         File tmp = new File(output.getParentFile(), output.getName() + ".tmp");
-        Files.copy(baseApk.toPath(), tmp.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        try (InputStream in = new java.io.FileInputStream(baseApk);
+             java.io.FileOutputStream out = new java.io.FileOutputStream(tmp)) {
+            byte[] copyBuffer = new byte[1 << 17];
+            int count;
+            while ((count = in.read(copyBuffer)) != -1) out.write(copyBuffer, 0, count);
+        } catch (IOException e) {
+            //noinspection ResultOfMethodCallIgnored
+            tmp.delete();
+            throw new IOException("Cannot copy " + baseApk + " to " + tmp + ": " + e.getMessage(), e);
+        }
         try (RandomAccessFile raf = new RandomAccessFile(tmp, "rw")) {
             FileChannel ch = raf.getChannel();
 
