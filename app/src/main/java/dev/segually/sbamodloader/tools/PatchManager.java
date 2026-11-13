@@ -123,8 +123,21 @@ public final class PatchManager {
     private PatchManager() {
     }
 
+    /**
+     * Where the installed patch lives. This must be internal storage: Android 14+ refuses to load dex
+     * files that are writable (permission bits cannot be changed on external storage), and external
+     * storage is mounted noexec on real devices, which also blocks native libraries.
+     */
     public static File patchDir(Context context) {
-        return Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, "Patch");
+        File dir = new File(context.getFilesDir(), "patches/" + TargetGame.PACKAGE_NAME);
+        removeLegacyPatchDir(context);
+        return dir;
+    }
+
+    /** Earlier builds kept the patch in external storage. */
+    private static void removeLegacyPatchDir(Context context) {
+        File legacy = new File(Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, null), "Patch");
+        if (legacy.exists()) Utilities.deleteRecursive(legacy);
     }
 
     private static PackageInfo gameInfo(Context context) throws PatchException {
@@ -482,7 +495,7 @@ public final class PatchManager {
      */
     private static Manifest installZip(Context context, File zipFile, Source source, Entry entry) throws PatchException {
         File root = patchDir(context);
-        File staging = new File(root.getParentFile(), "Patch.new");
+        File staging = new File(root.getParentFile(), TargetGame.PACKAGE_NAME + ".new");
         try (ZipFile zip = new ZipFile(zipFile)) {
             ZipEntry me = zip.getEntry("manifest.json");
             if (me == null) throw new PatchException("The zip has no manifest.json");
@@ -513,8 +526,8 @@ public final class PatchManager {
                 try (InputStream in = zip.getInputStream(ze); FileOutputStream out = new FileOutputStream(target)) {
                     in.transferTo(out);
                 }
-                // Android 14+ refuses to load writable dex files.
-                if (name.endsWith(".dex")) target.setReadOnly();
+                // Android 14+ refuses to load writable dex files and native libraries.
+                if (!name.equals("manifest.json")) target.setReadOnly();
                 files++;
             }
             if (files <= 1) throw new PatchException("The patch contains no dex files or libraries");
