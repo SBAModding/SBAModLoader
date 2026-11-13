@@ -56,4 +56,14 @@
     <string name="settings_patch_url_help">An https link to a patch index.json, or directly to a patch .zip. Leave empty for the official source.</string>
     <string name="settings_patch_url_save">Save</string>
     <string name="settings_patch_url_invalid">The URL must start with https://</string>
+    <string name="game_menu_title">Game menu</string>
+    <string name="game_menu_freeze">Freeze game</string>
+    <string name="game_menu_logcat_open">Open logcat overlay</string>
+    <string name="game_menu_logcat_close">Close logcat overlay</string>
+    <string name="game_menu_exit">Exit to dashboard</string>
+    <string name="game_exit_failed">Could not exit to the dashboard.</string>
+    <string name="game_frozen">Frozen</string>
+    <string name="game_freeze_unsupported">Could not freeze this game.</string>
+    <string name="logcat_title">Logcat</string>
+    <string name="logcat_clear">Clear</string>
 </resources>

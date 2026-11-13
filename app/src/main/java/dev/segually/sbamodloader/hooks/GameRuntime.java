@@ -144,6 +144,7 @@ public final class GameRuntime {
         private final Context gameContext;
         private final Map<Activity, Intent> pendingIntents = Collections.synchronizedMap(new WeakHashMap<>());
         private final java.util.Set<Activity> gameActivities = Collections.newSetFromMap(new WeakHashMap<>());
+        private final Map<Activity, dev.segually.sbamodloader.ui.GameOverlay> overlays = Collections.synchronizedMap(new WeakHashMap<>());
 
         GameInstrumentation(Instrumentation original, Context gameContext) {
             this.original = original;
@@ -210,6 +211,7 @@ public final class GameRuntime {
                     ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
                     Context loadingTheme = new ContextThemeWrapper(sbaBase, androidx.appcompat.R.style.Theme_AppCompat);
                     decor.addView(LayoutInflater.from(loadingTheme).inflate(R.layout.loading_view, decor, false));
+                    overlays.put(activity, dev.segually.sbamodloader.ui.GameOverlay.install(activity, sbaBase));
                 }
             } catch (Exception e) {
                 throw new IllegalStateException("Cannot prepare activity", e);
@@ -227,6 +229,8 @@ public final class GameRuntime {
         @Override public void callActivityOnResume(Activity activity) {
             if (gameActivities.contains(activity)) InstrumentationHooks.applyTargetOrientation(activity);
             original.callActivityOnResume(activity);
+            dev.segually.sbamodloader.ui.GameOverlay overlay = overlays.get(activity);
+            if (overlay != null) overlay.onActivityResumed();
         }
         @Override public void callActivityOnNewIntent(Activity activity, Intent intent) {
             Intent target = InstrumentationHooks.resolveOriginalIntent(intent);
@@ -235,6 +239,8 @@ public final class GameRuntime {
         @Override public void callActivityOnDestroy(Activity activity) {
             pendingIntents.remove(activity);
             gameActivities.remove(activity);
+            dev.segually.sbamodloader.ui.GameOverlay overlay = overlays.remove(activity);
+            if (overlay != null) overlay.destroy();
             original.callActivityOnDestroy(activity);
         }
         @Override public boolean onException(Object object, Throwable error) {

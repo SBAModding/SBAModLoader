@@ -40,6 +40,15 @@
         <action android:name="android.intent.action.MAIN" />
       </intent-filter>
     </activity>
+    <!-- Runs in its own process so it can kill the game process and then start the dashboard fresh. -->
+    <activity
+        android:name="dev.segually.sbamodloader.RestartActivity"
+        android:process=":restart"
+        android:theme="@android:style/Theme.Translucent.NoTitleBar"
+        android:taskAffinity=""
+        android:excludeFromRecents="true"
+        android:noHistory="true"
+        android:exported="false" />
     <activity
         android:name="dev.segually.sbamodloader.BootstrapActivity"
         android:theme="@style/Theme.SBA"
