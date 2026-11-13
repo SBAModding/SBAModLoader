@@ -9,7 +9,6 @@
 struct SBAConfig {
     bool initialized;
     bool useOriginalLibUnity;
-    bool isIl2Cpp2Mono;
     std::string gameLibraryDirectory;
     std::string appLibraryDirectory;
     std::string appDataDirectory;

@@ -9,4 +9,18 @@
     <item name="android:windowIsTranslucent">true</item>
     <item name="android:windowBackground">@android:color/transparent</item>
 </style>
+<style name="Theme.SBA" parent="Theme.Material3.Dark.NoActionBar">
+    <item name="colorPrimary">@color/sba_primary</item>
+    <item name="colorOnPrimary">@color/sba_on_primary</item>
+    <item name="colorSurface">@color/sba_surface</item>
+    <item name="colorSurfaceContainer">@color/sba_surface_container</item>
+    <item name="colorSurfaceContainerHigh">@color/sba_surface_high</item>
+    <item name="colorOnSurface">@color/sba_text</item>
+    <item name="colorOnSurfaceVariant">@color/sba_text_dim</item>
+    <item name="colorError">@color/sba_error</item>
+    <item name="android:colorBackground">@color/sba_bg</item>
+    <item name="android:windowBackground">@color/sba_bg</item>
+    <item name="android:statusBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarColor">@android:color/transparent</item>
+</style>
 </resources>

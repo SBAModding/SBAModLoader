@@ -28,7 +28,8 @@ public class Utilities {
     private static final String TAG = "SBAModLoader";
 
     public static File getExternalSBAModLoaderDirectory(@Nullable String targetPackage, @Nullable String Folder) {
-        File sbaStorage = new File(Environment.getExternalStorageDirectory(), "SBAModLoader");
+        // App-specific external storage: writable without any storage permission.
+        File sbaStorage = new File(Environment.getExternalStorageDirectory(), "Android/data/" + dev.segually.sbamodloader.BuildConfig.APPLICATION_ID + "/files");
         if (targetPackage != null) {
             sbaStorage = new File(sbaStorage, targetPackage);
         }

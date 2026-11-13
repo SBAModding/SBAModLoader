@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/page_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- scroll edge effect: content fades out under the floating bar instead of being cut -->
+    <View
+        android:id="@+id/edge_fade"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_edge_fade"
+        android:importantForAccessibility="no" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/nav_bar"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:minHeight="68dp"
+        app:itemPaddingTop="10dp"
+        app:itemPaddingBottom="10dp"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/nav_main"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
+</FrameLayout>

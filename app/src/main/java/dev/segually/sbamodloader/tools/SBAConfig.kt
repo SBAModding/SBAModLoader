@@ -29,8 +29,6 @@ class SBAConfig(
     @JvmField var unityVersion: String,
     /** Whether to use the original libunity.so from the game or the one provided by SBA. */
     @JvmField var useOriginalLibUnity: Boolean,
-    /** whether its il2cpp2mono or not*/
-    @JvmField var isIl2Cpp2Mono: Boolean,
     /** Variables to encode in the SBA_VARIABLES environment variable. */
     @JvmField var sbaVariables: Array<String>,
     /** Auxiliary folders to load BepInEx plugins from. */

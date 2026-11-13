@@ -5,10 +5,6 @@
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
   <uses-permission android:name="com.android.vending.BILLING" />
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-  <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-      tools:ignore="AllFilesAccessPolicy,ScopedStorage" />
   <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
       tools:ignore="PhotoAndVideoPolicy,SelectedPhotoAccess" />
   <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
@@ -35,8 +31,8 @@
     <meta-data android:name="unity.auto-report-fully-drawn" android:value="true" />
     <meta-data android:name="com.google.android.gms.version" android:value="12451000" />
     <activity
-        android:name="dev.segually.sbamodloader.SelectorActivity"
-        android:theme="@style/Theme.Material3.Dark.NoActionBar" android:exported="true"
+        android:name="dev.segually.sbamodloader.MainActivity"
+        android:theme="@style/Theme.SBA" android:exported="true"
         android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density"
         >
       <intent-filter>
@@ -46,15 +42,10 @@
     </activity>
     <activity
         android:name="dev.segually.sbamodloader.BootstrapActivity"
-        android:theme="@style/Theme.Material3.Dark.NoActionBar"
+        android:theme="@style/Theme.SBA"
         android:screenOrientation="locked"
         android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density"
         android:launchMode="singleTask"
-        android:exported="false" />
-    <activity
-        android:name="dev.segually.sbamodloader.GameSettingsActivity"
-        android:theme="@style/Theme.Material3.Dark.NoActionBar"
-        android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density"
         android:exported="false" />
     <!-- StubActivity for dynamic loading of unregistered activities -->
     <activity

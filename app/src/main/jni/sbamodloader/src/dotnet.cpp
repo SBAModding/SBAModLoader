@@ -17,20 +17,7 @@ void build_tpa(const char *directory, std::string &tpaList);
 int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *auxFolders)
 {
     entrypoint_fn managedDelegate;
-    if(config.IsMono){
-        log(LogLevel::INFO, TAG, "using il2cpp2mono!");
-        auto get_delegate =
-                reinterpret_cast<GetDelegate>(
-                        dlsym(handle, "il2cpp2mono_get_delegate")
-                );
-        std::string FullPath = fs::path(config.managedLibsDir) / (config.entryPointAssembly + ".dll");
-        managedDelegate = reinterpret_cast<entrypoint_fn>(get_delegate(FullPath.c_str(), config.entryPointType.c_str(), config.entryPointMethod.c_str(), 1));
-        if(managedDelegate == nullptr){
-            log_format(LogLevel::ERROR, TAG, "il2cpp2mono failed to get {}::{}.{}", config.entryPointAssembly, config.entryPointType, config.entryPointMethod);
-            return -1;
-        }
-    }
-    else {
+    {
         log(LogLevel::INFO, TAG, "Preparing CLR properties");
 
         #define NUM_KEYS 3

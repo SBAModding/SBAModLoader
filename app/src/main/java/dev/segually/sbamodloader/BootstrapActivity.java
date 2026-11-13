@@ -54,9 +54,6 @@ public class BootstrapActivity extends AppCompatActivity {
 
     private static final String TAG = "SBAModLoader";
 
-    public static final String EXTRA_TARGET_PACKAGE = "target_package";
-    public static final String EXTRA_USE_ORIGINAL_LIBUNITY = "og_libunity";
-    public static final String EXTRA_USE_IL2CPP2MONO = "use_il2cpp2mono";
     public static final String BACKUP_UNITY_VERSION = "2017.0.0";
     public static final String IL2CPP_API_MAP = "il2cpp-api.map";
     private TextView statusView;
@@ -91,11 +88,7 @@ public class BootstrapActivity extends AppCompatActivity {
         downloadProgress = findViewById(R.id.bootstrap_download_progress);
         setPhaseStatus(getString(R.string.bootstrap_status_preparing));
 
-        String targetPackage = getIntent().getStringExtra(EXTRA_TARGET_PACKAGE);
-        if (targetPackage == null || targetPackage.isEmpty()) {
-            failAndFinish("No target package specified in intent extras!", null);
-            return;
-        }
+        String targetPackage = TargetGame.PACKAGE_NAME;
 
         // Let the loading screen render first, then perform initialization work.
         statusView.post(() -> new Thread(() -> runBootstrapFlow(targetPackage), "bootstrap-flow").start());
@@ -128,24 +121,6 @@ public class BootstrapActivity extends AppCompatActivity {
             launcherComponent = launchIntent.resolveActivity(getPackageManager());
         }
 
-        var overrideActivity = SBASettings.getActivityOverrideForGame(this, targetPackage);
-        try {
-            if (!overrideActivity.equals(getString(R.string.settings_automatic))) {
-                var overrideClass = gameContext.getClassLoader().loadClass(overrideActivity);
-                if (overrideClass != null) {
-                    launcherComponent = new ComponentName(targetPackage, overrideActivity);
-                    Log.i(TAG, "Using override activity " + overrideActivity);
-                    runOnUiThread(() -> Toast.makeText(this, "Using override activity " + overrideActivity, Toast.LENGTH_LONG).show());
-                } else {
-                    Log.i(TAG, "Failed to find override activity " + overrideActivity);
-                    runOnUiThread(()-> Toast.makeText(this, "Failed to find override activity.", Toast.LENGTH_LONG).show());
-                }
-            }
-        } catch (Exception e) {
-            runOnUiThread(()-> Toast.makeText(this, "Exception when finding override activity.", Toast.LENGTH_LONG).show());
-            Log.e(TAG, "Failed to get override activity "+ overrideActivity, e);
-        }
-
         if (launcherComponent == null) {
             failAndFinish("Failed to resolve launcher activity for target package: " + targetPackage, null);
             return;
@@ -153,8 +128,7 @@ public class BootstrapActivity extends AppCompatActivity {
 
         final int targetOrientation = resolveTargetOrientation(launcherComponent);
 
-        boolean useOriginalLibUnity = getIntent().getBooleanExtra(EXTRA_USE_ORIGINAL_LIBUNITY, false);
-        boolean useIl2Cpp2Mono = getIntent().getBooleanExtra(EXTRA_USE_IL2CPP2MONO, false);
+        boolean useOriginalLibUnity = !SBASettings.getUseUnstrippedLibUnity(this);
         SBAConfig config;
 
         try {
@@ -163,8 +137,7 @@ public class BootstrapActivity extends AppCompatActivity {
                     gameContext,
                     launcherComponent,
                     targetPackage,
-                    useOriginalLibUnity,
-                    useIl2Cpp2Mono
+                    useOriginalLibUnity
             );
         } catch (Throwable t) {
             failAndFinish("Failed while preparing SBA runtime.", t);
@@ -315,13 +288,7 @@ public class BootstrapActivity extends AppCompatActivity {
         try {
             NativeLibraryManager.addSBALibrary("main");
             NativeLibraryManager.addSBALibrary("sbamodloader");
-            if(!config.isIl2Cpp2Mono) {
-                NativeLibraryManager.addCacheLibrary("il2cpp");
-            }
-            else {
-                NativeLibraryManager.addDotnetLibrary("il2cpp");
-                NativeLibraryManager.addDotnetLibrary("monosgen-2.0");
-            }
+            NativeLibraryManager.addCacheLibrary("il2cpp");
             NativeLibraryManager.addCacheLibrary("unity");
             NativeLibraryManager.setupLibraryHooks(config);
         } catch (Throwable t) {
@@ -434,8 +401,7 @@ public class BootstrapActivity extends AppCompatActivity {
                                        Context gameContext,
                                        ComponentName launcherComponent,
                                        String targetPackage,
-                                       boolean useOriginalLibUnity,
-                                       boolean useIl2Cpp2Mono) {
+                                       boolean useOriginalLibUnity) {
 
         String gameLibDir = gameContext.getApplicationInfo().nativeLibraryDir;
         String appLibDir = appContext.getApplicationInfo().nativeLibraryDir;
@@ -449,7 +415,6 @@ public class BootstrapActivity extends AppCompatActivity {
 
         setPhaseStatus(getString(R.string.bootstrap_status_copy_assets));
         File Assets = new File(dataOnSdCard, "Assets");
-        File PersistentData = new File(dataOnSdCard, "PersistentData");
         boolean copied = Utilities.copyAssets(gameContext.getApplicationInfo(), Assets);
         if (!copied) {
             Log.e(TAG, "Failed to copy Unity Data assets! BepInEx may not work correctly.");
@@ -491,24 +456,14 @@ public class BootstrapActivity extends AppCompatActivity {
         }
 
         setPhaseStatus(getString(R.string.bootstrap_status_extracting_runtime));
-        File dotnetDir;
-        if(!useIl2Cpp2Mono) {
-            dotnetDir = new File(getRuntimeDir(appContext), "dotnet");
-            Utilities.extractZipFromAssets(appContext, "BepInEx-arm64.zip", bepInExDir, "config/");
-            if (!BACKUP_UNITY_VERSION.equals(version)) {
-                UnityBaseLibraries.resolve(bepInExDir, version);
-            }
-            Utilities.extractZipFromAssets(appContext, "dotnet-arm64.zip", dotnetDir);
-        } //we do something else
-        else{
-            dotnetDir = new File(getRuntimeDir(appContext), "mono");
-            Utilities.extractZipFromAssets(appContext, "il2cpp2mono-arm64.zip", dotnetDir);
-            ensureManagedDllsForMono(PersistentData);
+        File dotnetDir = new File(getRuntimeDir(appContext), "dotnet");
+        Utilities.extractZipFromAssets(appContext, "BepInEx-arm64.zip", bepInExDir, "config/");
+        if (!BACKUP_UNITY_VERSION.equals(version)) {
+            UnityBaseLibraries.resolve(bepInExDir, version);
         }
+        Utilities.extractZipFromAssets(appContext, "dotnet-arm64.zip", dotnetDir);
 
-        Map<String, String> il2cppMap = useIl2Cpp2Mono
-                ? GetIL2CPPMap(DeobfuscationDir)
-                : resolveIl2CppApiMap(new File(gameLibDir), codeCacheScoped, useOriginalLibUnity, DeobfuscationDir);
+        Map<String, String> il2cppMap = resolveIl2CppApiMap(new File(gameLibDir), codeCacheScoped, useOriginalLibUnity, DeobfuscationDir);
 
         return new SBAConfig(
                 targetPackage,
@@ -522,7 +477,6 @@ public class BootstrapActivity extends AppCompatActivity {
                 copiedData.getAbsolutePath(),
                 version,
                 useOriginalLibUnity,
-                useIl2Cpp2Mono,
                 new String[]{},
                 new String[]{},
                 il2cppMap
@@ -561,25 +515,6 @@ public class BootstrapActivity extends AppCompatActivity {
             while ((count = in.read(buffer)) != -1) {
                 out.write(buffer, 0, count);
             }
-        }
-    }
-
-    private void ensureManagedDllsForMono(File GameDir) {
-        File managedDir = new File(GameDir, "mono");
-        File[] existingFiles = managedDir.listFiles();
-        if (managedDir.exists() && existingFiles != null && existingFiles.length > 0) {
-            Log.i(TAG, "Managed DLLs already present in " + managedDir.getAbsolutePath() + ", skipping selection prompt.");
-            return;
-        }
-
-        Uri zipUri = promptForFile(R.string.bootstrap_request_dlls, "zip");
-        if (zipUri == null) {
-            throw new IllegalStateException("No Managed Zip file selected!");
-        }
-
-        setPhaseStatus(getString(R.string.bootstrap_status_extracting_mono_dlls));
-        if (!extractZipFile(zipUri, managedDir)) {
-            throw new IllegalStateException("Invalid or corrupted Managed Zip file provided!");
         }
     }
 

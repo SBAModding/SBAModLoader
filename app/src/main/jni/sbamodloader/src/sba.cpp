@@ -26,36 +26,10 @@ static bool execute_sba_config(const SBAConfig &config)
 
     fs::path gameLibsPath(config.gameLibraryDirectory);
     fs::path codeCache(config.codeCacheDirectory);
-    fs::path gamePath = fs::path(config.bepInExDirectory).parent_path();
 
     fs::path libUnity;
     fs::path patchedLibIl2Cpp;
-    if(config.isIl2Cpp2Mono){
-        fs::path MonoPath(config.dotnetDirectory);
-
-        fs::path monoLib = MonoPath / "libmonosgen-2.0.so";
-        void* handle = dlopen(monoLib.c_str(), RTLD_GLOBAL | RTLD_NOW);
-        if (!handle) {
-            log_format(LogLevel::ERROR, TAG, "Failed to dlopen libmonosgen-2.0.so: {}", dlerror());
-            return false;
-        }
-        patchedLibIl2Cpp = MonoPath / "libil2cpp.so";
-        handle = dlopen(patchedLibIl2Cpp.c_str(), RTLD_GLOBAL | RTLD_NOW);
-        if (!handle) {
-            log_format(LogLevel::ERROR, TAG, "Failed to dlopen {}: {}", patchedLibIl2Cpp.string(), dlerror());
-            return false;
-        }
-        using SetOverrideDirs = void (*)(const char*, const char*);
-        auto set_override_dirs =
-                reinterpret_cast<SetOverrideDirs>(
-                        dlsym(handle, "il2cpp2mono_set_override_dirs")
-                );
-        fs::path dllpath = gamePath / "PersistentData/mono";
-        fs::path monopath = MonoPath / "mono";
-        log_format(LogLevel::INFO, TAG, "setting il2cpp2mono paths: {}, {}", dllpath.c_str(), monopath.c_str());
-        set_override_dirs(dllpath.c_str(), monopath.c_str());
-    }
-    else{
+    {
         patchedLibIl2Cpp = codeCache / "libil2cpp.so";
         fs::path libIl2Cpp = gameLibsPath / "libil2cpp.so";
         allocate_setup_injected(libIl2Cpp.c_str(), patchedLibIl2Cpp.c_str(), 1024 * 1024);
@@ -120,7 +94,6 @@ int il2cpp_init_hook(char *domain_name)
         dotNetConfig.entryPointAssembly = "BepInEx.Unity.IL2CPP";
         dotNetConfig.entryPointType = "BepInEx.Unity.IL2CPP.SBAModLoaderEntrypoint";
         dotNetConfig.entryPointMethod = "Start";
-        dotNetConfig.IsMono = runtime_config.isIl2Cpp2Mono;
         // set TMPDIR for MonoMod lib drops
         setenv("TMPDIR", runtime_config.codeCacheDirectory.c_str(), 1);
 
@@ -175,11 +148,6 @@ extern "C" [[maybe_unused]] bool sba_bootstrap_from_libmain(JNIEnv *env)
     {
         log_format(LogLevel::ERROR, TAG, "Failed to initialize il2cpp with path: {}", il2cpp_path);
         return false;
-    }
-    if(runtime_config.isIl2Cpp2Mono){
-        setLoadingState(false);
-        log(LogLevel::WARN, TAG, "BepInEx is currently disabled in il2cpp2mono.");
-        return true;
     }
     // Pool placement and library bounds must be trustworthy before any hooking.
     const uintptr_t pool_base = get_injected_pool_base();
