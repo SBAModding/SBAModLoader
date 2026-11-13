@@ -32,7 +32,7 @@ android {
         targetSdk = 36
         applicationId = "dev.segually.sbamodloader"
         versionCode = 1
-        versionName = "0.0.1"
+        versionName = "0.0.1a"
         ndk {
             abiFilters.add("arm64-v8a")
             // abiFilters.add("armeabi-v7a")
