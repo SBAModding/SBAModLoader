@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment;
 
 import dev.segually.sbamodloader.tools.CrashDetector;
 import dev.segually.sbamodloader.ui.GlassBar;
+import dev.segually.sbamodloader.ui.pages.BrowseFragment;
 import dev.segually.sbamodloader.ui.pages.DashboardFragment;
 import dev.segually.sbamodloader.ui.pages.ModsFragment;
 import dev.segually.sbamodloader.ui.pages.SettingsFragment;
@@ -32,14 +33,16 @@ public class MainActivity extends AppCompatActivity {
         nav.setPadding(0, 0, 0, 0);
         nav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
-            showPage(id == R.id.nav_mods ? 1 : id == R.id.nav_settings ? 2 : 0);
+            showPage(id == R.id.nav_browse ? 1 : id == R.id.nav_mods ? 2 : id == R.id.nav_settings ? 3 : 0);
             return true;
         });
 
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main_root), (v, insets) -> {
             var bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
             var lp = (android.widget.FrameLayout.LayoutParams) nav.getLayoutParams();
-            lp.bottomMargin = bars.bottom + Math.round(16 * getResources().getDisplayMetrics().density);
+            float density = getResources().getDisplayMetrics().density;
+            lp.bottomMargin = bars.bottom + Math.round(16 * density);
+            lp.width = Math.min(Math.round(400 * density), getResources().getDisplayMetrics().widthPixels - Math.round(32 * density));
             nav.setLayoutParams(lp);
             var fade = findViewById(R.id.edge_fade).getLayoutParams();
             fade.height = bars.bottom + Math.round(140 * getResources().getDisplayMetrics().density);
@@ -65,8 +68,9 @@ public class MainActivity extends AppCompatActivity {
     private void showPage(int index) {
         page = index;
         Fragment f = switch (index) {
-            case 1 -> new ModsFragment();
-            case 2 -> new SettingsFragment();
+            case 1 -> new BrowseFragment();
+            case 2 -> new ModsFragment();
+            case 3 -> new SettingsFragment();
             default -> new DashboardFragment();
         };
         getSupportFragmentManager().beginTransaction()

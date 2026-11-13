@@ -1,0 +1,50 @@
+package dev.segually.sbamodloader.tools;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+import dev.segually.sbamodloader.TargetGame;
+
+/** Where BepInEx plugins live, and the file operations shared by manual imports and the mod browser. */
+public final class ModFiles {
+    private ModFiles() {
+    }
+
+    public static File pluginsDir() {
+        return new File(Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, "BepInEx"), "plugins");
+    }
+
+    public static void copy(InputStream in, File out) throws IOException {
+        File parent = out.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) throw new IOException("Cannot create " + parent);
+        try (FileOutputStream os = new FileOutputStream(out)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) os.write(buf, 0, n);
+        }
+    }
+
+    /** Unpacks a zip into {@code dir}, refusing entries that would land outside it. Created files go into {@code created}. */
+    public static void unzipInto(InputStream in, File dir, List<File> created) throws IOException {
+        String root = dir.getCanonicalPath() + File.separator;
+        try (ZipInputStream zis = new ZipInputStream(in)) {
+            ZipEntry e;
+            while ((e = zis.getNextEntry()) != null) {
+                File out = new File(dir, e.getName());
+                if (!out.getCanonicalPath().startsWith(root)) continue; // zip-slip guard
+                if (e.isDirectory()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    out.mkdirs();
+                } else {
+                    copy(zis, out);
+                    if (created != null) created.add(out);
+                }
+            }
+        }
+    }
+}
