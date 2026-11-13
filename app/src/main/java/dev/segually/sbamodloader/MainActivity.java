@@ -26,6 +26,10 @@ public class MainActivity extends AppCompatActivity {
 
         BottomNavigationView nav = findViewById(R.id.nav_bar);
         GlassBar.apply(nav);
+        // Material pads the bar by the system bar insets. The activity already lifts the bar above them
+        // (see below), so the padding would be counted twice, which is very visible on tablets with a taskbar.
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(nav, (v, insets) -> insets);
+        nav.setPadding(0, 0, 0, 0);
         nav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             showPage(id == R.id.nav_mods ? 1 : id == R.id.nav_settings ? 2 : 0);
