@@ -27,7 +27,7 @@
     <string name="step_patches_ok">Mandatory patches installed</string>
     <string name="dashboard_launch">Launch Super Bear Adventure</string>
     <string name="mods_add">Add mod</string>
-    <string name="mods_empty">No mods yet. Add a .dll, .zip, native .so or .sbapack to get started.</string>
+    <string name="mods_empty">No mods yet. Find some in Browse.</string>
     <string name="mods_copy_failed">Could not add that file.</string>
     <string name="settings_about_format">SBAModLoader %1$s</string>
     <string name="loading">Loading...</string>
@@ -147,4 +147,6 @@
     <string name="browse_load_failed_detail">Check your connection and try again.</string>
     <string name="browse_offline_copy">offline copy</string>
     <string name="browse_repository_empty">The repository has no mods yet.</string>
+    <string name="mods_locked_title">Adding files is locked</string>
+    <string name="mods_locked_message">Mods are installed from Browse, where every file is audited and checked against its hash before it is installed. Turn on Developer features in Settings to add files yourself.</string>
 </resources>

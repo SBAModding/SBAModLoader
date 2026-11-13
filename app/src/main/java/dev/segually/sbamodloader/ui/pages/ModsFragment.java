@@ -22,14 +22,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 import dev.segually.sbamodloader.R;
+import dev.segually.sbamodloader.SBASettings;
 import dev.segually.sbamodloader.TargetGame;
+import dev.segually.sbamodloader.tools.ModFiles;
 import dev.segually.sbamodloader.tools.ModPacks;
 import dev.segually.sbamodloader.tools.Utilities;
 import dev.segually.sbamodloader.ui.Insets;
@@ -94,18 +95,34 @@ public class ModsFragment extends Fragment {
             }
         });
         touchHelper.attachToRecyclerView(list);
-        v.findViewById(R.id.btn_add_mod).setOnClickListener(x -> picker.launch(new String[]{"*/*"}));
+        com.google.android.material.button.MaterialButton add = v.findViewById(R.id.btn_add_mod);
+        add.setOnClickListener(x -> {
+            // Mods come from Browse, where every file is audited and checked against its hash. Adding files by hand
+            // skips that, so it is a developer feature.
+            if (SBASettings.getDeveloperFeatures(requireContext())) {
+                picker.launch(new String[]{"*/*"});
+            } else {
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(R.string.mods_locked_title)
+                        .setMessage(R.string.mods_locked_message)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show();
+            }
+        });
         return v;
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        boolean unlocked = SBASettings.getDeveloperFeatures(requireContext());
+        ((com.google.android.material.button.MaterialButton) requireView().findViewById(R.id.btn_add_mod))
+                .setIconResource(unlocked ? R.drawable.ic_add : R.drawable.ic_lock);
         reload();
     }
 
     private File pluginsDir() {
-        return new File(Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, "BepInEx"), "plugins");
+        return ModFiles.pluginsDir();
     }
 
     private void reload() {
@@ -157,9 +174,9 @@ public class ModsFragment extends Fragment {
             try (InputStream in = app.getContentResolver().openInputStream(uri)) {
                 if (in == null || (!dir.exists() && !dir.mkdirs())) throw new java.io.IOException("no stream");
                 if (lower.endsWith(".dll") || lower.endsWith(".so") || lower.endsWith(ModPacks.PACK_EXTENSION)) {
-                    copy(in, new File(dir, name));
+                    ModFiles.copy(in, new File(dir, name));
                 }
-                else unzipInto(in, dir);
+                else ModFiles.unzipInto(in, dir, null);
                 ok = true;
             } catch (Exception e) {
                 android.util.Log.e("ModsFragment", "Failed to import mod " + name, e);
@@ -171,32 +188,6 @@ public class ModsFragment extends Fragment {
                 reload();
             });
         }, "mod-import").start();
-    }
-
-    private static void copy(InputStream in, File out) throws java.io.IOException {
-        try (FileOutputStream os = new FileOutputStream(out)) {
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = in.read(buf)) != -1) os.write(buf, 0, n);
-        }
-    }
-
-    private static void unzipInto(InputStream in, File dir) throws java.io.IOException {
-        String root = dir.getCanonicalPath() + File.separator;
-        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(in)) {
-            java.util.zip.ZipEntry e;
-            while ((e = zis.getNextEntry()) != null) {
-                File out = new File(dir, e.getName());
-                if (!out.getCanonicalPath().startsWith(root)) continue; // zip-slip guard
-                if (e.isDirectory()) {
-                    out.mkdirs();
-                } else {
-                    File parent = out.getParentFile();
-                    if (parent != null) parent.mkdirs();
-                    copy(zis, out);
-                }
-            }
-        }
     }
 
     private void confirmRemove(File f) {
