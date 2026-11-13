@@ -214,6 +214,7 @@ public class BootstrapActivity extends AppCompatActivity {
                     intentWrapped.putExtra(InstrumentationHooks.EXTRA_IS_DYNAMIC_ACTIVITY, true);
                     intentWrapped.putExtra(InstrumentationHooks.EXTRA_ORIGINAL_INTENT, intent);
                     intentWrapped.putExtra(InstrumentationHooks.EXTRA_SBA_CONFIG, config);
+                    intentWrapped.putExtra(InstrumentationHooks.EXTRA_FUSION_ENABLED, config.fusionEnabled);
                     intentWrapped.putExtra(InstrumentationHooks.EXTRA_TARGET_ORIENTATION, targetOrientation);
                     startActivity(intentWrapped);
                     finish();

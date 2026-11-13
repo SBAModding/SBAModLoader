@@ -19,6 +19,8 @@ public class InstrumentationHooks {
     public static final String EXTRA_ORIGINAL_INTENT = "sbamodloader.original_intent";
     public static final String EXTRA_TARGET_ORIENTATION = "sbamodloader.target_orientation";
     public static final String EXTRA_SBA_CONFIG = "sbamodloader.config";
+    /** Whether Fusion runs in this launch. Only Fusion hides the loading view, so it is not shown without it. */
+    public static final String EXTRA_FUSION_ENABLED = "sbamodloader.fusion_enabled";
 
     static void applyTargetOrientation(Activity activity) {
         try {

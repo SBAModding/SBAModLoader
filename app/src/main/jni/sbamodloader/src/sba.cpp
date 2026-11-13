@@ -130,6 +130,8 @@ int il2cpp_init_hook(char *domain_name)
     else if (runtime_config.initialized)
     {
         log(LogLevel::INFO, TAG, "Fusion is off or has no enabled mods: not starting the .NET runtime or BepInEx.");
+        // Only Fusion hides the loading view when it is done; hide it here so it cannot stay up forever.
+        setLoadingState(false);
     }
     else
     {

@@ -187,6 +187,10 @@ public final class GameRuntime {
                 target.putExtra(InstrumentationHooks.EXTRA_SBA_CONFIG,
                         intent.<android.os.Parcelable>getParcelableExtra(InstrumentationHooks.EXTRA_SBA_CONFIG));
             }
+            if (intent.hasExtra(InstrumentationHooks.EXTRA_FUSION_ENABLED)) {
+                target.putExtra(InstrumentationHooks.EXTRA_FUSION_ENABLED,
+                        intent.getBooleanExtra(InstrumentationHooks.EXTRA_FUSION_ENABLED, true));
+            }
             if (intent.hasExtra(InstrumentationHooks.EXTRA_TARGET_ORIENTATION)) {
                 target.putExtra(InstrumentationHooks.EXTRA_TARGET_ORIENTATION,
                         intent.getIntExtra(InstrumentationHooks.EXTRA_TARGET_ORIENTATION,
@@ -246,9 +250,12 @@ public final class GameRuntime {
                 windowAttributes.packageName = dev.segually.sbamodloader.BuildConfig.APPLICATION_ID;
                 activity.getWindow().setAttributes(windowAttributes);
                 if (target.hasExtra(InstrumentationHooks.EXTRA_SBA_CONFIG)) {
-                    ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
-                    Context loadingTheme = new ContextThemeWrapper(sbaBase, androidx.appcompat.R.style.Theme_AppCompat);
-                    decor.addView(LayoutInflater.from(loadingTheme).inflate(R.layout.loading_view, decor, false));
+                    // Fusion is what hides the loading view when it finishes, so without Fusion it would spin forever.
+                    if (target.getBooleanExtra(InstrumentationHooks.EXTRA_FUSION_ENABLED, true)) {
+                        ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
+                        Context loadingTheme = new ContextThemeWrapper(sbaBase, androidx.appcompat.R.style.Theme_AppCompat);
+                        decor.addView(LayoutInflater.from(loadingTheme).inflate(R.layout.loading_view, decor, false));
+                    }
                     overlays.put(activity, dev.segually.sbamodloader.ui.GameOverlay.install(activity, sbaBase));
                 }
             } catch (Exception e) {
