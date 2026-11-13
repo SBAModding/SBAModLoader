@@ -26,6 +26,7 @@ import java.util.WeakHashMap;
 
 import dalvik.system.PathClassLoader;
 import dev.segually.sbamodloader.tools.NativeLibraryManager;
+import dev.segually.sbamodloader.tools.PatchManager;
 import dev.segually.sbamodloader.R;
 import dev.segually.sbamodloader.tools.CustomContextWrapper;
 
@@ -49,14 +50,21 @@ public final class GameRuntime {
         Log.i("GameRuntime", "Initialized application " + className);
     }
 
-    public static Context prepareGameContext(Context gameContext, ClassLoader sbaLoader)
+    public static Context prepareGameContext(Context gameContext, ClassLoader sbaLoader,
+                                             PatchManager.ActivePatch patch)
             throws ReflectiveOperationException {
         android.content.pm.ApplicationInfo info = gameContext.getApplicationInfo();
         ArrayList<String> apks = new ArrayList<>();
+        String libraryPath = info.nativeLibraryDir;
+        if (patch != null) {
+            // Patch classes and libraries are searched before the game's own.
+            for (File dex : patch.dexFiles) apks.add(dex.getAbsolutePath());
+            if (patch.libDir != null) libraryPath = patch.libDir.getAbsolutePath() + File.pathSeparator + libraryPath;
+        }
         apks.add(info.sourceDir);
         if (info.splitSourceDirs != null) Collections.addAll(apks, info.splitSourceDirs);
         ClassLoader gameLoader = new GameClassLoader(String.join(File.pathSeparator, apks),
-                info.nativeLibraryDir, sbaLoader);
+                libraryPath, sbaLoader);
         return new ContextWrapper(gameContext) {
             @Override public ClassLoader getClassLoader() { return gameLoader; }
         };

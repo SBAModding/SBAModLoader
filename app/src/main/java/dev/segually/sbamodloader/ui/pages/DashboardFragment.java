@@ -31,6 +31,7 @@ public class DashboardFragment extends Fragment {
     private TextView setupTitle;
     private MaterialButton btnLaunch;
     private UpdateChecker.State updateState = UpdateChecker.State.UNKNOWN;
+    private PatchManager.Status patchStatus = PatchManager.Status.NO_SOURCE;
 
     @Nullable
     @Override
@@ -74,20 +75,31 @@ public class DashboardFragment extends Fragment {
         if (!isAdded()) return;
         boolean game = gameInstalled();
         boolean latest = updateState != UpdateChecker.State.OUTDATED;
-        PatchManager.Status patchStatus = PatchManager.status();
-        boolean patches = patchStatus == PatchManager.Status.INSTALLED;
-
         bind(stepGame, game ? State.OK : State.ERROR, getString(game ? R.string.step_game_ok : R.string.step_game_missing));
         bind(stepVersion, latest ? State.OK : State.ERROR, getString(latest ? R.string.step_version_ok : R.string.step_version_outdated));
-        switch (patchStatus) {
+        applyPatchStatus(game, latest, patchStatus);
+
+        // Hashing the game APK is slow, so the patch status is resolved off the main thread.
+        android.content.Context app = requireContext().getApplicationContext();
+        new Thread(() -> {
+            PatchManager.Status s = game ? PatchManager.status(app) : PatchManager.Status.NO_SOURCE;
+            if (isAdded()) requireActivity().runOnUiThread(() -> {
+                patchStatus = s;
+                applyPatchStatus(game, latest, s);
+            });
+        }, "patch-status").start();
+    }
+
+    private void applyPatchStatus(boolean game, boolean latest, PatchManager.Status status) {
+        if (!isAdded()) return;
+        switch (status) {
             case INSTALLED -> bind(stepPatches, State.OK, getString(R.string.step_patches_ok));
             case MISSING -> bind(stepPatches, State.ERROR, getString(R.string.step_patches_missing));
             default -> bind(stepPatches, State.PENDING, getString(R.string.step_patches_no_source));
         }
-
-        int done = (game ? 1 : 0) + (latest ? 1 : 0) + (patches ? 1 : 0);
+        int done = (game ? 1 : 0) + (latest ? 1 : 0) + (status == PatchManager.Status.INSTALLED ? 1 : 0);
         setupTitle.setText(getString(R.string.setup_progress, done, 3));
-        btnLaunch.setEnabled(game && patchStatus != PatchManager.Status.MISSING);
+        btnLaunch.setEnabled(game && status != PatchManager.Status.MISSING);
     }
 
     private enum State { OK, ERROR, PENDING }

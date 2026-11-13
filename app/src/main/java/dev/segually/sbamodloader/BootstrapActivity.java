@@ -47,6 +47,7 @@ import dev.segually.sbamodloader.tools.Il2CppApiMapper;
 import dev.segually.sbamodloader.tools.UnityBaseLibraries;
 import dev.segually.sbamodloader.tools.LibUnityDownloader;
 import dev.segually.sbamodloader.tools.NativeLibraryManager;
+import dev.segually.sbamodloader.tools.PatchManager;
 import dev.segually.sbamodloader.tools.Utilities;
 import dev.segually.sbamodloader.tools.UnityUtils;
 
@@ -103,8 +104,13 @@ public class BootstrapActivity extends AppCompatActivity {
             return;
         }
 
+        final PatchManager.ActivePatch patch = PatchManager.getActive(this);
+        if (patch != null) {
+            Log.i(TAG, "Applying patch '" + patch.manifest.name + "' for game " + patch.manifest.gameVersion);
+        }
+
         try {
-            gameContext = GameRuntime.prepareGameContext(gameContext, getClassLoader());
+            gameContext = GameRuntime.prepareGameContext(gameContext, getClassLoader(), patch);
         } catch (Exception e) {
             failAndFinish("Failed to configure classes.", e);
             return;
@@ -137,7 +143,8 @@ public class BootstrapActivity extends AppCompatActivity {
                     gameContext,
                     launcherComponent,
                     targetPackage,
-                    useOriginalLibUnity
+                    useOriginalLibUnity,
+                    patch
             );
         } catch (Throwable t) {
             failAndFinish("Failed while preparing SBA runtime: " + t.getMessage(), t);
@@ -401,9 +408,12 @@ public class BootstrapActivity extends AppCompatActivity {
                                        Context gameContext,
                                        ComponentName launcherComponent,
                                        String targetPackage,
-                                       boolean useOriginalLibUnity) {
+                                       boolean useOriginalLibUnity,
+                                       PatchManager.ActivePatch patch) {
 
-        String gameLibDir = gameContext.getApplicationInfo().nativeLibraryDir;
+        String gameLibDir = patch != null && patch.libDir != null
+                ? patch.libDir.getAbsolutePath()
+                : gameContext.getApplicationInfo().nativeLibraryDir;
         String appLibDir = appContext.getApplicationInfo().nativeLibraryDir;
 
         String targetGameAbi = resolveTargetGameAbi(gameLibDir);

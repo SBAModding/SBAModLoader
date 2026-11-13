@@ -16,11 +16,51 @@ import com.google.android.material.materialswitch.MaterialSwitch;
 import dev.segually.sbamodloader.BuildConfig;
 import dev.segually.sbamodloader.R;
 import dev.segually.sbamodloader.SBASettings;
+import dev.segually.sbamodloader.tools.PatchManager;
+import android.widget.Toast;
 import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.Utilities;
 import dev.segually.sbamodloader.ui.Insets;
 
 public class SettingsFragment extends Fragment {
+    private View devSection;
+    private TextView patchInfo;
+
+    private final androidx.activity.result.ActivityResultLauncher<String[]> patchPicker =
+            registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.OpenDocument(), this::loadPatch);
+
+    private void refreshDeveloper() {
+        boolean on = SBASettings.getDeveloperFeatures(requireContext());
+        devSection.setVisibility(on ? View.VISIBLE : View.GONE);
+        PatchManager.Manifest m = PatchManager.installedManifest(requireContext());
+        if (m == null) {
+            patchInfo.setText(R.string.patch_none_installed);
+        } else {
+            String name = m.name.isEmpty() ? getString(R.string.patch_unnamed) : m.name;
+            patchInfo.setText(getString(R.string.patch_installed_format, name, m.gameVersion)
+                    + (m.skipHashVerification ? "\n" + getString(R.string.patch_hash_skipped) : ""));
+        }
+    }
+
+    private void loadPatch(android.net.Uri uri) {
+        if (uri == null) return;
+        android.content.Context app = requireContext().getApplicationContext();
+        patchInfo.setText(R.string.patch_installing);
+        new Thread(() -> {
+            String error = null;
+            try {
+                PatchManager.installLocal(app, uri);
+            } catch (PatchManager.PatchException e) {
+                error = e.getMessage();
+            }
+            String err = error;
+            if (isAdded()) requireActivity().runOnUiThread(() -> {
+                refreshDeveloper();
+                Toast.makeText(requireContext(), err == null ? getString(R.string.patch_install_ok) : err, Toast.LENGTH_LONG).show();
+            });
+        }, "patch-install").start();
+    }
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
@@ -30,6 +70,21 @@ public class SettingsFragment extends Fragment {
         MaterialSwitch libunity = v.findViewById(R.id.switch_libunity);
         libunity.setChecked(SBASettings.getUseUnstrippedLibUnity(requireContext()));
         libunity.setOnCheckedChangeListener((b, on) -> SBASettings.setUseUnstrippedLibUnity(requireContext(), on));
+
+        devSection = v.findViewById(R.id.dev_section);
+        patchInfo = v.findViewById(R.id.patch_info);
+        MaterialSwitch dev = v.findViewById(R.id.switch_developer);
+        dev.setChecked(SBASettings.getDeveloperFeatures(requireContext()));
+        dev.setOnCheckedChangeListener((b, on) -> {
+            SBASettings.setDeveloperFeatures(requireContext(), on);
+            refreshDeveloper();
+        });
+        v.findViewById(R.id.btn_load_patch).setOnClickListener(x -> patchPicker.launch(new String[]{"application/zip", "application/octet-stream", "*/*"}));
+        v.findViewById(R.id.btn_remove_patch).setOnClickListener(x -> {
+            PatchManager.remove(requireContext());
+            refreshDeveloper();
+        });
+        refreshDeveloper();
 
         ((TextView) v.findViewById(R.id.data_path)).setText(
                 Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, null).getAbsolutePath());

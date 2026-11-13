@@ -24,7 +24,7 @@
     <string name="step_version_ok">Be on the latest version of SBAML</string>
     <string name="step_version_outdated">A newer version of SBAML is available</string>
     <string name="step_patches_ok">Mandatory patches installed</string>
-    <string name="step_patches_missing">Install mandatory patches</string>
+    <string name="step_patches_missing">Install mandatory patches (none matches this game)</string>
     <string name="step_patches_no_source">Mandatory patches: no patch source yet</string>
     <string name="dashboard_launch">Launch Super Bear Adventure</string>
     <string name="mods_add">Add mod</string>
@@ -36,4 +36,15 @@
     <string name="mods_unsupported">Pick a .dll or a .zip file.</string>
     <string name="mods_remove">Remove</string>
     <string name="mods_remove_title">Remove this mod?</string>
+    <string name="settings_developer_title">Developer features</string>
+    <string name="settings_developer_desc">Unlocks tools for testing. Leave off unless you are developing patches.</string>
+    <string name="patch_section_title">Local patch</string>
+    <string name="patch_load_local">Load patch from storage</string>
+    <string name="patch_remove">Remove patch</string>
+    <string name="patch_none_installed">No patch installed.</string>
+    <string name="patch_unnamed">Unnamed patch</string>
+    <string name="patch_installed_format">%1$s (game %2$s)</string>
+    <string name="patch_hash_skipped">Game hash verification is skipped.</string>
+    <string name="patch_installing">Installing patch…</string>
+    <string name="patch_install_ok">Patch installed</string>
 </resources>
