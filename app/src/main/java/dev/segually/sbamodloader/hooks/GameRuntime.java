@@ -36,9 +36,17 @@ public final class GameRuntime {
 
     public static android.app.Application getGameApplication() { return gameApplication; }
 
+    // Set when a patch replaces the Application class declared in the game's manifest.
+    private static boolean applicationOverridden;
+    private static String applicationOverride;
+
     public static void initializeApplication(Context gameContext, Context sbaContext)
             throws ReflectiveOperationException {
         String className = gameContext.getApplicationInfo().className;
+        if (applicationOverridden) {
+            className = applicationOverride == null || applicationOverride.isEmpty()
+                    || applicationOverride.equals("android.app.Application") ? null : applicationOverride;
+        }
         if (gameApplication != null || className == null) return;
         android.app.Application application = (android.app.Application) gameContext.getClassLoader()
                 .loadClass(className).getDeclaredConstructor().newInstance();
@@ -54,8 +62,11 @@ public final class GameRuntime {
                                              PatchManager.ActivePatch patch)
             throws ReflectiveOperationException {
         android.content.pm.ApplicationInfo info = gameContext.getApplicationInfo();
+        clearAppComponentFactory(info);
         ArrayList<String> apks = new ArrayList<>();
         String libraryPath = info.nativeLibraryDir;
+        applicationOverridden = patch != null && patch.manifest.applicationClass != null;
+        applicationOverride = applicationOverridden ? patch.manifest.applicationClass : null;
         if (patch != null) {
             // Patch classes and libraries are searched before the game's own.
             for (File dex : patch.dexFiles) apks.add(dex.getAbsolutePath());
@@ -68,6 +79,20 @@ public final class GameRuntime {
         return new ContextWrapper(gameContext) {
             @Override public ClassLoader getClassLoader() { return gameLoader; }
         };
+    }
+
+    /**
+     * Android builds its own LoadedApk for the game whenever something resolves resources for its
+     * ApplicationInfo (for example an ad SDK reading the app label). That instantiates the
+     * manifest's appComponentFactory from the original, unpatched dex files, which can run code a
+     * patch removed. Components are only created through our own hooks, so the factory is unneeded.
+     */
+    private static void clearAppComponentFactory(android.content.pm.ApplicationInfo info) {
+        try {
+            android.content.pm.ApplicationInfo.class.getField("appComponentFactory").set(info, null);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            Log.w("GameRuntime", "Could not clear appComponentFactory", e);
+        }
     }
 
     private static final class GameClassLoader extends PathClassLoader {

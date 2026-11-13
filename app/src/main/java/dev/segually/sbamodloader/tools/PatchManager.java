@@ -29,14 +29,16 @@ import dev.segually.sbamodloader.TargetGame;
  * game's protection requires. A patch is a zip file:
  *
  * <pre>
- * manifest.json                      {"name", "gameVersion", "gameHash", "skipHashVerification"}
+ * manifest.json                      {"name", "gameVersion", "gameHash", "skipHashVerification",
+ *                                      "applicationClass"}
  * dex/*.dex                          replacement classes, searched before the game's own
  * lib/arm64-v8a/*.so                 replacement native libraries
  * </pre>
  *
  * {@code gameVersion} must equal the installed game's version name, and {@code gameHash} must equal
  * the SHA-256 of the installed game's base APK. {@code skipHashVerification} turns the hash check
- * off, but only while developer features are enabled.
+ * off, but only while developer features are enabled. {@code applicationClass} replaces the game's
+ * manifest Application class (use "android.app.Application" when the patch removes a wrapper class).
  *
  * Patches will be published as releases of a patch repository; until then they can only be loaded
  * from local storage when developer features are on.
@@ -60,6 +62,11 @@ public final class PatchManager {
         public String gameVersion = "";
         public String gameHash = "";
         public boolean skipHashVerification;
+        /**
+         * Application class to use instead of the one in the installed game's manifest. Null keeps the
+         * game's own; an empty string or "android.app.Application" means the game has none.
+         */
+        public String applicationClass;
     }
 
     /** An installed patch that has been verified against the installed game. */
@@ -137,6 +144,9 @@ public final class PatchManager {
             m.gameVersion = o.getString("gameVersion");
             m.gameHash = o.optString("gameHash", "").toLowerCase(Locale.ROOT);
             m.skipHashVerification = o.optBoolean("skipHashVerification", false);
+            if (o.has("applicationClass")) {
+                m.applicationClass = o.isNull("applicationClass") ? "" : o.getString("applicationClass");
+            }
             if (m.gameHash.isEmpty() && !m.skipHashVerification) {
                 throw new PatchException("manifest.json has no gameHash");
             }

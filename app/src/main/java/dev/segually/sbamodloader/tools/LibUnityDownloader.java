@@ -16,7 +16,7 @@ import java.util.concurrent.FutureTask;
 
 public final class LibUnityDownloader {
     private static final String TAG = "SBAModLoader";
-    private static final String LIBUNITY_DOWNLOAD_URL = "https://github.com/All-Of-Us-Mods/SBAModLoader.UnityDependencies/releases/download/";
+    private static final String LIBUNITY_DOWNLOAD_URL = "https://github.com/All-Of-Us-Mods/FusionCore.UnityDependencies/releases/download/";
     private static final String LIBUNITY_CACHE_META_FILE = "libunity.cache.properties";
 
     public interface DownloadProgressListener {
