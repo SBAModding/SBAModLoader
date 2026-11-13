@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 
 public final class SBASettings {
     private static final String PREFS_NAME = "sba_settings";
+    private static final String KEY_MOD_ORDER = "mod_order";
     private static final String KEY_DEVELOPER_FEATURES = "developer_features";
     private static final String KEY_CUSTOM_PATCH_URL = "custom_patch_url";
     private static final String KEY_DOWNLOAD_UNSTRIPPED_LIBUNITY = "download_unstripped_libunity";
@@ -38,5 +39,17 @@ public final class SBASettings {
 
     public static void setCustomPatchUrl(Context context, String url) {
         prefs(context).edit().putString(KEY_CUSTOM_PATCH_URL, url).apply();
+    }
+
+    /** Names of native mods and packs in load order. */
+    public static java.util.List<String> getModOrder(Context context) {
+        String joined = prefs(context).getString(KEY_MOD_ORDER, "");
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (String n : joined.split("\n")) if (!n.isEmpty()) names.add(n);
+        return names;
+    }
+
+    public static void setModOrder(Context context, java.util.List<String> names) {
+        prefs(context).edit().putString(KEY_MOD_ORDER, String.join("\n", names)).apply();
     }
 }

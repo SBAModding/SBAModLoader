@@ -47,6 +47,7 @@ import dev.segually.sbamodloader.tools.Il2CppApiMapper;
 import dev.segually.sbamodloader.tools.UnityBaseLibraries;
 import dev.segually.sbamodloader.tools.LibUnityDownloader;
 import dev.segually.sbamodloader.tools.NativeLibraryManager;
+import dev.segually.sbamodloader.tools.ModPacks;
 import dev.segually.sbamodloader.tools.PatchManager;
 import dev.segually.sbamodloader.tools.Utilities;
 import dev.segually.sbamodloader.tools.UnityUtils;
@@ -134,6 +135,21 @@ public class BootstrapActivity extends AppCompatActivity {
 
         final int targetOrientation = resolveTargetOrientation(launcherComponent);
 
+        // Native mods and asset packs. The overlay APK has to exist before the game's data is copied below.
+        setPhaseStatus(getString(R.string.bootstrap_status_applying_overlays));
+        ModPacks.Prepared mods;
+        try {
+            File runtimeScoped = new File(getRuntimeDir(getApplicationContext()), targetPackage);
+            File baseApk = new File(getPackageManager().getApplicationInfo(targetPackage, 0).sourceDir);
+            mods = ModPacks.prepare(getApplicationContext(), runtimeScoped, baseApk, patch);
+            if (mods.overlayApk != null) {
+                GameRuntime.useOverlayApk(gameContext, mods.overlayApk.getAbsolutePath());
+            }
+        } catch (Throwable t) {
+            failAndFinish("Failed to prepare mods: " + t.getMessage(), t);
+            return;
+        }
+
         boolean useOriginalLibUnity = !SBASettings.getUseUnstrippedLibUnity(this);
         SBAConfig config;
 
@@ -144,7 +160,8 @@ public class BootstrapActivity extends AppCompatActivity {
                     launcherComponent,
                     targetPackage,
                     useOriginalLibUnity,
-                    patch
+                    patch,
+                    mods
             );
         } catch (Throwable t) {
             failAndFinish("Failed while preparing SBA runtime: " + t.getMessage(), t);
@@ -409,7 +426,8 @@ public class BootstrapActivity extends AppCompatActivity {
                                        ComponentName launcherComponent,
                                        String targetPackage,
                                        boolean useOriginalLibUnity,
-                                       PatchManager.ActivePatch patch) {
+                                       PatchManager.ActivePatch patch,
+                                       ModPacks.Prepared mods) {
 
         String gameLibDir = patch != null && patch.libDir != null
                 ? patch.libDir.getAbsolutePath()
@@ -425,7 +443,25 @@ public class BootstrapActivity extends AppCompatActivity {
 
         setPhaseStatus(getString(R.string.bootstrap_status_copy_assets));
         File Assets = new File(dataOnSdCard, "Assets");
+        // The copy comes from the overlay APK when there is one, so redo it whenever the overlay changes.
+        File overlayMarker = new File(Assets, ".sba_overlay");
+        String overlayId = mods.overlayApk == null ? "none" : mods.overlayApk.getName();
+        String copiedFor = "";
+        try {
+            if (overlayMarker.isFile()) copiedFor = new String(java.nio.file.Files.readAllBytes(overlayMarker.toPath()));
+        } catch (IOException ignored) {
+        }
+        if (!copiedFor.equals(overlayId) && Assets.exists()) {
+            Log.i(TAG, "Asset overlays changed, copying the game's data again");
+            Utilities.deleteRecursive(Assets);
+        }
         boolean copied = Utilities.copyAssets(gameContext.getApplicationInfo(), Assets);
+        try {
+            Assets.mkdirs();
+            java.nio.file.Files.write(overlayMarker.toPath(), overlayId.getBytes());
+        } catch (IOException e) {
+            Log.w(TAG, "Could not record the overlay state", e);
+        }
         if (!copied) {
             throw new IllegalStateException("Failed to copy Unity data from the game; check storage space and that the game is installed.");
         }
@@ -489,38 +525,9 @@ public class BootstrapActivity extends AppCompatActivity {
                 useOriginalLibUnity,
                 new String[]{},
                 new String[]{},
-                prepareNativeMods(codeCacheScoped, targetPackage),
+                mods.natives,
                 il2cppMap
         );
-    }
-
-    /**
-     * Copies the enabled native mods (*.so) next to the runtime files and returns their paths in name order.
-     * External storage is mounted noexec, so they cannot be loaded from where the user put them.
-     */
-    private String[] prepareNativeMods(File runtimeScoped, String targetPackage) {
-        File source = Utilities.getExternalSBAModLoaderDirectory(targetPackage, "NativeMods");
-        File[] mods = source.listFiles((dir, name) -> name.endsWith(".so"));
-        File target = new File(runtimeScoped, "native-mods");
-        Utilities.deleteRecursive(target);
-        if (mods == null || mods.length == 0) return new String[0];
-        java.util.Arrays.sort(mods, java.util.Comparator.comparing(File::getName));
-        if (!target.mkdirs()) throw new IllegalStateException("Cannot create " + target);
-        java.util.List<String> paths = new java.util.ArrayList<>();
-        for (File mod : mods) {
-            File copy = new File(target, mod.getName());
-            try {
-                copyFile(mod, copy);
-                // Android 14+ refuses to load writable native libraries.
-                //noinspection ResultOfMethodCallIgnored
-                copy.setReadOnly();
-                paths.add(copy.getAbsolutePath());
-                Log.i(TAG, "Native mod: " + mod.getName());
-            } catch (IOException e) {
-                Log.e(TAG, "Could not prepare native mod " + mod.getName(), e);
-            }
-        }
-        return paths.toArray(new String[0]);
     }
 
     private void copyUriToFile(Uri sourceUri, File target) throws IOException {

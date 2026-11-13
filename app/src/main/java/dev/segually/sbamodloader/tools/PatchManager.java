@@ -37,6 +37,7 @@ import dev.segually.sbamodloader.TargetGame;
  *                                      "skipHashVerification", "applicationClass"}
  * dex/*.dex                          replacement classes, searched before the game's own
  * lib/arm64-v8a/*.so                 replacement native libraries
+ * overlay/**                         files laid over the game's assets (same as an .sbapack's overlay folder)
  * </pre>
  *
  * {@code gameVersion} must equal the installed game's version name, and {@code gameHash} must equal
@@ -102,11 +103,14 @@ public final class PatchManager {
         public final List<File> dexFiles;
         /** Directory with replacement native libraries, or null. */
         public final File libDir;
+        /** Directory of files to lay over the game's assets, or null. */
+        public final File overlayDir;
 
-        ActivePatch(Manifest manifest, List<File> dexFiles, File libDir) {
+        ActivePatch(Manifest manifest, List<File> dexFiles, File libDir, File overlayDir) {
             this.manifest = manifest;
             this.dexFiles = dexFiles;
             this.libDir = libDir;
+            this.overlayDir = overlayDir;
         }
     }
 
@@ -240,7 +244,8 @@ public final class PatchManager {
             dex.sort(java.util.Comparator.comparing(File::getName));
         }
         File lib = new File(root, "lib/" + ABI);
-        return new ActivePatch(m, dex, lib.isDirectory() ? lib : null);
+        File overlay = new File(root, "overlay");
+        return new ActivePatch(m, dex, lib.isDirectory() ? lib : null, overlay.isDirectory() ? overlay : null);
     }
 
     // ---- where the patch came from -------------------------------------------------------------
@@ -518,7 +523,8 @@ public final class PatchManager {
                 String name = ze.getName();
                 boolean wanted = name.equals("manifest.json")
                         || (name.startsWith("dex/") && name.endsWith(".dex"))
-                        || (name.startsWith("lib/" + ABI + "/") && name.endsWith(".so"));
+                        || (name.startsWith("lib/" + ABI + "/") && name.endsWith(".so"))
+                        || name.startsWith("overlay/");
                 if (ze.isDirectory() || !wanted) continue;
                 File target = new File(staging, name);
                 if (!target.getCanonicalPath().startsWith(stagingRoot)) continue; // zip-slip guard
@@ -527,10 +533,10 @@ public final class PatchManager {
                     in.transferTo(out);
                 }
                 // Android 14+ refuses to load writable dex files and native libraries.
-                if (!name.equals("manifest.json")) target.setReadOnly();
+                if (name.endsWith(".dex") || name.endsWith(".so")) target.setReadOnly();
                 files++;
             }
-            if (files <= 1) throw new PatchException("The patch contains no dex files or libraries");
+            if (files <= 1) throw new PatchException("The patch contains no dex files, libraries or overlay files");
             Utilities.deleteRecursive(root);
             if (!staging.renameTo(root)) throw new PatchException("Could not install the patch");
             if (source != null) {

@@ -9,6 +9,7 @@
     <string name="bootstrap_status_detecting_version">Detecting Unity version…</string>
     <string name="bootstrap_status_downloading_libunity">Downloading unstripped libunity…</string>
     <string name="bootstrap_status_extracting_runtime">Extracting runtime files…</string>
+    <string name="bootstrap_status_applying_overlays">Applying mods and asset overlays…</string>
     <string name="bootstrap_status_registering_libraries">Registering native libraries…</string>
     <string name="bootstrap_status_installing_hooks">Installing hooks…</string>
     <string name="bootstrap_status_launching">Launching game…</string>
@@ -26,12 +27,12 @@
     <string name="step_patches_ok">Mandatory patches installed</string>
     <string name="dashboard_launch">Launch Super Bear Adventure</string>
     <string name="mods_add">Add mod</string>
-    <string name="mods_empty">No mods yet. Add a .dll, .zip or native .so to get started.</string>
+    <string name="mods_empty">No mods yet. Add a .dll, .zip, native .so or .sbapack to get started.</string>
     <string name="mods_copy_failed">Could not add that file.</string>
     <string name="settings_about_format">SBAModLoader %1$s</string>
     <string name="loading">Loading...</string>
     <string name="settings_data_location">Mods and data location</string>
-    <string name="mods_unsupported">Pick a .dll, .zip or .so file.</string>
+    <string name="mods_unsupported">Pick a .dll, .zip, .so or .sbapack file.</string>
     <string name="mods_remove">Remove</string>
     <string name="mods_remove_title">Remove this mod?</string>
     <string name="settings_developer_title">Developer features</string>
@@ -68,4 +69,10 @@
     <string name="logcat_clear">Clear</string>
     <string name="mods_kind_plugin">BepInEx plugin</string>
     <string name="mods_kind_native">Native mod</string>
+    <string name="mods_kind_pack_both">Native mod + asset pack</string>
+    <string name="mods_kind_pack_native">Native mod pack</string>
+    <string name="mods_kind_pack_assets">Asset pack</string>
+    <string name="mods_kind_pack_empty">Empty pack</string>
+    <string name="mods_order_hint">Native mods and packs load from top to bottom; a later one replaces what an earlier one changed. Drag the handle to reorder.</string>
+    <string name="mods_drag_handle">Drag to change load order</string>
 </resources>

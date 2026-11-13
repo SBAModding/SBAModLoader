@@ -43,6 +43,18 @@ public class CustomContextWrapper extends ContextWrapper {
         this.getApplicationInfo().nativeLibraryDir = "";
     }
 
+    @Override
+    public String getPackageCodePath() {
+        String overlay = dev.segually.sbamodloader.hooks.GameRuntime.getOverlayApk();
+        return overlay != null ? overlay : super.getPackageCodePath();
+    }
+
+    @Override
+    public String getPackageResourcePath() {
+        String overlay = dev.segually.sbamodloader.hooks.GameRuntime.getOverlayApk();
+        return overlay != null ? overlay : super.getPackageResourcePath();
+    }
+
     public Context getOriginalActivity() {
         return sbaContext;
     }

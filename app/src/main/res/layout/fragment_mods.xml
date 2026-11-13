@@ -32,6 +32,14 @@
     </LinearLayout>
 
     <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/mods_order_hint"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp" />
+
+    <TextView
         android:id="@+id/mods_empty"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

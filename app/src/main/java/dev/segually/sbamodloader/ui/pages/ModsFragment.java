@@ -2,7 +2,9 @@ package dev.segually.sbamodloader.ui.pages;
 
 import android.net.Uri;
 import android.os.Bundle;
+import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -13,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -22,21 +25,27 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
 import dev.segually.sbamodloader.R;
 import dev.segually.sbamodloader.TargetGame;
+import dev.segually.sbamodloader.tools.ModPacks;
 import dev.segually.sbamodloader.tools.Utilities;
 import dev.segually.sbamodloader.ui.Insets;
 
-/** Lists BepInEx plugins; disabling a mod renames it to *.dll.disabled. */
+/**
+ * Lists everything that can be added to the game. Native mods and asset packs come first, in load order, and can
+ * be dragged to change it (they load, and win asset conflicts, from top to bottom). BepInEx plugins follow.
+ * Disabling a mod renames it with a ".disabled" suffix.
+ */
 public class ModsFragment extends Fragment {
-    private static final String DISABLED = ".disabled";
+    private static final String DISABLED = ModPacks.DISABLED;
     private final List<File> mods = new ArrayList<>();
+    private int orderableCount;
     private RecyclerView list;
     private TextView empty;
+    private ItemTouchHelper touchHelper;
 
     private final ActivityResultLauncher<String[]> picker =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::importMod);
@@ -51,9 +60,41 @@ public class ModsFragment extends Fragment {
         empty = v.findViewById(R.id.mods_empty);
         list.setLayoutManager(new LinearLayoutManager(requireContext()));
         list.setAdapter(new Adapter());
-        v.findViewById(R.id.btn_add_mod).setOnClickListener(x -> {
-            picker.launch(new String[]{"*/*"});
+        touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) {
+            @Override
+            public boolean isLongPressDragEnabled() {
+                return false; // dragging starts from the handle
+            }
+
+            @Override
+            public int getMovementFlags(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
+                return vh.getBindingAdapterPosition() < orderableCount
+                        ? makeMovementFlags(ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) : 0;
+            }
+
+            @Override
+            public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder from, @NonNull RecyclerView.ViewHolder to) {
+                int a = from.getBindingAdapterPosition();
+                int b = to.getBindingAdapterPosition();
+                if (a < 0 || b < 0 || a >= orderableCount || b >= orderableCount) return false;
+                mods.add(b, mods.remove(a));
+                list.getAdapter().notifyItemMoved(a, b);
+                return true;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int direction) {
+            }
+
+            @Override
+            public void clearView(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
+                super.clearView(rv, vh);
+                ModPacks.saveOrder(requireContext(), mods.subList(0, orderableCount));
+                list.getAdapter().notifyItemRangeChanged(0, orderableCount); // refresh the position numbers
+            }
         });
+        touchHelper.attachToRecyclerView(list);
+        v.findViewById(R.id.btn_add_mod).setOnClickListener(x -> picker.launch(new String[]{"*/*"}));
         return v;
     }
 
@@ -63,35 +104,24 @@ public class ModsFragment extends Fragment {
         reload();
     }
 
-    private File nativeDir() {
-        return Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, "NativeMods");
-    }
-
-    private static boolean isNative(File f) {
-        return f.getName().contains(".so");
-    }
-
     private File pluginsDir() {
         return new File(Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, "BepInEx"), "plugins");
     }
 
     private void reload() {
         mods.clear();
+        mods.addAll(ModPacks.orderedMods(requireContext()));
+        orderableCount = mods.size();
+        List<File> plugins = new ArrayList<>();
         File[] files = pluginsDir().listFiles();
         if (files != null) {
             for (File f : files) {
                 String n = f.getName();
-                if (f.isFile() && (n.endsWith(".dll") || n.endsWith(".dll" + DISABLED))) mods.add(f);
+                if (f.isFile() && (n.endsWith(".dll") || n.endsWith(".dll" + DISABLED))) plugins.add(f);
             }
         }
-        File[] natives = nativeDir().listFiles();
-        if (natives != null) {
-            for (File f : natives) {
-                String n = f.getName();
-                if (f.isFile() && (n.endsWith(".so") || n.endsWith(".so" + DISABLED))) mods.add(f);
-            }
-        }
-        mods.sort(Comparator.comparing(f -> f.getName().toLowerCase()));
+        plugins.sort(Comparator.comparing(f -> f.getName().toLowerCase()));
+        mods.addAll(plugins);
         empty.setVisibility(mods.isEmpty() ? View.VISIBLE : View.GONE);
         list.getAdapter().notifyDataSetChanged();
     }
@@ -114,17 +144,21 @@ public class ModsFragment extends Fragment {
         if (uri == null) return;
         String name = displayName(uri);
         String lower = name == null ? "" : name.toLowerCase(java.util.Locale.ROOT);
-        if (!lower.endsWith(".dll") && !lower.endsWith(".zip") && !lower.endsWith(".so")) {
+        if (!lower.endsWith(".dll") && !lower.endsWith(".zip") && !lower.endsWith(".so")
+                && !lower.endsWith(ModPacks.PACK_EXTENSION)) {
             Toast.makeText(requireContext(), R.string.mods_unsupported, Toast.LENGTH_SHORT).show();
             return;
         }
         android.content.Context app = requireContext().getApplicationContext();
-        File dir = lower.endsWith(".so") ? nativeDir() : pluginsDir();
+        File dir = lower.endsWith(".so") ? ModPacks.nativeModsDir()
+                : lower.endsWith(ModPacks.PACK_EXTENSION) ? ModPacks.packsDir() : pluginsDir();
         new Thread(() -> {
             boolean ok;
             try (InputStream in = app.getContentResolver().openInputStream(uri)) {
                 if (in == null || (!dir.exists() && !dir.mkdirs())) throw new java.io.IOException("no stream");
-                if (lower.endsWith(".dll") || lower.endsWith(".so")) copy(in, new File(dir, name));
+                if (lower.endsWith(".dll") || lower.endsWith(".so") || lower.endsWith(ModPacks.PACK_EXTENSION)) {
+                    copy(in, new File(dir, name));
+                }
                 else unzipInto(in, dir);
                 ok = true;
             } catch (Exception e) {
@@ -185,21 +219,49 @@ public class ModsFragment extends Fragment {
             return new Holder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_mod, parent, false));
         }
 
+        @SuppressLint("ClickableViewAccessibility")
         @Override
         public void onBindViewHolder(@NonNull Holder h, int position) {
             File f = mods.get(position);
             boolean enabled = !f.getName().endsWith(DISABLED);
-            String label = f.getName().replace(DISABLED, "");
+            String label = ModPacks.baseName(f);
+            boolean orderable = position < orderableCount;
             h.name.setText(label);
-            h.kind.setText(isNative(f) ? R.string.mods_kind_native : R.string.mods_kind_plugin);
+            h.kind.setText(describe(f, orderable ? position + 1 : 0));
+            h.handle.setVisibility(orderable ? View.VISIBLE : View.GONE);
+            h.handle.setOnTouchListener((v, e) -> {
+                if (e.getActionMasked() == MotionEvent.ACTION_DOWN) touchHelper.startDrag(h);
+                return false;
+            });
             h.toggle.setOnCheckedChangeListener(null);
             h.toggle.setChecked(enabled);
             h.remove.setOnClickListener(v -> confirmRemove(mods.get(h.getBindingAdapterPosition())));
             h.toggle.setOnCheckedChangeListener((b, on) -> {
-                File target = new File(f.getParentFile(), on ? label : label + DISABLED);
-                if (f.renameTo(target)) mods.set(h.getBindingAdapterPosition(), target);
+                int pos = h.getBindingAdapterPosition();
+                if (pos < 0) return;
+                File current = mods.get(pos);
+                File target = new File(current.getParentFile(), on ? ModPacks.baseName(current) : ModPacks.baseName(current) + DISABLED);
+                if (current.renameTo(target)) mods.set(pos, target);
                 else b.setChecked(!on);
             });
+        }
+
+        private String describe(File f, int number) {
+            String base = ModPacks.baseName(f);
+            String kind;
+            if (base.endsWith(ModPacks.PACK_EXTENSION)) {
+                switch (ModPacks.describe(f)) {
+                    case "both" -> kind = getString(R.string.mods_kind_pack_both);
+                    case "native" -> kind = getString(R.string.mods_kind_pack_native);
+                    case "assets" -> kind = getString(R.string.mods_kind_pack_assets);
+                    default -> kind = getString(R.string.mods_kind_pack_empty);
+                }
+            } else if (base.endsWith(".so")) {
+                kind = getString(R.string.mods_kind_native);
+            } else {
+                kind = getString(R.string.mods_kind_plugin);
+            }
+            return number > 0 ? "#" + number + " \u00b7 " + kind : kind;
         }
 
         @Override
@@ -212,6 +274,7 @@ public class ModsFragment extends Fragment {
             final TextView kind;
             final MaterialSwitch toggle;
             final View remove;
+            final View handle;
 
             Holder(View v) {
                 super(v);
@@ -219,6 +282,7 @@ public class ModsFragment extends Fragment {
                 kind = v.findViewById(R.id.mod_kind);
                 toggle = v.findViewById(R.id.mod_switch);
                 remove = v.findViewById(R.id.mod_remove);
+                handle = v.findViewById(R.id.mod_handle);
             }
         }
     }

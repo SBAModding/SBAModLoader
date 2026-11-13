@@ -36,6 +36,22 @@ public final class GameRuntime {
 
     public static android.app.Application getGameApplication() { return gameApplication; }
 
+    // The APK presented as the game's own when asset overlays are active (see ModPacks), or null.
+    private static volatile String overlayApk;
+
+    public static String getOverlayApk() { return overlayApk; }
+
+    /**
+     * Makes the game see {@code apk} as its own APK: Unity reads its data straight from the path the context
+     * reports as the code path, so this is how overlay files become part of the game's assets.
+     */
+    public static void useOverlayApk(Context gameContext, String apk) {
+        overlayApk = apk;
+        android.content.pm.ApplicationInfo info = gameContext.getApplicationInfo();
+        info.sourceDir = apk;
+        info.publicSourceDir = apk;
+    }
+
     // Set when a patch replaces the Application class declared in the game's manifest.
     private static boolean applicationOverridden;
     private static String applicationOverride;
