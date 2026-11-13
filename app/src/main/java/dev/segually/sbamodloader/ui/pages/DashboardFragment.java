@@ -18,6 +18,9 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.color.MaterialColors;
 
 import dev.segually.sbamodloader.BootstrapActivity;
+import dev.segually.sbamodloader.tools.DeviceSupport;
+import dev.segually.sbamodloader.ui.FusionWarning;
+import dev.segually.sbamodloader.SBASettings;
 import dev.segually.sbamodloader.BuildConfig;
 import dev.segually.sbamodloader.MainActivity;
 import dev.segually.sbamodloader.R;
@@ -152,6 +155,19 @@ public class DashboardFragment extends Fragment {
     }
 
     private void startBootstrap() {
+        android.content.Context context = requireContext();
+        if (!SBASettings.getFusionWarningShown(context) && !SBASettings.getFusionEnabled(context)) {
+            // First launch on a device that failed the Fusion check: explain what is turned off before going on.
+            FusionWarning.showFirstLaunch(context, DeviceSupport.fusionProblems(context), () -> {
+                SBASettings.setFusionWarningShown(context, true);
+                launchBootstrap();
+            });
+            return;
+        }
+        launchBootstrap();
+    }
+
+    private void launchBootstrap() {
         MainActivity activity = (MainActivity) requireActivity();
         Intent intent = new Intent(activity, BootstrapActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);

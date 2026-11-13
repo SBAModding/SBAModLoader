@@ -151,4 +151,17 @@
     <string name="browse_repository_empty">The repository has no mods yet.</string>
     <string name="mods_locked_title">Adding files is locked</string>
     <string name="mods_locked_message">Mods are installed from Browse, where every file is audited and checked against its hash before it is installed. Turn on Developer features in Settings to add files yourself.</string>
+    <string name="fusion_reason_go">Android Go edition (low-memory device)</string>
+    <string name="fusion_reason_ram">Only %1$.1f GB of RAM</string>
+    <string name="fusion_reason_os">Android %1$s is too old</string>
+    <string name="fusion_warn_title">Fusion mods may not work on this device</string>
+    <string name="fusion_warn_body">Fusion is the part of the loader that runs .dll (BepInEx) mods. It needs a lot of memory, and this device looks too limited for it, so it has been turned off.</string>
+    <string name="fusion_warn_what">What this means for you</string>
+    <string name="fusion_warn_bullets">\u2022 You can still play the game, and still use native mods and mod packs.\n\u2022 Not every mod will be supported: mods that need Fusion (.dll mods) will not run.\n\u2022 You can turn Fusion back on in Settings, but the game may crash.</string>
+    <string name="fusion_warn_ok">OK</string>
+    <string name="fusion_enable_title">Turn Fusion back on?</string>
+    <string name="fusion_enable_body">This device looks too limited to run Fusion (the part that runs .dll mods). If you turn it on, the game may crash or run out of memory.</string>
+    <string name="fusion_enable_confirm">I Understand, turn it back on</string>
+    <string name="settings_fusion_title">Fusion mods</string>
+    <string name="settings_fusion_desc">Runs .dll (BepInEx) mods. Needs a lot of memory, so it is off by default on low-memory devices.</string>
 </resources>

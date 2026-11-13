@@ -9,6 +9,8 @@ public final class SBASettings {
     private static final String KEY_DEVELOPER_FEATURES = "developer_features";
     private static final String KEY_CUSTOM_PATCH_URL = "custom_patch_url";
     private static final String KEY_DOWNLOAD_UNSTRIPPED_LIBUNITY = "download_unstripped_libunity";
+    private static final String KEY_FUSION_ENABLED = "fusion_enabled";
+    private static final String KEY_FUSION_WARNING_SHOWN = "fusion_warning_shown";
     private static final String KEY_SKIP_FUSION_WHEN_UNUSED = "skip_fusion_when_unused";
 
     private SBASettings() {
@@ -24,6 +26,28 @@ public final class SBASettings {
 
     public static void setUseUnstrippedLibUnity(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_DOWNLOAD_UNSTRIPPED_LIBUNITY, enabled).apply();
+    }
+
+    /**
+     * Whether Fusion (.dll mods) may run at all. Until the user chooses, it follows the device check: on for
+     * devices that can take it, off for low-memory ones.
+     */
+    public static boolean getFusionEnabled(Context context) {
+        SharedPreferences p = prefs(context);
+        if (p.contains(KEY_FUSION_ENABLED)) return p.getBoolean(KEY_FUSION_ENABLED, true);
+        return dev.segually.sbamodloader.tools.DeviceSupport.fusionSupported(context);
+    }
+
+    public static void setFusionEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_FUSION_ENABLED, enabled).apply();
+    }
+
+    public static boolean getFusionWarningShown(Context context) {
+        return prefs(context).getBoolean(KEY_FUSION_WARNING_SHOWN, false);
+    }
+
+    public static void setFusionWarningShown(Context context, boolean shown) {
+        prefs(context).edit().putBoolean(KEY_FUSION_WARNING_SHOWN, shown).apply();
     }
 
     /** When on (the default), the .NET runtime and BepInEx are not started unless a Fusion mod is enabled. */

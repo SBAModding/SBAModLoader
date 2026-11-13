@@ -560,8 +560,9 @@ public class BootstrapActivity extends AppCompatActivity {
         File dotnetDir = new File(getRuntimeDir(appContext), "dotnet");
         // Fusion (the .NET runtime and BepInEx) is memory hungry. Without an enabled Fusion mod there is
         // nothing for it to run, so by default it is not started at all.
-        final boolean fusionEnabled = !SBASettings.getSkipFusionWhenUnused(appContext)
-                || dev.segually.sbamodloader.tools.ModFiles.hasEnabledFusionMods();
+        final boolean fusionEnabled = SBASettings.getFusionEnabled(appContext)
+                && (!SBASettings.getSkipFusionWhenUnused(appContext)
+                || dev.segually.sbamodloader.tools.ModFiles.hasEnabledFusionMods());
         if (fusionEnabled) {
             setPhaseStatus(getString(R.string.bootstrap_status_extracting_runtime));
             Utilities.extractZipFromAssets(appContext, "BepInEx-arm64.zip", bepInExDir, "config/");
@@ -570,7 +571,7 @@ public class BootstrapActivity extends AppCompatActivity {
             }
             Utilities.extractZipFromAssets(appContext, "dotnet-arm64.zip", dotnetDir);
         } else {
-            Log.i(TAG, "No enabled Fusion mods: skipping the .NET runtime and BepInEx");
+            Log.i(TAG, "Fusion is off or has no enabled mods: skipping the .NET runtime and BepInEx");
         }
 
         Map<String, String> il2cppMap = resolveIl2CppApiMap(new File(gameLibDir), codeCacheScoped, useOriginalLibUnity, DeobfuscationDir);

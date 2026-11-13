@@ -17,6 +17,8 @@ import dev.segually.sbamodloader.BuildConfig;
 import dev.segually.sbamodloader.R;
 import dev.segually.sbamodloader.SBASettings;
 import dev.segually.sbamodloader.tools.PatchManager;
+import dev.segually.sbamodloader.tools.DeviceSupport;
+import dev.segually.sbamodloader.ui.FusionWarning;
 import android.widget.Toast;
 import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.Utilities;
@@ -70,6 +72,27 @@ public class SettingsFragment extends Fragment {
         MaterialSwitch libunity = v.findViewById(R.id.switch_libunity);
         libunity.setChecked(SBASettings.getUseUnstrippedLibUnity(requireContext()));
         libunity.setOnCheckedChangeListener((b, on) -> SBASettings.setUseUnstrippedLibUnity(requireContext(), on));
+
+        MaterialSwitch fusion = v.findViewById(R.id.switch_fusion);
+        fusion.setChecked(SBASettings.getFusionEnabled(requireContext()));
+        final android.widget.CompoundButton.OnCheckedChangeListener[] fusionListener = new android.widget.CompoundButton.OnCheckedChangeListener[1];
+        fusionListener[0] = (b, on) -> {
+            if (on && !DeviceSupport.fusionSupported(requireContext())) {
+                // Put the switch back until the user has read the warning and confirmed.
+                b.setOnCheckedChangeListener(null);
+                b.setChecked(false);
+                b.setOnCheckedChangeListener(fusionListener[0]);
+                FusionWarning.showTurnOn(requireContext(), DeviceSupport.fusionProblems(requireContext()), () -> {
+                    SBASettings.setFusionEnabled(requireContext(), true);
+                    b.setOnCheckedChangeListener(null);
+                    b.setChecked(true);
+                    b.setOnCheckedChangeListener(fusionListener[0]);
+                }, () -> { });
+            } else {
+                SBASettings.setFusionEnabled(requireContext(), on);
+            }
+        };
+        fusion.setOnCheckedChangeListener(fusionListener[0]);
 
         MaterialSwitch skipFusion = v.findViewById(R.id.switch_skipfusion);
         skipFusion.setChecked(SBASettings.getSkipFusionWhenUnused(requireContext()));
