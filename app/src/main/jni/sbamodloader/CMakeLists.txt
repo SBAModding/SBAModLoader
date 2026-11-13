@@ -33,3 +33,6 @@ target_link_libraries(
         ${LIB_FOLDER}/libdobby.so
         ${LIB_FOLDER}/libcoreclr.so
 )
+
+# The bundled BepInEx build P/Invokes this library by name ("fusion"), so the file must be libfusion.so.
+set_target_properties(sbamodloader PROPERTIES OUTPUT_NAME fusion)

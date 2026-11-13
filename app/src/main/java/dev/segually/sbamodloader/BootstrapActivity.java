@@ -140,7 +140,7 @@ public class BootstrapActivity extends AppCompatActivity {
                     useOriginalLibUnity
             );
         } catch (Throwable t) {
-            failAndFinish("Failed while preparing SBA runtime.", t);
+            failAndFinish("Failed while preparing SBA runtime: " + t.getMessage(), t);
             return;
         }
 
@@ -287,7 +287,7 @@ public class BootstrapActivity extends AppCompatActivity {
 
         try {
             NativeLibraryManager.addSBALibrary("main");
-            NativeLibraryManager.addSBALibrary("sbamodloader");
+            NativeLibraryManager.addSBALibrary("fusion");
             NativeLibraryManager.addCacheLibrary("il2cpp");
             NativeLibraryManager.addCacheLibrary("unity");
             NativeLibraryManager.setupLibraryHooks(config);
@@ -417,7 +417,7 @@ public class BootstrapActivity extends AppCompatActivity {
         File Assets = new File(dataOnSdCard, "Assets");
         boolean copied = Utilities.copyAssets(gameContext.getApplicationInfo(), Assets);
         if (!copied) {
-            Log.e(TAG, "Failed to copy Unity Data assets! BepInEx may not work correctly.");
+            throw new IllegalStateException("Failed to copy Unity data from the game; check storage space and that the game is installed.");
         }
         File copiedData = new File(Assets, "bin/Data");
         applyGlobalMetadataOverride(targetPackage, copiedData);

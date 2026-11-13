@@ -67,11 +67,12 @@ int il2cpp_init_hook(char *domain_name)
     {
         // setup environment variables
         setenv("BEPINEX_GAME_ASSEMBLY_PATH", libmain_get_override_il2cpp_path(), 1);
-        setenv("SBA_BEPINEX_PATH", runtime_config.bepInExDirectory.c_str(), 1);
-        setenv("SBA_GAME_BINARY", libmain_get_override_il2cpp_path(), 1);
-        setenv("SBA_GAME_DATA_DIR", runtime_config.unityDataDirectory.c_str(), 1);
-        setenv("SBA_APP_DATA_DIR", runtime_config.appDataDirectory.c_str(), 1);
-        setenv("SBA_UNITY_VERSION", runtime_config.unityVersion.c_str(), 1);
+        // These names are baked into the bundled BepInEx build and must not change.
+        setenv("FUSION_BEPINEX_PATH", runtime_config.bepInExDirectory.c_str(), 1);
+        setenv("FUSION_GAME_BINARY", libmain_get_override_il2cpp_path(), 1);
+        setenv("FUSION_GAME_DATA_DIR", runtime_config.unityDataDirectory.c_str(), 1);
+        setenv("FUSION_APP_DATA_DIR", runtime_config.appDataDirectory.c_str(), 1);
+        setenv("FUSION_UNITY_VERSION", runtime_config.unityVersion.c_str(), 1);
 
         const char *ssl_cert_path = "/apex/com.android.conscrypt/cacerts";
         const char *backup_cert_path = "/system/etc/security/cacerts";
@@ -92,7 +93,7 @@ int il2cpp_init_hook(char *domain_name)
         dotNetConfig.runtimeDir = runtime_config.dotnetDirectory;
         dotNetConfig.managedLibsDir = bepInExCoreDirectory.string();
         dotNetConfig.entryPointAssembly = "BepInEx.Unity.IL2CPP";
-        dotNetConfig.entryPointType = "BepInEx.Unity.IL2CPP.SBAModLoaderEntrypoint";
+        dotNetConfig.entryPointType = "BepInEx.Unity.IL2CPP.FusionCoreEntrypoint";
         dotNetConfig.entryPointMethod = "Start";
         // set TMPDIR for MonoMod lib drops
         setenv("TMPDIR", runtime_config.codeCacheDirectory.c_str(), 1);

@@ -22,7 +22,7 @@
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
-    <application android:label="@string/app_name" android:icon="@mipmap/app_icon" android:enableOnBackInvokedCallback="true" android:extractNativeLibs="true">
+    <application android:name="dev.segually.sbamodloader.SBAApplication" android:label="@string/app_name" android:icon="@mipmap/app_icon" android:enableOnBackInvokedCallback="true" android:extractNativeLibs="true">
     <meta-data android:name="unity.splash-mode" android:value="0" />
     <meta-data android:name="unity.splash-enable" android:value="False" />
     <meta-data android:name="unity.launch-fullscreen" android:value="True" />

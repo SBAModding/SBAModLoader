@@ -16,7 +16,7 @@ void build_tpa(const char *directory, std::string &tpaList);
 
 int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *auxFolders)
 {
-    entrypoint_fn managedDelegate;
+    entrypoint_fn managedDelegate = nullptr;
     {
         log(LogLevel::INFO, TAG, "Preparing CLR properties");
 
@@ -44,7 +44,7 @@ int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *aux
 
         setenv("DOTNET_ReadyToRun", "0", 1);
 
-        uint32_t hr = -1;
+        int32_t hr = -1;
         void *hostHandle = nullptr;
         unsigned int domainId = 0;
 
@@ -74,7 +74,7 @@ int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *aux
                 break;
             }
 
-            if (attempt == 1 && hr == HR_INTERNAL_ERROR)
+            if (attempt == 1 && hr == static_cast<int32_t>(HR_INTERNAL_ERROR))
             {
                 // Retry with W^X enabled
                 setenv("DOTNET_EnableWriteXorExecute", "1", 1);
@@ -114,6 +114,12 @@ int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *aux
             log_format(LogLevel::ERROR, TAG, "coreclr_create_delegate failed - status: {}", hr);
             return hr;
         }
+    }
+
+    if (managedDelegate == nullptr)
+    {
+        log(LogLevel::ERROR, TAG, "Managed entry point delegate is null; BepInEx was not started.");
+        return -1;
     }
 
     managedDelegate(auxFolders);

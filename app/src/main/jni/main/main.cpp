@@ -102,14 +102,14 @@ static bool preload_dotnet_runtime_libraries()
 static void *resolve_or_load_sba_handle()
 {
     dlerror();
-    void *sbaHandle = dlopen("libsbamodloader.so", RTLD_NOW | RTLD_NOLOAD);
+    void *sbaHandle = dlopen("libfusion.so", RTLD_NOW | RTLD_NOLOAD);
     if (sbaHandle) {
         return sbaHandle;
     }
 
     const char *defaultScopeError = dlerror();
     if (defaultScopeError) {
-        LOGI("resolve_or_load_sba_handle: libsbamodloader.so missing from namespace: %s", defaultScopeError)
+        LOGI("resolve_or_load_sba_handle: libfusion.so missing from namespace: %s", defaultScopeError)
     }
 
     preload_sibling_library("libdobby.so");
@@ -117,20 +117,20 @@ static void *resolve_or_load_sba_handle()
         return nullptr;
     }
 
-    if (!preload_sibling_library("libsbamodloader.so")) {
+    if (!preload_sibling_library("libfusion.so")) {
         return nullptr;
     }
 
     dlerror();
-    sbaHandle = dlopen("libsbamodloader.so", RTLD_NOW | RTLD_GLOBAL);
+    sbaHandle = dlopen("libfusion.so", RTLD_NOW | RTLD_GLOBAL);
     if (!sbaHandle) {
         const char *noLoadErr = dlerror();
-        LOGE("resolve_or_load_sba_handle: libsbamodloader.so still not visible after preload: %s",
+        LOGE("resolve_or_load_sba_handle: libfusion.so still not visible after preload: %s",
              noLoadErr ? noLoadErr : "(no dlerror)")
         return nullptr;
     }
 
-    LOGI("resolve_or_load_sba_handle: loaded libsbamodloader.so into current namespace via sibling preload")
+    LOGI("resolve_or_load_sba_handle: loaded libfusion.so into current namespace via sibling preload")
     return sbaHandle;
 }
 

@@ -27,20 +27,47 @@ import java.util.zip.ZipInputStream;
 public class Utilities {
     private static final String TAG = "SBAModLoader";
 
+    private static volatile File dataRoot;
+
+    /**
+     * Resolves where mods and data live. Uses the app-specific external directory (created by the
+     * system, no storage permission needed) and falls back to internal storage. Derived from the
+     * running app, so it works for any build regardless of its application id.
+     */
+    public static void init(Context context) {
+        if (dataRoot != null) {
+            return;
+        }
+        File root = null;
+        File external = context.getExternalFilesDir(null);
+        if (external != null && (external.isDirectory() || external.mkdirs()) && external.canWrite()) {
+            root = external;
+        }
+        if (root == null) {
+            Log.w(TAG, "App-specific external storage unavailable; using internal storage");
+            root = context.getFilesDir();
+        }
+        dataRoot = new File(root, "SBAModLoader");
+    }
+
     public static File getExternalSBAModLoaderDirectory(@Nullable String targetPackage, @Nullable String Folder) {
-        // App-specific external storage: writable without any storage permission.
-        File sbaStorage = new File(Environment.getExternalStorageDirectory(), "Android/data/" + dev.segually.sbamodloader.BuildConfig.APPLICATION_ID + "/files");
+        File root = dataRoot;
+        if (root == null) {
+            throw new IllegalStateException("Utilities.init(Context) was not called");
+        }
+        File sbaStorage = root;
         if (targetPackage != null) {
             sbaStorage = new File(sbaStorage, targetPackage);
         }
-        if(Folder != null){
+        if (Folder != null) {
             sbaStorage = new File(sbaStorage, Folder);
         }
-        if (!sbaStorage.exists()) {
-            sbaStorage.mkdirs();
+        if (!sbaStorage.exists() && !sbaStorage.mkdirs()) {
+            Log.e(TAG, "Failed to create directory " + sbaStorage);
         }
         return sbaStorage;
     }
+
     public static void applyWindowInsets(View root, int basePadding) {
         root.setOnApplyWindowInsetsListener((v, insets) -> {
             int insetTop;
@@ -137,7 +164,7 @@ public class Utilities {
                   extractZipFromStream(zis, outputFolder, keepExistingPrefix);
             }
         } catch (IOException e) {
-            Log.e(TAG, "Failed to extract " + assetName + " from assets!", e);
+            throw new IllegalStateException("Failed to extract " + assetName + " from assets", e);
         }
     }
 

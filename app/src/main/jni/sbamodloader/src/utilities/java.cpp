@@ -143,7 +143,7 @@ extern "C" void init_java(JavaVM *vm) {
         return;
     }
 
-    log(LogLevel::INFO, TAG, "Successfully loaded libsbamodloader!");
+    log(LogLevel::INFO, TAG, "Successfully loaded native library!");
 }
 
 
