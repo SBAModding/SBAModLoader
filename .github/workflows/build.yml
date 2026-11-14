@@ -6,9 +6,15 @@ on:
     tags: [ "*" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Secrets are empty for runs that are not allowed to see them; the release build is skipped then.
+      HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
 
     steps:
       - name: Checkout repository
@@ -26,17 +32,16 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        if: github.ref_type != 'tag'
+      - name: Build debug APK
         run: ./gradlew assembleDebug
 
       - name: Decode keystore
-        if: github.ref_type == 'tag'
+        if: env.HAS_KEYSTORE == 'true'
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > ${{ runner.temp }}/keystore.jks
 
-      - name: Build Release APK
-        if: github.ref_type == 'tag'
+      - name: Build release APK
+        if: env.HAS_KEYSTORE == 'true'
         run: ./gradlew assembleRelease
         env:
           KEYSTORE_PATH: ${{ runner.temp }}/keystore.jks
@@ -44,22 +49,47 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload Debug APK
-        if: github.ref_type != 'tag'
+      - name: Collect the APKs
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          mkdir -p dist/debug dist/release
+          cp app/build/outputs/apk/debug/*.apk "dist/debug/SBAModLoader-${VERSION}-debug.apk"
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            cp app/build/outputs/apk/release/*.apk "dist/release/SBAModLoader-${VERSION}.apk"
+          fi
+          ls -lR dist
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v6
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: SBAModLoader-debug
+          path: dist/debug/*.apk
 
-      - name: Upload Release APK
-        if: github.ref_type == 'tag'
+      - name: Upload release APK
+        if: env.HAS_KEYSTORE == 'true'
         uses: actions/upload-artifact@v6
         with:
-          name: app-release-${{ github.ref_name }}
-          path: app/build/outputs/apk/release/*.apk
+          name: SBAModLoader-release
+          path: dist/release/*.apk
+          if-no-files-found: error
 
-      - uses: softprops/action-gh-release@v2
+      # On a tag, attach the APKs to that tag's release (creating a draft if there is none yet). A file that is
+      # already attached, for example a release APK uploaded by hand, is left alone.
+      - name: Attach the APKs to the release
         if: github.ref_type == 'tag'
-        with:
-          draft: true
-          files: app/build/outputs/apk/release/*.apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft --title "$TAG" --notes "Built by CI. Edit these notes, then publish."
+          fi
+          existing=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+          for f in dist/*/*.apk; do
+            name=$(basename "$f")
+            if printf '%s\n' "$existing" | grep -qxF "$name"; then
+              echo "$name is already attached; leaving it as it is"
+            else
+              gh release upload "$TAG" "$f"
+            fi
+          done
