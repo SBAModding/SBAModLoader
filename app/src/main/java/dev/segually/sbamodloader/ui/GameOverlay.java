@@ -99,6 +99,9 @@ public final class GameOverlay {
             setFrozen(!frozen);
             closeMenu();
         });
+        // The log overlay is a developer tool.
+        menuRoot.findViewById(R.id.menu_logcat).setVisibility(
+                dev.segually.sbamodloader.SBASettings.getDeveloperFeatures(ui) ? View.VISIBLE : View.GONE);
         menuRoot.findViewById(R.id.menu_logcat).setOnClickListener(v -> {
             toggleLogcat();
             closeMenu();

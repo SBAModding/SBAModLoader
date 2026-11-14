@@ -25,9 +25,16 @@ import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 
+import dev.segually.sbamodloader.MainActivity;
 import dev.segually.sbamodloader.R;
+import dev.segually.sbamodloader.browser.BrowserModels;
+import dev.segually.sbamodloader.browser.InstalledMods;
+import dev.segually.sbamodloader.browser.RemoteModRepository;
+import dev.segually.sbamodloader.tools.ModNames;
 import dev.segually.sbamodloader.SBASettings;
 import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.ModFiles;
@@ -47,6 +54,9 @@ public class ModsFragment extends Fragment {
     private RecyclerView list;
     private TextView empty;
     private ItemTouchHelper touchHelper;
+    /** Mods that came from the store, by id: their names and authors come from the store's copy of the index. */
+    private final Map<String, BrowserModels.Entry> storeEntries = new HashMap<>();
+    private boolean developer;
 
     private final ActivityResultLauncher<String[]> picker =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::importMod);
@@ -57,11 +67,26 @@ public class ModsFragment extends Fragment {
         View v = inflater.inflate(R.layout.fragment_mods, container, false);
         Insets.padForChrome(v.findViewById(R.id.page_root), 0);
         list = v.findViewById(R.id.mods_list);
-        list.setPadding(0, 0, 0, Math.round(96 * getResources().getDisplayMetrics().density));
+        list.setPadding(0, 0, 0, Insets.navClearance(requireContext()));
         empty = v.findViewById(R.id.mods_empty);
-        list.setLayoutManager(new LinearLayoutManager(requireContext()));
+        int columns = getResources().getInteger(R.integer.mods_columns);
+        columns = Math.max(1, columns);
+        list.setLayoutManager(columns > 1
+                ? new androidx.recyclerview.widget.GridLayoutManager(requireContext(), columns)
+                : new LinearLayoutManager(requireContext()));
+        if (columns > 1) {
+            final int gap = Math.round(6 * getResources().getDisplayMetrics().density);
+            list.addItemDecoration(new RecyclerView.ItemDecoration() {
+                @Override
+                public void getItemOffsets(@NonNull android.graphics.Rect out, @NonNull View view,
+                                           @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
+                    out.left = gap;
+                    out.right = gap;
+                }
+            });
+        }
         list.setAdapter(new Adapter());
-        touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) {
+        touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT, 0) {
             @Override
             public boolean isLongPressDragEnabled() {
                 return false; // dragging starts from the handle
@@ -69,8 +94,8 @@ public class ModsFragment extends Fragment {
 
             @Override
             public int getMovementFlags(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
-                return vh.getBindingAdapterPosition() < orderableCount
-                        ? makeMovementFlags(ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) : 0;
+                int all = ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT;
+                return vh.getBindingAdapterPosition() < orderableCount ? makeMovementFlags(all, 0) : 0;
             }
 
             @Override
@@ -95,30 +120,34 @@ public class ModsFragment extends Fragment {
             }
         });
         touchHelper.attachToRecyclerView(list);
-        com.google.android.material.button.MaterialButton add = v.findViewById(R.id.btn_add_mod);
-        add.setOnClickListener(x -> {
-            // Mods come from Browse, where every file is audited and checked against its hash. Adding files by hand
-            // skips that, so it is a developer feature.
-            if (SBASettings.getDeveloperFeatures(requireContext())) {
-                picker.launch(new String[]{"*/*"});
-            } else {
-                new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                        .setTitle(R.string.mods_locked_title)
-                        .setMessage(R.string.mods_locked_message)
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show();
-            }
-        });
+        // Adding files by hand skips the store's audit and hash check, so the button only exists with developer
+        // features on (see onResume).
+        v.findViewById(R.id.btn_add_mod).setOnClickListener(x -> picker.launch(new String[]{"*/*"}));
+        v.findViewById(R.id.btn_browse_mods).setOnClickListener(x -> ((MainActivity) requireActivity()).openBrowse(null));
         return v;
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        boolean unlocked = SBASettings.getDeveloperFeatures(requireContext());
-        ((com.google.android.material.button.MaterialButton) requireView().findViewById(R.id.btn_add_mod))
-                .setIconResource(unlocked ? R.drawable.ic_add : R.drawable.ic_lock);
+        developer = SBASettings.getDeveloperFeatures(requireContext());
+        requireView().findViewById(R.id.btn_add_mod).setVisibility(developer ? View.VISIBLE : View.GONE);
         reload();
+        loadStoreNames();
+    }
+
+    /** Reads the store's saved copy of the index (no network) so store mods show their store names. */
+    private void loadStoreNames() {
+        android.content.Context app = requireContext().getApplicationContext();
+        new Thread(() -> {
+            Map<String, BrowserModels.Entry> loaded = new HashMap<>();
+            for (BrowserModels.Entry e : new RemoteModRepository(app).loadCached()) loaded.put(e.id, e);
+            if (isAdded()) requireActivity().runOnUiThread(() -> {
+                storeEntries.clear();
+                storeEntries.putAll(loaded);
+                if (list != null) list.getAdapter().notifyDataSetChanged();
+            });
+        }, "mods-store-names").start();
     }
 
     private File pluginsDir() {
@@ -193,7 +222,7 @@ public class ModsFragment extends Fragment {
     private void confirmRemove(File f) {
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.mods_remove_title)
-                .setMessage(f.getName().replace(DISABLED, ""))
+                .setMessage(titleOf(f))
                 .setPositiveButton(R.string.mods_remove, (d, w) -> {
                     //noinspection ResultOfMethodCallIgnored
                     f.delete();
@@ -201,6 +230,40 @@ public class ModsFragment extends Fragment {
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    /** Everything shown for one mod. A pack's own strings win, then the store's, then the file name. */
+    private static final class Details {
+        String title;
+        String author;
+        String version;
+        String storeId;
+    }
+
+    private Details details(File f) {
+        Details d = new Details();
+        String base = ModPacks.baseName(f);
+        d.storeId = new InstalledMods(requireContext()).idForFile(f);
+        BrowserModels.Entry store = d.storeId == null ? null : storeEntries.get(d.storeId);
+        if (base.endsWith(ModPacks.PACK_EXTENSION)) {
+            ModPacks.Info info = ModPacks.info(f);
+            d.title = info.name;
+            d.author = info.author;
+            d.version = info.version;
+        }
+        if (store != null) {
+            if (d.title == null) d.title = store.name;
+            if (d.author == null) d.author = store.author;
+            if (d.version == null) d.version = store.version;
+        }
+        ModNames.Parsed fromFile = ModNames.parse(base);
+        if (d.title == null || d.title.isEmpty()) d.title = fromFile.name.isEmpty() ? base : fromFile.name;
+        if (d.version == null) d.version = fromFile.version;
+        return d;
+    }
+
+    private String titleOf(File f) {
+        return details(f).title;
     }
 
     private class Adapter extends RecyclerView.Adapter<Adapter.Holder> {
@@ -215,10 +278,16 @@ public class ModsFragment extends Fragment {
         public void onBindViewHolder(@NonNull Holder h, int position) {
             File f = mods.get(position);
             boolean enabled = !f.getName().endsWith(DISABLED);
-            String label = ModPacks.baseName(f);
             boolean orderable = position < orderableCount;
-            h.name.setText(label);
-            h.kind.setText(describe(f, orderable ? position + 1 : 0));
+            Details d = details(f);
+            h.name.setText(d.title);
+            h.kind.setText(describe(f, d, orderable ? position + 1 : 0));
+            h.file.setVisibility(developer ? View.VISIBLE : View.GONE);
+            if (developer) h.file.setText(technical(f));
+            // A mod from the store opens its store page when tapped.
+            h.itemView.setClickable(d.storeId != null);
+            h.itemView.setOnClickListener(d.storeId == null ? null
+                    : v -> ((MainActivity) requireActivity()).openBrowse(d.storeId));
             h.handle.setVisibility(orderable ? View.VISIBLE : View.GONE);
             h.handle.setOnTouchListener((v, e) -> {
                 if (e.getActionMasked() == MotionEvent.ACTION_DOWN) touchHelper.startDrag(h);
@@ -237,23 +306,37 @@ public class ModsFragment extends Fragment {
             });
         }
 
-        private String describe(File f, int number) {
+        /** The line under the name: what kind of mod it is, who made it, which version, and where it came from. */
+        private String describe(File f, Details d, int number) {
             String base = ModPacks.baseName(f);
-            String kind;
+            List<String> parts = new ArrayList<>();
+            if (developer && number > 0) parts.add("#" + number);
+            if (base.endsWith(ModPacks.PACK_EXTENSION)) {
+                parts.add(getString(R.string.mods_kind_pack));
+            } else if (base.endsWith(".so")) {
+                parts.add(getString(R.string.mods_kind_native));
+            } else {
+                parts.add(getString(R.string.mods_kind_plugin));
+                if (!SBASettings.getFusionEnabled(requireContext())) parts.add(getString(R.string.mods_needs_fusion));
+            }
+            if (d.author != null) parts.add(getString(R.string.mods_by_author, d.author));
+            if (d.version != null) parts.add(getString(R.string.mods_version, d.version));
+            if (d.storeId != null) parts.add(getString(R.string.mods_from_store));
+            return String.join(" \u00b7 ", parts);
+        }
+
+        /** Developer view: the real file name and what is inside. */
+        private String technical(File f) {
+            String base = ModPacks.baseName(f);
             if (base.endsWith(ModPacks.PACK_EXTENSION)) {
                 List<String> parts = new ArrayList<>();
                 for (String p : ModPacks.describe(f)) {
                     parts.add(getString("native".equals(p) ? R.string.mods_part_native
                             : "java".equals(p) ? R.string.mods_part_java : R.string.mods_part_assets));
                 }
-                kind = parts.isEmpty() ? getString(R.string.mods_kind_pack_empty)
-                        : getString(R.string.mods_kind_pack, String.join(", ", parts));
-            } else if (base.endsWith(".so")) {
-                kind = getString(R.string.mods_kind_native);
-            } else {
-                kind = getString(R.string.mods_kind_plugin);
+                return f.getName() + (parts.isEmpty() ? "" : " \u00b7 " + String.join(", ", parts));
             }
-            return number > 0 ? "#" + number + " \u00b7 " + kind : kind;
+            return f.getName();
         }
 
         @Override
@@ -264,6 +347,7 @@ public class ModsFragment extends Fragment {
         class Holder extends RecyclerView.ViewHolder {
             final TextView name;
             final TextView kind;
+            final TextView file;
             final MaterialSwitch toggle;
             final View remove;
             final View handle;
@@ -272,6 +356,7 @@ public class ModsFragment extends Fragment {
                 super(v);
                 name = v.findViewById(R.id.mod_name);
                 kind = v.findViewById(R.id.mod_kind);
+                file = v.findViewById(R.id.mod_file);
                 toggle = v.findViewById(R.id.mod_switch);
                 remove = v.findViewById(R.id.mod_remove);
                 handle = v.findViewById(R.id.mod_handle);

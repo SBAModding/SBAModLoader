@@ -4,6 +4,7 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="10dp"
     android:background="@drawable/bg_card"
+    android:foreground="?attr/selectableItemBackground"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:padding="16dp">
@@ -29,6 +30,7 @@
         <TextView
             android:id="@+id/mod_name"
             android:layout_width="wrap_content"
+            android:textStyle="bold"
             android:layout_height="wrap_content"
             android:textColor="?attr/colorOnSurface"
             android:textSize="15sp" />
@@ -39,6 +41,16 @@
             android:layout_height="wrap_content"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="12sp" />
+
+        <!-- file name and technical details: developer features only -->
+        <TextView
+            android:id="@+id/mod_file"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="11sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <ImageButton

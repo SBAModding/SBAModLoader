@@ -59,6 +59,18 @@ public final class RemoteModRepository implements ModRepository {
         }
     }
 
+    /** The saved copy of the index, without touching the network. Empty when there is none. */
+    public List<Entry> loadCached() {
+        try {
+            if (cache.isFile()) {
+                return ModIndexParser.parse(new String(Files.readAllBytes(cache.toPath()), StandardCharsets.UTF_8));
+            }
+        } catch (IOException | JSONException e) {
+            Log.w(TAG, "The saved repository copy is unreadable", e);
+        }
+        return new java.util.ArrayList<>();
+    }
+
     private static String fetch(String url) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(10_000);

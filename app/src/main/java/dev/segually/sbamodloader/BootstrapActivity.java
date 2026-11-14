@@ -88,7 +88,7 @@ public class BootstrapActivity extends AppCompatActivity {
         progressDetailsView = findViewById(R.id.bootstrap_progress_details);
         spinnerProgress = findViewById(R.id.bootstrap_progress);
         downloadProgress = findViewById(R.id.bootstrap_download_progress);
-        setPhaseStatus(getString(R.string.bootstrap_status_preparing));
+        setPhaseStatus(phase(R.string.dev_bootstrap_status_preparing, R.string.bootstrap_status_preparing));
 
         String targetPackage = TargetGame.PACKAGE_NAME;
 
@@ -111,7 +111,7 @@ public class BootstrapActivity extends AppCompatActivity {
         }
 
         // Native mods and asset packs. The overlay APK has to exist before the class loader and the game's data.
-        setPhaseStatus(getString(R.string.bootstrap_status_applying_overlays));
+        setPhaseStatus(phase(R.string.bootstrap_status_applying_overlays, R.string.bootstrap_simple_applying_overlays));
         final ModPacks.Prepared mods;
         try {
             File runtimeScoped = new File(getRuntimeDir(getApplicationContext()), targetPackage);
@@ -186,7 +186,7 @@ public class BootstrapActivity extends AppCompatActivity {
             return;
         }
 
-        setPhaseStatus(getString(R.string.bootstrap_status_installing_hooks));
+        setPhaseStatus(phase(R.string.bootstrap_status_installing_hooks, R.string.bootstrap_simple_installing_hooks));
         try {
             PackageManagerHooks.install(getApplicationContext(), gameContext);
             ActivityManagerHooks.install(getApplicationContext(), gameContext);
@@ -201,7 +201,7 @@ public class BootstrapActivity extends AppCompatActivity {
         final Context preparedGameContext = gameContext;
 
         try {
-            setPhaseStatus(getString(R.string.bootstrap_status_launching));
+            setPhaseStatus(phase(R.string.bootstrap_status_launching, R.string.bootstrap_simple_launching));
             initializeSBA(config);
             runOnMainThread(() -> {
                 try {
@@ -225,6 +225,11 @@ public class BootstrapActivity extends AppCompatActivity {
         } catch (Exception e) {
             failAndFinish("Failed to launch target app's launcher activity: " + className, e);
         }
+    }
+
+    /** Technical wording (file and engine names) only with developer features on; plain wording otherwise. */
+    private String phase(int technical, int simple) {
+        return getString(SBASettings.getDeveloperFeatures(this) ? technical : simple);
     }
 
     private void setPhaseStatus(String status) {
@@ -263,7 +268,7 @@ public class BootstrapActivity extends AppCompatActivity {
                 }
             }
             if (statusView != null) {
-                statusView.setText(getString(R.string.bootstrap_status_downloading_libunity));
+                statusView.setText(phase(R.string.bootstrap_status_downloading_libunity, R.string.bootstrap_simple_downloading));
             }
             if (progressDetailsView != null) {
                 progressDetailsView.setVisibility(View.VISIBLE);
@@ -313,7 +318,8 @@ public class BootstrapActivity extends AppCompatActivity {
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                 return;
             }
-            String shown = report.length() > 3000 ? report.substring(0, 3000) + "\n..." : report;
+            String shown = getString(R.string.launch_failed_intro) + "\n\n"
+                    + (report.length() > 3000 ? report.substring(0, 3000) + "\n..." : report);
             if (reportFile != null) {
                 shown += "\n\nSaved to:\n" + reportFile.getAbsolutePath();
             }
@@ -407,7 +413,9 @@ public class BootstrapActivity extends AppCompatActivity {
         if (!mapFile.isFile()) {
             Uri selected = promptForFile(R.string.boostrap_file_request_il2cpp_map, "map");
             if (selected == null) {
-                runOnMainThread(() -> Toast.makeText(this, "WARNING: no il2cpp api deobfuscation map selected. are you sure you know what you are doing?", Toast.LENGTH_LONG).show());
+                runOnMainThread(() -> Toast.makeText(this, SBASettings.getDeveloperFeatures(this)
+                        ? "WARNING: no il2cpp api deobfuscation map selected. are you sure you know what you are doing?"
+                        : getString(R.string.bootstrap_no_map_simple), Toast.LENGTH_LONG).show());
                 return new HashMap<>();
             }
             try {
@@ -498,7 +506,7 @@ public class BootstrapActivity extends AppCompatActivity {
         File bepInExDir = new File(dataOnSdCard, "BepInEx");
         File codeCacheScoped = new File(getRuntimeDir(appContext), targetPackage);
 
-        setPhaseStatus(getString(R.string.bootstrap_status_copy_assets));
+        setPhaseStatus(phase(R.string.bootstrap_status_copy_assets, R.string.bootstrap_simple_copy_assets));
         File Assets = new File(dataOnSdCard, "Assets");
         // The copy comes from the overlay APK when there is one, so redo it whenever the overlay changes.
         File overlayMarker = new File(Assets, ".sba_overlay");
@@ -525,7 +533,7 @@ public class BootstrapActivity extends AppCompatActivity {
         File copiedData = new File(Assets, "bin/Data");
         applyGlobalMetadataOverride(targetPackage, copiedData);
         File DeobfuscationDir = new File(bepInExDir, "Deobfuscation");
-        setPhaseStatus(getString(R.string.bootstrap_status_detecting_version));
+        setPhaseStatus(phase(R.string.bootstrap_status_detecting_version, R.string.bootstrap_simple_detecting_version));
         String version = UnityUtils.TryGetVersion(copiedData);
         if (version == null) {
             Log.e(TAG, "Failed to determine Unity version! BepInEx may not work correctly.");
@@ -565,7 +573,7 @@ public class BootstrapActivity extends AppCompatActivity {
                 && (!SBASettings.getSkipFusionWhenUnused(appContext)
                 || dev.segually.sbamodloader.tools.ModFiles.hasEnabledFusionMods());
         if (fusionEnabled) {
-            setPhaseStatus(getString(R.string.bootstrap_status_extracting_runtime));
+            setPhaseStatus(phase(R.string.bootstrap_status_extracting_runtime, R.string.bootstrap_simple_extracting_runtime));
             Utilities.extractZipFromAssets(appContext, "BepInEx-arm64.zip", bepInExDir, "config/");
             if (!BACKUP_UNITY_VERSION.equals(version)) {
                 UnityBaseLibraries.resolve(bepInExDir, version);

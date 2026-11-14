@@ -26,14 +26,27 @@ import dev.segually.sbamodloader.ui.Insets;
 
 public class SettingsFragment extends Fragment {
     private View devSection;
+    private View devCard;
+    private View libunityCard;
+    private View dataLabel;
+    private View dataPath;
+    private MaterialSwitch devSwitch;
     private TextView patchInfo;
+    private int versionTaps;
+    private Toast tapToast;
 
     private final androidx.activity.result.ActivityResultLauncher<String[]> patchPicker =
             registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.OpenDocument(), this::loadPatch);
 
     private void refreshDeveloper() {
         boolean on = SBASettings.getDeveloperFeatures(requireContext());
-        devSection.setVisibility(on ? View.VISIBLE : View.GONE);
+        int shown = on ? View.VISIBLE : View.GONE;
+        // Anything technical, or that only exists for developers, is only there once developer features are on.
+        devSection.setVisibility(shown);
+        devCard.setVisibility(shown);
+        libunityCard.setVisibility(shown);
+        dataLabel.setVisibility(shown);
+        dataPath.setVisibility(shown);
         PatchManager.Manifest m = PatchManager.installedManifest(requireContext());
         if (m == null) {
             patchInfo.setText(R.string.patch_none_installed);
@@ -67,8 +80,12 @@ public class SettingsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_settings, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_scroll), Math.round(96 * getResources().getDisplayMetrics().density));
+        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()));
 
+        devCard = v.findViewById(R.id.card_developer);
+        libunityCard = v.findViewById(R.id.card_libunity);
+        dataLabel = v.findViewById(R.id.data_label);
+        dataPath = v.findViewById(R.id.data_path);
         MaterialSwitch libunity = v.findViewById(R.id.switch_libunity);
         libunity.setChecked(SBASettings.getUseUnstrippedLibUnity(requireContext()));
         libunity.setOnCheckedChangeListener((b, on) -> SBASettings.setUseUnstrippedLibUnity(requireContext(), on));
@@ -100,9 +117,9 @@ public class SettingsFragment extends Fragment {
 
         devSection = v.findViewById(R.id.dev_section);
         patchInfo = v.findViewById(R.id.patch_info);
-        MaterialSwitch dev = v.findViewById(R.id.switch_developer);
-        dev.setChecked(SBASettings.getDeveloperFeatures(requireContext()));
-        dev.setOnCheckedChangeListener((b, on) -> {
+        devSwitch = v.findViewById(R.id.switch_developer);
+        devSwitch.setChecked(SBASettings.getDeveloperFeatures(requireContext()));
+        devSwitch.setOnCheckedChangeListener((b, on) -> {
             SBASettings.setDeveloperFeatures(requireContext(), on);
             refreshDeveloper();
         });
@@ -126,9 +143,54 @@ public class SettingsFragment extends Fragment {
         });
         refreshDeveloper();
 
-        ((TextView) v.findViewById(R.id.data_path)).setText(
+        ((TextView) dataPath).setText(
                 Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, null).getAbsolutePath());
-        ((TextView) v.findViewById(R.id.about_version)).setText(getString(R.string.settings_about_format, BuildConfig.VERSION_NAME));
+
+        TextView version = v.findViewById(R.id.about_version);
+        version.setText(getString(R.string.settings_about_format, BuildConfig.VERSION_NAME) + " (" + BuildConfig.VERSION_CODE + ")");
+        version.setOnClickListener(x -> onVersionTapped());
+        ((TextView) v.findViewById(R.id.about_build)).setText(buildData());
         return v;
+    }
+
+    /** Version, build and device lines for the bottom of the page; useful to quote when reporting a problem. */
+    private String buildData() {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        String type = BuildConfig.BUILD_TYPE;
+        lines.add(getString(R.string.settings_build_type, type.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + type.substring(1)));
+        lines.add(getString(R.string.settings_build_commit, BuildConfig.GIT_SHA));
+        lines.add(getString(R.string.settings_build_time, java.text.DateFormat.getDateTimeInstance(
+                java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(new java.util.Date(BuildConfig.BUILD_TIME))));
+        lines.add(getString(R.string.settings_build_android, android.os.Build.VERSION.RELEASE, android.os.Build.VERSION.SDK_INT));
+        try {
+            String game = requireContext().getPackageManager().getPackageInfo(TargetGame.PACKAGE_NAME, 0).versionName;
+            lines.add(getString(R.string.settings_build_game, game));
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            lines.add(getString(R.string.settings_build_game_missing));
+        }
+        return String.join("\n", lines);
+    }
+
+    /** Seven taps on the version number turn on developer features, like Android's build number. */
+    private void onVersionTapped() {
+        if (tapToast != null) tapToast.cancel();
+        if (SBASettings.getDeveloperFeatures(requireContext())) {
+            tapToast = Toast.makeText(requireContext(), R.string.settings_dev_already, Toast.LENGTH_SHORT);
+            tapToast.show();
+            return;
+        }
+        versionTaps++;
+        int left = 7 - versionTaps;
+        if (left <= 0) {
+            versionTaps = 0;
+            SBASettings.setDeveloperFeatures(requireContext(), true);
+            devSwitch.setChecked(true);
+            refreshDeveloper();
+            tapToast = Toast.makeText(requireContext(), R.string.settings_dev_on, Toast.LENGTH_SHORT);
+            tapToast.show();
+        } else if (left <= 3) {
+            tapToast = Toast.makeText(requireContext(), getString(R.string.settings_dev_steps, left), Toast.LENGTH_SHORT);
+            tapToast.show();
+        }
     }
 }

@@ -106,6 +106,54 @@ public final class ModPacks {
         SBASettings.setModOrder(context, names);
     }
 
+    /** What a pack says about itself in sbapack.json. Every field is null when the pack does not provide it. */
+    public static final class Info {
+        public final String name;
+        public final String version;
+        public final String author;
+
+        Info(String name, String version, String author) {
+            this.name = name;
+            this.version = version;
+            this.author = author;
+        }
+
+        static final Info NONE = new Info(null, null, null);
+    }
+
+    private static final Map<String, Info> INFO_CACHE = new HashMap<>();
+
+    /** The name, version and author a pack declares. Cached until the file changes; reads the zip otherwise. */
+    public static synchronized Info info(File pack) {
+        String key = pack.getAbsolutePath() + "|" + pack.length() + "|" + pack.lastModified();
+        Info cached = INFO_CACHE.get(key);
+        if (cached != null) return cached;
+        Info info = Info.NONE;
+        try (ZipFile zip = new ZipFile(pack)) {
+            ZipEntry entry = zip.getEntry("sbapack.json");
+            if (entry != null) {
+                try (InputStream in = zip.getInputStream(entry)) {
+                    org.json.JSONObject o = new org.json.JSONObject(
+                            new String(in.readNBytes(1 << 16), java.nio.charset.StandardCharsets.UTF_8));
+                    info = new Info(text(o, "name"), text(o, "version"), text(o, "author"));
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Unreadable sbapack.json in " + pack.getName(), e);
+        }
+        INFO_CACHE.put(key, info);
+        return info;
+    }
+
+    /** A non-blank string field, trimmed and capped; null when missing or not a string. */
+    private static String text(org.json.JSONObject o, String key) {
+        Object v = o.opt(key);
+        if (!(v instanceof String)) return null;
+        String t = ((String) v).trim();
+        if (t.isEmpty()) return null;
+        return t.length() > 80 ? t.substring(0, 80) : t;
+    }
+
     /** What a pack contains, for display: a combination of "native", "java" and "assets" (or empty). */
     public static List<String> describe(File pack) {
         boolean natives = false;

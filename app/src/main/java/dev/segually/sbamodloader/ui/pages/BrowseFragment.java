@@ -53,6 +53,8 @@ import dev.segually.sbamodloader.ui.Insets;
  * mod on the right; in portrait the list and the detail are separate pages and back returns to the list.
  */
 public class BrowseFragment extends Fragment {
+    /** Argument: the id of a mod whose store page to open as soon as the list has loaded. */
+    public static final String ARG_MOD_ID = "mod_id";
     private final BrowseQuery query = new BrowseQuery();
     private RemoteModRepository repository;
     private boolean offlineCopy;
@@ -177,6 +179,12 @@ public class BrowseFragment extends Fragment {
                 all = result;
                 offlineCopy = cached;
                 refresh();
+                Bundle args = getArguments();
+                String wanted = args == null ? null : args.getString(ARG_MOD_ID);
+                if (wanted != null) {
+                    args.remove(ARG_MOD_ID); // only once; coming back to the list later should not reopen it
+                    for (Entry candidate : all) if (candidate.id.equals(wanted)) select(candidate);
+                }
             });
         }, "browse-load").start();
     }
@@ -371,17 +379,20 @@ public class BrowseFragment extends Fragment {
             card.addView(verifyRow(R.drawable.ic_lock, getString(R.string.detail_closed_source_title, e.license),
                     getString(R.string.detail_closed_source_body, e.source.host())));
         }
-        TextView hashTitle = text(getString(R.string.detail_hash_title),
-                com.google.android.material.R.style.TextAppearance_Material3_LabelMedium,
-                com.google.android.material.R.attr.colorOnSurfaceVariant);
-        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        hlp.topMargin = dp(12);
-        card.addView(hashTitle, hlp);
-        TextView hash = text(e.sha256, com.google.android.material.R.style.TextAppearance_Material3_BodySmall,
-                com.google.android.material.R.attr.colorOnSurface);
-        hash.setTypeface(android.graphics.Typeface.MONOSPACE);
-        hash.setTextIsSelectable(true);
-        card.addView(hash);
+        // The checksum means nothing to most people; it is there for developers.
+        if (dev.segually.sbamodloader.SBASettings.getDeveloperFeatures(requireContext())) {
+            TextView hashTitle = text(getString(R.string.detail_hash_title),
+                    com.google.android.material.R.style.TextAppearance_Material3_LabelMedium,
+                    com.google.android.material.R.attr.colorOnSurfaceVariant);
+            LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            hlp.topMargin = dp(12);
+            card.addView(hashTitle, hlp);
+            TextView hash = text(e.sha256, com.google.android.material.R.style.TextAppearance_Material3_BodySmall,
+                    com.google.android.material.R.attr.colorOnSurface);
+            hash.setTypeface(android.graphics.Typeface.MONOSPACE);
+            hash.setTextIsSelectable(true);
+            card.addView(hash);
+        }
         c.addView(card);
 
         // Categories

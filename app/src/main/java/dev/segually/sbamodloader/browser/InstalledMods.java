@@ -48,6 +48,22 @@ public final class InstalledMods {
         return new Record(id, o.optString("version", ""), files);
     }
 
+    /** The id of the store mod that installed {@code file} (enabled or disabled), or null when it was added by hand. */
+    public String idForFile(File file) {
+        File enabled = new File(file.getParentFile(), dev.segually.sbamodloader.tools.ModPacks.baseName(file));
+        String wanted = enabled.getAbsolutePath();
+        JSONObject root = all();
+        java.util.Iterator<String> ids = root.keys();
+        while (ids.hasNext()) {
+            String id = ids.next();
+            JSONObject o = root.optJSONObject(id);
+            JSONArray a = o == null ? null : o.optJSONArray("files");
+            if (a == null) continue;
+            for (int i = 0; i < a.length(); i++) if (wanted.equals(a.optString(i))) return id;
+        }
+        return null;
+    }
+
     public void put(String id, String version, List<File> files) {
         try {
             JSONObject root = all();

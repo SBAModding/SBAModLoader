@@ -3,7 +3,7 @@ package dev.segually.sbamodloader.ui;
 import android.content.res.ColorStateList;
 import android.provider.Settings;
 
-import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.navigation.NavigationBarView;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.shape.ShapeAppearanceModel;
@@ -17,7 +17,7 @@ public final class GlassBar {
     private GlassBar() {
     }
 
-    public static void apply(BottomNavigationView bar) {
+    public static void apply(NavigationBarView bar) {
         var ctx = bar.getContext();
         float density = ctx.getResources().getDisplayMetrics().density;
 

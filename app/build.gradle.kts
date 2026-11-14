@@ -13,6 +13,14 @@ dependencies {
     implementation("com.google.protobuf:protobuf-javalite:4.36.1")
 }
 
+/** The short commit hash the build was made from, for the About card; "unknown" outside a git checkout. */
+fun gitShortSha(): String = try {
+    ProcessBuilder("git", "rev-parse", "--short", "HEAD").directory(rootDir).redirectErrorStream(true).start()
+        .inputStream.bufferedReader().readText().trim().ifEmpty { "unknown" }
+} catch (e: Exception) {
+    "unknown"
+}
+
 android {
     namespace = "dev.segually.sbamodloader"
     compileSdk = 37
@@ -33,6 +41,8 @@ android {
         applicationId = "dev.segually.sbamodloader"
         versionCode = 1
         versionName = "0.0.1a"
+        buildConfigField("String", "GIT_SHA", "\"${gitShortSha()}\"")
+        buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
         ndk {
             abiFilters.add("arm64-v8a")
             // abiFilters.add("armeabi-v7a")
