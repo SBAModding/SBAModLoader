@@ -18,6 +18,7 @@ struct SBAConfig {
     std::string dotnetDirectory;
     std::string unityDataDirectory;
     std::string unityVersion;
+    std::string logDirectory;
     std::vector<std::string> sbaVariables;
     std::vector<std::string> auxiliaryPluginFolders;
     std::vector<std::string> nativeMods;

@@ -601,7 +601,8 @@ public class BootstrapActivity extends AppCompatActivity {
                 new String[]{},
                 mods.natives,
                 il2cppMap,
-                fusionEnabled
+                fusionEnabled,
+                Utilities.getExternalSBAModLoaderDirectory(null, "Logs").getAbsolutePath()
         );
     }
 

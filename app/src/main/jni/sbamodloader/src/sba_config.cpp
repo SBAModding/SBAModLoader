@@ -167,6 +167,7 @@ SBAConfig sba_parse_config(JNIEnv *env, jobject jSBAConfig)
     GET_JSTRING_FIELD(dotnetDirectory);
     GET_JSTRING_FIELD(unityDataDirectory);
     GET_JSTRING_FIELD(unityVersion);
+    GET_JSTRING_FIELD(logDirectory);
     config.sbaVariables = get_string_array_field(env, jSBAConfig, "sbaVariables");
     config.auxiliaryPluginFolders = get_string_array_field(env, jSBAConfig,
                                                            "auxiliaryPluginFolders");

@@ -38,5 +38,7 @@ class SBAConfig(
     /** Mapped IL2CPP api calls. Format: original_name:mapped_name */
     @JvmField var il2cppApiMap: Map<String, String>,
     /** Whether to start the .NET runtime and BepInEx (Fusion). Off when no Fusion mod is enabled. */
-    @JvmField var fusionEnabled: Boolean
+    @JvmField var fusionEnabled: Boolean,
+    /** The folder the memory log is written to. */
+    @JvmField var logDirectory: String
 ) : Parcelable

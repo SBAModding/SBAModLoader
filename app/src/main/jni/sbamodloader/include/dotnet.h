@@ -21,6 +21,8 @@ struct DotNetConfig
     std::string entryPointAssembly;
     std::string entryPointType;
     std::string entryPointMethod;
+    /** Optional text file of DOTNET_NAME=value lines, applied after the defaults, for trying settings without a build. */
+    std::string envOverridesFile;
 };
 
 int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *folderList);

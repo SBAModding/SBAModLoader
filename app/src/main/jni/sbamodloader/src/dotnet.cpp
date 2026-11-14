@@ -4,6 +4,8 @@
 #include <external/coreclrhost.h>
 #include <filesystem>
 #include <logger.h>
+#include <memory_log.h>
+#include <fstream>
 #include <thread>
 #include <dlfcn.h>
 
@@ -13,6 +15,34 @@ namespace fs = std::filesystem;
 
 
 void build_tpa(const char *directory, std::string &tpaList);
+
+/**
+ * Environment for the .NET runtime, applied before it starts. ReadyToRun is off as it has always been in this
+ * code. Environment values for DOTNET_* are hexadecimal.
+ */
+static void apply_runtime_environment(const DotNetConfig& config)
+{
+    setenv("DOTNET_ReadyToRun", "0", 1);
+
+    // For developers: DOTNET_NAME=value lines in a text file replace the defaults above, so a setting can be tried on
+    // a device without building. Only DOTNET_ variables are accepted.
+    if (!config.envOverridesFile.empty())
+    {
+        std::ifstream in(config.envOverridesFile);
+        std::string line;
+        while (std::getline(in, line))
+        {
+            while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+            size_t eq = line.find('=');
+            if (line.empty() || line[0] == '#' || eq == std::string::npos || eq == 0) continue;
+            std::string name = line.substr(0, eq);
+            if (name.rfind("DOTNET_", 0) != 0) continue;
+            setenv(name.c_str(), line.substr(eq + 1).c_str(), 1);
+            log_format(LogLevel::INFO, TAG, ".NET override from file: {}", line);
+            memlog_note(("runtime override: " + line).c_str());
+        }
+    }
+}
 
 int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *auxFolders)
 {
@@ -42,12 +72,13 @@ int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *aux
                 config.managedLibsDir.c_str()
         };
 
-        setenv("DOTNET_ReadyToRun", "0", 1);
+        apply_runtime_environment(config);
 
         int32_t hr = -1;
         void *hostHandle = nullptr;
         unsigned int domainId = 0;
 
+        memlog_mark("clr: before initialize");
         for (int attempt = 1; attempt <= 2; ++attempt)
         {
             hostHandle = nullptr;
@@ -88,6 +119,7 @@ int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *aux
 
         if (hr >= 0) {
             log_format(LogLevel::INFO, TAG, "CoreCLR started; AppDomain {} created", domainId);
+            memlog_mark("clr: initialized");
         } else {
             log_format(LogLevel::ERROR, TAG, "coreclr_initialize failed - status: {} ({:#010x})",
                        hr, static_cast<uint32_t>(hr));
@@ -122,7 +154,9 @@ int dotnet_execute_assembly(const DotNetConfig& config, AuxPluginFolderList *aux
         return -1;
     }
 
+    memlog_mark("bepinex: before start");
     managedDelegate(auxFolders);
+    memlog_mark("bepinex: start returned");
 
     log(LogLevel::INFO, TAG, "Executed delegate!");
     return 0;

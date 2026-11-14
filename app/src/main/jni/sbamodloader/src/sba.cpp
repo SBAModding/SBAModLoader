@@ -11,6 +11,7 @@
 #include <hooking/libunity.h>
 #include <dotnet.h>
 #include <native_mods.h>
+#include <memory_log.h>
 #include <external/dobby.h>
 #include <utilities/java.h>
 #include <dlfcn.h>
@@ -69,7 +70,9 @@ int il2cpp_init_hook(char *domain_name)
     }
 
     // call the original il2cpp_init function
+    memlog_mark("il2cpp: before init");
     int result = il2cpp_init(domain_name);
+    memlog_mark("il2cpp: init returned");
 
     if (runtime_config.initialized && runtime_config.fusionEnabled)
     {
@@ -103,6 +106,7 @@ int il2cpp_init_hook(char *domain_name)
         dotNetConfig.entryPointAssembly = "BepInEx.Unity.IL2CPP";
         dotNetConfig.entryPointType = "BepInEx.Unity.IL2CPP.FusionCoreEntrypoint";
         dotNetConfig.entryPointMethod = "Start";
+        if (!runtime_config.logDirectory.empty()) dotNetConfig.envOverridesFile = runtime_config.logDirectory + "/dotnet_env.txt";
         // set TMPDIR for MonoMod lib drops
         setenv("TMPDIR", runtime_config.codeCacheDirectory.c_str(), 1);
 
@@ -126,6 +130,7 @@ int il2cpp_init_hook(char *domain_name)
         // change working directory to sba's scoped data directory
         chdir(runtime_config.appDataDirectory.c_str());
         dotnet_execute_assembly(dotNetConfig, &list);
+
     }
     else if (runtime_config.initialized)
     {
@@ -158,6 +163,10 @@ extern "C" [[maybe_unused]] bool sba_bootstrap_from_libmain(JNIEnv *env)
     }
 
     runtime_config = config;
+    memlog_start(config.logDirectory, std::string("fusion=") + (config.fusionEnabled ? "on" : "off")
+                                       + " unity=" + config.unityVersion
+                                       + " native mods=" + std::to_string(config.nativeMods.size()));
+    memlog_mark("loader: bootstrap");
     auto il2cpp_path = libmain_get_override_il2cpp_path();
     if (!il2cpp_initialize(il2cpp_path))
     {
