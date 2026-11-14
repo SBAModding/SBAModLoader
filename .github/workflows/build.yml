@@ -73,9 +73,9 @@ jobs:
           path: dist/release/*.apk
           if-no-files-found: error
 
-      # On a tag, attach the APKs to that tag's release (creating a draft if there is none yet). A file that is
+      # On a tag, attach the release APK to that tag's release (creating a draft if there is none yet). A file that is
       # already attached, for example a release APK uploaded by hand, is left alone.
-      - name: Attach the APKs to the release
+      - name: Attach the release APK to the release
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -85,7 +85,7 @@ jobs:
             gh release create "$TAG" --draft --title "$TAG" --notes "Built by CI. Edit these notes, then publish."
           fi
           existing=$(gh release view "$TAG" --json assets --jq '.assets[].name')
-          for f in dist/*/*.apk; do
+          for f in dist/release/*.apk; do
             name=$(basename "$f")
             if printf '%s\n' "$existing" | grep -qxF "$name"; then
               echo "$name is already attached; leaving it as it is"
