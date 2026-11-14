@@ -58,7 +58,15 @@ public class BrowseFragment extends Fragment {
     private final BrowseQuery query = new BrowseQuery();
     private RemoteModRepository repository;
     private boolean offlineCopy;
-    private final Set<String> busy = new HashSet<>(); // mods being installed right now
+    /**
+     * Mods being installed right now. Static because an install keeps running when the user leaves the Browse tab:
+     * a new BrowseFragment must still know about it, or it would offer to start the same install again.
+     */
+    private static final Set<String> busy = java.util.Collections.synchronizedSet(new HashSet<>());
+    private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
+    /** The Browse fragment currently on screen, if any: where a running install reports back to. */
+    private static java.lang.ref.WeakReference<BrowseFragment> visible = new java.lang.ref.WeakReference<>(null);
+    private LinearLayout installArea;
     private List<Entry> all = new ArrayList<>();
     private final ModAdapter adapter = new ModAdapter();
     private String selectedId;
@@ -88,6 +96,7 @@ public class BrowseFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_browse, container, false);
+        visible = new java.lang.ref.WeakReference<>(this);
         repository = new RemoteModRepository(requireContext());
         detailPage = v.findViewById(R.id.detail_page);
 
@@ -152,6 +161,26 @@ public class BrowseFragment extends Fragment {
         retryButton.setOnClickListener(x -> loadRepository());
         loadRepository();
         return v;
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (visible.get() == this) visible = new java.lang.ref.WeakReference<>(null);
+        installArea = null;
+        super.onDestroyView();
+    }
+
+    /** Runs {@code action} on the main thread against the Browse fragment on screen; does nothing when there is none. */
+    private static void onUi(java.util.function.Consumer<BrowseFragment> action) {
+        MAIN.post(() -> {
+            BrowseFragment f = visible.get();
+            if (f == null || !f.isAdded() || f.getView() == null) return;
+            try {
+                action.accept(f);
+            } catch (RuntimeException ex) {
+                android.util.Log.w("BrowseFragment", "Could not update the install state", ex);
+            }
+        });
     }
 
     private void loadRepository() {
@@ -344,6 +373,7 @@ public class BrowseFragment extends Fragment {
         LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         ilp.topMargin = dp(16);
         c.addView(installArea, ilp);
+        this.installArea = installArea;
         renderInstallArea(installArea, e, null);
 
         // Stats: only what the repository actually has (it carries no download counts or ratings yet)
@@ -459,32 +489,36 @@ public class BrowseFragment extends Fragment {
     }
 
     private void startInstall(LinearLayout area, Entry e) {
-        busy.add(e.id);
+        if (!busy.add(e.id)) return; // already running (for instance, started before the user left this tab)
         renderInstallArea(area, e, getString(R.string.detail_working));
         adapter.notifyDataSetChanged();
-        android.content.Context app = requireContext().getApplicationContext();
-        List<Entry> snapshot = all;
+        // The worker thread must not touch this fragment: the user can leave the tab while it runs. It only uses
+        // the application context, and reports back through onUi, which skips a fragment that is gone.
+        final android.content.Context app = requireContext().getApplicationContext();
+        final List<Entry> snapshot = all;
         new Thread(() -> {
             String error = null;
             try {
                 ModInstaller.install(app, e, snapshot, (mod, done, total) -> {
                     String line = mod.id.equals(e.id)
-                            ? getString(R.string.detail_downloading, total > 0 ? (int) (done * 100 / total) : 0)
-                            : getString(R.string.detail_downloading_requirement, mod.name);
-                    if (isAdded()) requireActivity().runOnUiThread(() -> {
-                        if (selectedId != null && selectedId.equals(e.id)) renderInstallArea(area, e, line);
+                            ? app.getString(R.string.detail_downloading, total > 0 ? (int) (done * 100 / total) : 0)
+                            : app.getString(R.string.detail_downloading_requirement, mod.name);
+                    onUi(f -> {
+                        if (e.id.equals(f.selectedId) && f.installArea != null) f.renderInstallArea(f.installArea, e, line);
                     });
                 });
-            } catch (IOException ex) {
+            } catch (Exception ex) { // not only IOException: anything thrown here would otherwise crash the app
                 android.util.Log.e("BrowseFragment", "Install of " + e.id + " failed", ex);
-                error = ex.getMessage();
+                error = ex.getMessage() != null ? ex.getMessage() : ex.toString();
             }
-            String err = error;
-            if (isAdded()) requireActivity().runOnUiThread(() -> {
-                busy.remove(e.id);
-                adapter.notifyDataSetChanged();
-                if (selectedId != null && selectedId.equals(e.id)) renderInstallArea(area, e, null);
-                if (err != null) Toast.makeText(requireContext(), getString(R.string.detail_install_failed, e.name, err), Toast.LENGTH_LONG).show();
+            final String err = error;
+            busy.remove(e.id);
+            if (err != null) {
+                MAIN.post(() -> Toast.makeText(app, app.getString(R.string.detail_install_failed, e.name, err), Toast.LENGTH_LONG).show());
+            }
+            onUi(f -> {
+                f.adapter.notifyDataSetChanged();
+                if (e.id.equals(f.selectedId) && f.installArea != null) f.renderInstallArea(f.installArea, e, null);
             });
         }, "mod-install").start();
     }
