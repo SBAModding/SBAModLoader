@@ -43,6 +43,7 @@ import dev.segually.sbamodloader.hooks.PackageManagerHooks;
 import dev.segually.sbamodloader.hooks.GameRuntime;
 import dev.segually.sbamodloader.tools.SBAConfig;
 import dev.segually.sbamodloader.tools.GlobalMetadata;
+import dev.segually.sbamodloader.tools.InteropDownloader;
 import dev.segually.sbamodloader.tools.Il2CppApiMapper;
 import dev.segually.sbamodloader.tools.UnityBaseLibraries;
 import dev.segually.sbamodloader.tools.LibUnityDownloader;
@@ -253,6 +254,10 @@ public class BootstrapActivity extends AppCompatActivity {
     }
 
     private void setDownloadStatus(long downloadedBytes, long totalBytes) {
+        setDownloadStatus(downloadedBytes, totalBytes, R.string.bootstrap_status_downloading_libunity, R.string.bootstrap_simple_downloading);
+    }
+
+    private void setDownloadStatus(long downloadedBytes, long totalBytes, int technicalText, int simpleText) {
         runOnMainThread(() -> {
             if (spinnerProgress != null) {
                 spinnerProgress.setVisibility(View.GONE);
@@ -268,7 +273,7 @@ public class BootstrapActivity extends AppCompatActivity {
                 }
             }
             if (statusView != null) {
-                statusView.setText(phase(R.string.bootstrap_status_downloading_libunity, R.string.bootstrap_simple_downloading));
+                statusView.setText(phase(technicalText, simpleText));
             }
             if (progressDetailsView != null) {
                 progressDetailsView.setVisibility(View.VISIBLE);
@@ -579,6 +584,17 @@ public class BootstrapActivity extends AppCompatActivity {
                 UnityBaseLibraries.resolve(bepInExDir, version);
             }
             Utilities.extractZipFromAssets(appContext, "dotnet-arm64.zip", dotnetDir);
+            // BepInEx builds its interop assemblies on the first launch, which needs far more memory than many phones
+            // have. Use the published set for this game version when there is one (see InteropDownloader).
+            String gameVersionName = "";
+            try {
+                gameVersionName = appContext.getPackageManager().getPackageInfo(targetPackage, 0).versionName;
+            } catch (NameNotFoundException ignored) {
+            }
+            InteropDownloader.prepare(appContext, bepInExDir, codeCacheScoped,
+                    new File(copiedData, "Managed/Metadata/" + GlobalMetadata.FILE_NAME), gameVersionName, version,
+                    (done, total) -> setDownloadStatus(done, total,
+                            R.string.bootstrap_status_downloading_interop, R.string.bootstrap_simple_downloading_interop));
         } else {
             Log.i(TAG, "Fusion is off or has no enabled mods: skipping the .NET runtime and BepInEx");
         }

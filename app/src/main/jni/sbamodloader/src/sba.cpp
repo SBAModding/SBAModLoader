@@ -1,5 +1,8 @@
 // Copyright (c) 2026 XtraCube
 #include <unistd.h>
+#include <thread>
+#include <chrono>
+#include <cstdio>
 #include <jni.h>
 #include <filesystem>
 #include <logger.h>
@@ -131,6 +134,16 @@ int il2cpp_init_hook(char *domain_name)
         chdir(runtime_config.appDataDirectory.c_str());
         dotnet_execute_assembly(dotNetConfig, &list);
 
+        // Tell the loader this launch got through BepInEx's start and kept running: it counts a launch that crashed
+        // before this as a failure of the downloaded interop assemblies (see InteropDownloader).
+        std::string healthyMarker = runtime_config.codeCacheDirectory + "/interop_ok";
+        std::thread([healthyMarker]() {
+            std::this_thread::sleep_for(std::chrono::seconds(30));
+            if (FILE *f = fopen(healthyMarker.c_str(), "w")) {
+                fputs("ok\n", f);
+                fclose(f);
+            }
+        }).detach();
     }
     else if (runtime_config.initialized)
     {

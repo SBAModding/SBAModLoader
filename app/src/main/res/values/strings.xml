@@ -190,4 +190,6 @@
     <string name="bootstrap_simple_installing_hooks">Almost there…</string>
     <string name="bootstrap_simple_launching">Starting the game…</string>
     <string name="bootstrap_no_map_simple">Some mods may not work properly.</string>
+    <string name="bootstrap_status_downloading_interop">Downloading interop assemblies…</string>
+    <string name="bootstrap_simple_downloading_interop">Downloading mod support files…</string>
 </resources>
