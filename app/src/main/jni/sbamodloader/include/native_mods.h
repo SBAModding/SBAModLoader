@@ -9,4 +9,10 @@
 // JavaVM. Mods find libunity.so / libil2cpp.so themselves, for example through /proc/self/maps.
 void native_mods_load(const std::vector<std::string> &paths);
 
+// Calls the optional `void sba_il2cpp_ready()` of every loaded native mod. It runs once, on the thread that
+// started il2cpp, right after il2cpp_init has returned: the il2cpp API is safe to use from then on and no managed
+// code has run yet. Mods should use it instead of hooking il2cpp_init themselves, because a function can only be
+// hooked once and two mods doing it would break each other.
+void native_mods_il2cpp_ready();
+
 #endif //SBAMODLOADER_NATIVE_MODS_H

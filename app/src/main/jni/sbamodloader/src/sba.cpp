@@ -76,6 +76,10 @@ int il2cpp_init_hook(char *domain_name)
     memlog_mark("il2cpp: before init");
     int result = il2cpp_init(domain_name);
     memlog_mark("il2cpp: init returned");
+    if (runtime_config.initialized)
+    {
+        native_mods_il2cpp_ready();
+    }
 
     if (runtime_config.initialized && runtime_config.fusionEnabled)
     {
