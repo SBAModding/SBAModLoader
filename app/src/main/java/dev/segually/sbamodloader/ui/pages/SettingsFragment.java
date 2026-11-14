@@ -18,7 +18,9 @@ import dev.segually.sbamodloader.R;
 import dev.segually.sbamodloader.SBASettings;
 import dev.segually.sbamodloader.tools.PatchManager;
 import dev.segually.sbamodloader.tools.DeviceSupport;
+import dev.segually.sbamodloader.tools.AppUpdater;
 import dev.segually.sbamodloader.ui.FusionWarning;
+import dev.segually.sbamodloader.ui.UpdatePrompt;
 import android.widget.Toast;
 import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.Utilities;
@@ -115,6 +117,10 @@ public class SettingsFragment extends Fragment {
         skipFusion.setChecked(SBASettings.getSkipFusionWhenUnused(requireContext()));
         skipFusion.setOnCheckedChangeListener((b, on) -> SBASettings.setSkipFusionWhenUnused(requireContext(), on));
 
+        v.findViewById(R.id.safety_github).setOnClickListener(x -> openLink(AppUpdater.REPO_URL));
+        v.findViewById(R.id.safety_discord).setOnClickListener(x -> openLink(AppUpdater.DISCORD_URL));
+        setUpUpdates(v);
+
         devSection = v.findViewById(R.id.dev_section);
         patchInfo = v.findViewById(R.id.patch_info);
         devSwitch = v.findViewById(R.id.switch_developer);
@@ -151,6 +157,69 @@ public class SettingsFragment extends Fragment {
         version.setOnClickListener(x -> onVersionTapped());
         ((TextView) v.findViewById(R.id.about_build)).setText(buildData());
         return v;
+    }
+
+    private void openLink(String url) {
+        try {
+            startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(requireContext(), url, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void setUpUpdates(View v) {
+        MaterialSwitch auto = v.findViewById(R.id.switch_autoupdate);
+        auto.setChecked(SBASettings.getAutoUpdate(requireContext()));
+        auto.setOnCheckedChangeListener((b, on) -> SBASettings.setAutoUpdate(requireContext(), on));
+
+        MaterialSwitch pre = v.findViewById(R.id.switch_prereleases);
+        pre.setChecked(SBASettings.getUpdatePrereleases(requireContext()));
+        TextView status = v.findViewById(R.id.update_status);
+        android.widget.Button button = v.findViewById(R.id.btn_check_update);
+        final AppUpdater.Release[] found = new AppUpdater.Release[1];
+        pre.setOnCheckedChangeListener((b, on) -> {
+            SBASettings.setUpdatePrereleases(requireContext(), on);
+            // The answer for the old choice no longer applies.
+            found[0] = null;
+            status.setVisibility(View.GONE);
+            button.setText(R.string.updates_check_now);
+        });
+
+        button.setOnClickListener(x -> {
+            if (found[0] != null) {
+                UpdatePrompt.start(requireActivity(), found[0]);
+                return;
+            }
+            status.setVisibility(View.VISIBLE);
+            status.setText(R.string.updates_checking);
+            button.setEnabled(false);
+            android.content.Context app = requireContext().getApplicationContext();
+            boolean prereleases = SBASettings.getUpdatePrereleases(app);
+            new Thread(() -> {
+                AppUpdater.Release release = null;
+                boolean failed = false;
+                try {
+                    release = AppUpdater.findNewer(prereleases);
+                    SBASettings.setLastUpdateCheck(app, System.currentTimeMillis());
+                } catch (java.io.IOException e) {
+                    failed = true;
+                }
+                AppUpdater.Release r = release;
+                boolean f = failed;
+                if (isAdded()) requireActivity().runOnUiThread(() -> {
+                    button.setEnabled(true);
+                    if (f) {
+                        status.setText(R.string.updates_check_failed);
+                    } else if (r == null) {
+                        status.setText(R.string.updates_up_to_date);
+                    } else {
+                        found[0] = r;
+                        status.setText(getString(R.string.updates_available, r.version));
+                        button.setText(getString(R.string.updates_update_to, r.version));
+                    }
+                });
+            }, "update-check").start();
+        });
     }
 
     /** Version, build and device lines for the bottom of the page; useful to quote when reporting a problem. */

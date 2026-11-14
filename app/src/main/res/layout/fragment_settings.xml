@@ -20,6 +20,8 @@
             android:textAppearance="?attr/textAppearanceHeadlineLarge"
             android:textColor="?attr/colorOnSurface" />
 
+        <include layout="@layout/settings_card_safety" />
+        <include layout="@layout/settings_card_updates" />
         <include layout="@layout/settings_card_libunity" />
         <include layout="@layout/settings_card_fusion" />
         <include layout="@layout/settings_card_skipfusion" />

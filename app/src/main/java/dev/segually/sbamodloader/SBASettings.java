@@ -12,6 +12,10 @@ public final class SBASettings {
     private static final String KEY_FUSION_ENABLED = "fusion_enabled";
     private static final String KEY_FUSION_WARNING_SHOWN = "fusion_warning_shown";
     private static final String KEY_SKIP_FUSION_WHEN_UNUSED = "skip_fusion_when_unused";
+    private static final String KEY_AUTO_UPDATE = "auto_update";
+    private static final String KEY_UPDATE_PRERELEASES = "update_prereleases";
+    private static final String KEY_LAST_UPDATE_CHECK = "last_update_check";
+    private static final String KEY_UPDATE_LATER = "update_later_version";
 
     private SBASettings() {
     }
@@ -57,6 +61,41 @@ public final class SBASettings {
 
     public static void setSkipFusionWhenUnused(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_SKIP_FUSION_WHEN_UNUSED, enabled).apply();
+    }
+
+    /** Whether the app looks for a newer version of itself on GitHub when it opens. On by default. */
+    public static boolean getAutoUpdate(Context context) {
+        return prefs(context).getBoolean(KEY_AUTO_UPDATE, true);
+    }
+
+    public static void setAutoUpdate(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_AUTO_UPDATE, enabled).apply();
+    }
+
+    /** Whether updates may be pre-releases (early test versions). Off by default. */
+    public static boolean getUpdatePrereleases(Context context) {
+        return prefs(context).getBoolean(KEY_UPDATE_PRERELEASES, false);
+    }
+
+    public static void setUpdatePrereleases(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_UPDATE_PRERELEASES, enabled).apply();
+    }
+
+    public static long getLastUpdateCheck(Context context) {
+        return prefs(context).getLong(KEY_LAST_UPDATE_CHECK, 0);
+    }
+
+    public static void setLastUpdateCheck(Context context, long time) {
+        prefs(context).edit().putLong(KEY_LAST_UPDATE_CHECK, time).apply();
+    }
+
+    /** The version the user chose "Later" for, so the automatic prompt does not repeat for it. */
+    public static String getUpdateLater(Context context) {
+        return prefs(context).getString(KEY_UPDATE_LATER, "");
+    }
+
+    public static void setUpdateLater(Context context, String version) {
+        prefs(context).edit().putString(KEY_UPDATE_LATER, version).apply();
     }
 
     public static boolean getDeveloperFeatures(Context context) {

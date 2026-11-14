@@ -60,6 +60,29 @@ public class MainActivity extends AppCompatActivity {
         }
 
         CrashDetector.init(this);
+        if (savedInstanceState == null) checkForUpdate();
+    }
+
+    private static final long UPDATE_CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000;
+
+    /** Looks for a newer version in the background (at most every few hours) and offers it. */
+    private void checkForUpdate() {
+        android.content.Context app = getApplicationContext();
+        if (!SBASettings.getAutoUpdate(app)) return;
+        long now = System.currentTimeMillis();
+        if (now - SBASettings.getLastUpdateCheck(app) < UPDATE_CHECK_INTERVAL_MS) return;
+        boolean prereleases = SBASettings.getUpdatePrereleases(app);
+        new Thread(() -> {
+            try {
+                var release = dev.segually.sbamodloader.tools.AppUpdater.findNewer(prereleases);
+                SBASettings.setLastUpdateCheck(app, System.currentTimeMillis());
+                if (release != null && !release.version.equals(SBASettings.getUpdateLater(app))) {
+                    runOnUiThread(() -> dev.segually.sbamodloader.ui.UpdatePrompt.offer(this, release));
+                }
+            } catch (java.io.IOException ignored) {
+                // Offline or GitHub is busy; the next launch tries again.
+            }
+        }, "update-check").start();
     }
 
     @Override

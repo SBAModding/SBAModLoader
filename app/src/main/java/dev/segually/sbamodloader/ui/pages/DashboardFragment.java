@@ -26,7 +26,8 @@ import dev.segually.sbamodloader.MainActivity;
 import dev.segually.sbamodloader.R;
 import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.PatchManager;
-import dev.segually.sbamodloader.tools.UpdateChecker;
+import dev.segually.sbamodloader.tools.AppUpdater;
+import dev.segually.sbamodloader.ui.UpdatePrompt;
 import dev.segually.sbamodloader.ui.Insets;
 
 public class DashboardFragment extends Fragment {
@@ -35,7 +36,8 @@ public class DashboardFragment extends Fragment {
     private View stepGame, stepVersion, stepPatches;
     private TextView setupTitle;
     private MaterialButton btnRetry, btnLaunch;
-    private UpdateChecker.State updateState = UpdateChecker.State.UNKNOWN;
+    /** A newer version of the loader, or null when there is none (or it could not be checked). */
+    private AppUpdater.Release newerVersion;
 
     /** Null while the patch source is being checked. */
     private PatchManager.SyncResult patchResult;
@@ -56,10 +58,17 @@ public class DashboardFragment extends Fragment {
         btnRetry.setOnClickListener(x -> syncPatches());
         btnLaunch.setOnClickListener(x -> startBootstrap());
 
+        boolean prereleases = SBASettings.getUpdatePrereleases(requireContext());
         new Thread(() -> {
-            UpdateChecker.State s = UpdateChecker.check(BuildConfig.VERSION_NAME);
+            AppUpdater.Release newer = null;
+            try {
+                newer = AppUpdater.findNewer(prereleases);
+            } catch (java.io.IOException ignored) {
+                // Offline: say nothing is outdated rather than raise a false alarm.
+            }
+            AppUpdater.Release r = newer;
             if (isAdded()) requireActivity().runOnUiThread(() -> {
-                updateState = s;
+                newerVersion = r;
                 render();
             });
         }, "update-check").start();
@@ -107,8 +116,9 @@ public class DashboardFragment extends Fragment {
     private void render() {
         if (!isAdded()) return;
         boolean game = gameInstalled();
-        boolean latest = updateState != UpdateChecker.State.OUTDATED;
+        boolean latest = newerVersion == null;
         bind(stepGame, game ? State.OK : State.ERROR, getString(game ? R.string.step_game_ok : R.string.step_game_missing));
+        stepVersion.setOnClickListener(latest ? null : x -> UpdatePrompt.start(requireActivity(), newerVersion));
         bind(stepVersion, latest ? State.OK : State.ERROR, getString(latest ? R.string.step_version_ok : R.string.step_version_outdated));
 
         boolean patchesOk = false;
