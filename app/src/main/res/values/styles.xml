@@ -53,8 +53,8 @@
     <item name="materialSwitchStyle">@style/Widget.SBA.Switch</item>
 
     <!-- One typeface for the whole app. -->
-    <item name="fontFamily">@font/roboto_flex</item>
-    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
 
     <!-- The whole type scale (and its emphasized variants) uses the one font. -->
     <item name="textAppearanceDisplayLarge">@style/TextAppearance.SBA.DisplayLarge</item>
@@ -89,123 +89,123 @@
     <item name="textAppearanceLabelSmallEmphasized">@style/TextAppearance.SBA.LabelSmallEmphasized</item>
 </style>
 <style name="TextAppearance.SBA.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.DisplayLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.DisplayLarge.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.DisplayMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.DisplayMedium.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.DisplaySmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.DisplaySmall.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.HeadlineLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.HeadlineLarge.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.HeadlineMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.HeadlineMedium.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.HeadlineSmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.HeadlineSmall.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.TitleLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.TitleLarge.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.TitleMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.TitleMedium.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.TitleSmall" parent="TextAppearance.Material3.TitleSmall">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.TitleSmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.TitleSmall.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.BodyLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.BodyLarge.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.BodyMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.BodyMedium.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.BodySmall" parent="TextAppearance.Material3.BodySmall">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.BodySmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.BodySmall.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.LabelLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.LabelLarge.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.LabelMedium" parent="TextAppearance.Material3.LabelMedium">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.LabelMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.LabelMedium.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 <style name="TextAppearance.SBA.LabelSmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.LabelSmall.Emphasized">
-    <item name="android:fontFamily">@font/roboto_flex</item>
-    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex_family</item>
+    <item name="fontFamily">@font/roboto_flex_family</item>
 </style>
 </resources>

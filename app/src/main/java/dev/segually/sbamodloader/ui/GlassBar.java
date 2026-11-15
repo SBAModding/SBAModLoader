@@ -1,7 +1,6 @@
 package dev.segually.sbamodloader.ui;
 
 import android.content.res.ColorStateList;
-import android.provider.Settings;
 
 import com.google.android.material.navigation.NavigationBarView;
 import com.google.android.material.color.MaterialColors;
@@ -23,9 +22,7 @@ public final class GlassBar {
 
         int container = MaterialColors.getColor(bar, com.google.android.material.R.attr.colorSurfaceContainerHigh);
         int onSurface = MaterialColors.getColor(bar, com.google.android.material.R.attr.colorOnSurface);
-        // Reduce-transparency equivalent: respect high contrast text and stay opaque.
-        boolean opaque = Settings.Secure.getInt(ctx.getContentResolver(), "high_text_contrast_enabled", 0) == 1;
-        int alpha = opaque ? 0xFF : 0xE0;
+        int alpha = 0xFF; // opaque: text that scrolls underneath must not show through
         int body = (container & 0x00FFFFFF) | (alpha << 24);
 
         var shape = ShapeAppearanceModel.builder().setAllCornerSizes(ShapeAppearanceModel.PILL).build();

@@ -65,6 +65,11 @@ public class MainActivity extends AppCompatActivity {
             page = savedInstanceState.getInt(KEY_PAGE, 0);
         } else {
             showPage(0);
+            // Debug builds can open on a given page (adb shell am start ... --ei sba_page 2), for layout checks.
+            int start = BuildConfig.DEBUG ? getIntent().getIntExtra("sba_page", 0) : 0;
+            if (start == 1) nav.setSelectedItemId(R.id.nav_browse);
+            else if (start == 2) nav.setSelectedItemId(R.id.nav_mods);
+            else if (start == 3) nav.setSelectedItemId(R.id.nav_settings);
         }
 
         CrashDetector.init(this);

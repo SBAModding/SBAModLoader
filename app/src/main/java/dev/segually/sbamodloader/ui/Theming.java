@@ -87,7 +87,7 @@ public final class Theming {
 
     /** The app's one typeface, for views that are built in code. {@code bold} gives the heavier weight. */
     public static android.graphics.Typeface font(Context context, boolean bold) {
-        android.graphics.Typeface base = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.roboto_flex);
+        android.graphics.Typeface base = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.roboto_flex_family);
         if (base == null) return android.graphics.Typeface.DEFAULT;
         return bold ? android.graphics.Typeface.create(base, 700, false) : base;
     }

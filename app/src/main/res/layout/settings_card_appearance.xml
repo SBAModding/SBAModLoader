@@ -32,6 +32,8 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/theme_system"
                 style="?attr/materialButtonOutlinedStyle"
+                app:backgroundTint="@color/toggle_bg"
+                android:textColor="@color/toggle_text"
                 android:layout_width="0dp"
                 android:layout_height="56dp"
                 android:layout_weight="1"
@@ -40,6 +42,8 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/theme_light"
                 style="?attr/materialButtonOutlinedStyle"
+                app:backgroundTint="@color/toggle_bg"
+                android:textColor="@color/toggle_text"
                 android:layout_width="0dp"
                 android:layout_height="56dp"
                 android:layout_weight="1"
@@ -48,6 +52,8 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/theme_dark"
                 style="?attr/materialButtonOutlinedStyle"
+                app:backgroundTint="@color/toggle_bg"
+                android:textColor="@color/toggle_text"
                 android:layout_width="0dp"
                 android:layout_height="56dp"
                 android:layout_weight="1"

@@ -78,6 +78,7 @@
     <string name="mods_part_native">native code</string>
     <string name="mods_part_java">Java</string>
     <string name="mods_part_assets">assets</string>
+    <string name="nav_home">Home</string>
     <string name="nav_browse">Browse</string>
     <string name="browse_search_hint">Search mods and packs</string>
     <string name="browse_all">All</string>

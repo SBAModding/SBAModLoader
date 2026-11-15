@@ -5,6 +5,7 @@
     <!-- Page and section headings: large and bold, so the hierarchy reads at a glance. -->
     <style name="TextAppearance.SBA.PageTitle" parent="TextAppearance.SBA.DisplaySmallEmphasized">
         <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textStyle">bold</item>
     </style>
     <style name="TextAppearance.SBA.Section" parent="TextAppearance.SBA.LabelLargeEmphasized">
         <item name="android:textColor">?attr/colorPrimary</item>

@@ -39,7 +39,8 @@
                 android:layout_height="64dp"
                 android:layout_marginTop="16dp"
                 android:text="@string/mods_browse"
-                app:icon="@drawable/ic_nav_browse" />
+                app:icon="@drawable/ic_nav_browse"
+                app:iconGravity="textStart" />
 
             <!-- developer features only -->
             <com.google.android.material.button.MaterialButton
