@@ -32,7 +32,7 @@
         android:layout_marginTop="28dp"
         android:gravity="center"
         android:text="@string/bootstrap_title"
-        android:textAppearance="@style/TextAppearance.SBA.HeadlineMediumEmphasized"
+        android:textAppearance="@style/TextAppearance.SBA.Hero"
         android:textColor="?attr/colorOnSurface" />
 
     <TextView

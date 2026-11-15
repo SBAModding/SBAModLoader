@@ -65,9 +65,8 @@ public class ModsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_mods, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_root), 0, getResources().getInteger(R.integer.mods_columns) > 1 ? 0 : 720);
+        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 760, false);
         list = v.findViewById(R.id.mods_list);
-        list.setPadding(0, 0, 0, Insets.navClearance(requireContext()));
         empty = v.findViewById(R.id.mods_empty);
         int columns = getResources().getInteger(R.integer.mods_columns);
         columns = Math.max(1, columns);
@@ -377,6 +376,10 @@ public class ModsFragment extends Fragment {
             bg.setColor(com.google.android.material.color.MaterialColors.getColor(h.itemView,
                     com.google.android.material.R.attr.colorPrimaryContainer));
             h.avatar.setBackground(bg);
+            for (View shaped : new View[]{h.avatar, h.icon}) {
+                shaped.setClipToOutline(true);
+                shaped.setOutlineProvider(dev.segually.sbamodloader.ui.ShapeBackdropView.cookieOutline(8, 0.045f));
+            }
             h.avatar.setTextColor(com.google.android.material.color.MaterialColors.getColor(h.itemView,
                     com.google.android.material.R.attr.colorOnPrimaryContainer));
             h.icon.setTag(d.storeId);
@@ -384,14 +387,6 @@ public class ModsFragment extends Fragment {
             h.icon.setVisibility(View.GONE);
             BrowserModels.Entry store = d.storeId == null ? null : storeEntries.get(d.storeId);
             if (store == null || store.icon == null) return;
-            h.icon.setClipToOutline(true);
-            final int radius = Math.round(16 * getResources().getDisplayMetrics().density);
-            h.icon.setOutlineProvider(new android.view.ViewOutlineProvider() {
-                @Override
-                public void getOutline(View view, android.graphics.Outline outline) {
-                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
-                }
-            });
             dev.segually.sbamodloader.browser.ImageLoader.load(requireContext(), store.icon, 160, bitmap -> {
                 if (!d.storeId.equals(h.icon.getTag())) return; // the row was reused for another mod meanwhile
                 h.icon.setImageBitmap(bitmap);

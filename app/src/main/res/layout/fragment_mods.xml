@@ -1,72 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/page_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:paddingHorizontal="20dp"
-    android:paddingTop="32dp">
+    android:layout_height="match_parent">
 
-    <LinearLayout
+    <com.google.android.material.appbar.AppBarLayout
+        style="@style/Widget.Material3Expressive.AppBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:background="@android:color/transparent"
+        app:liftOnScroll="false">
 
-        <TextView
-            android:layout_width="0dp"
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            style="@style/Widget.SBA.CollapsingBar"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:text="@string/nav_mods"
-            android:textAppearance="@style/TextAppearance.SBA.PageTitle" />
+            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
+            app:title="@string/nav_mods">
 
-        <!-- developer features only -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_add_mod"
-            style="@style/Widget.Material3Expressive.Button.TonalButton"
-            android:layout_width="wrap_content"
-            android:layout_height="56dp"
-            android:text="@string/mods_add"
-            android:visibility="gone"
-            app:icon="@drawable/ic_add" />
-    </LinearLayout>
+            <com.google.android.material.appbar.MaterialToolbar
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                app:layout_collapseMode="pin" />
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+    </com.google.android.material.appbar.AppBarLayout>
 
-    <TextView
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/page_scroll"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="8dp"
-        android:text="@string/mods_order_hint"
-        android:textAppearance="@style/TextAppearance.SBA.RowBody" />
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingHorizontal="20dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_browse_mods"
-        style="@style/Widget.Material3Expressive.Button.TonalButton"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:layout_marginTop="16dp"
-        android:text="@string/mods_browse"
-        app:icon="@drawable/ic_nav_browse"
-        app:iconGravity="textStart" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/mods_empty"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        android:gravity="center"
-        android:text="@string/mods_empty"
-        android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:visibility="gone" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginTop="8dp"
+                android:text="@string/mods_order_hint"
+                android:textAppearance="@style/TextAppearance.SBA.RowBody" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/mods_list"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="20dp"
-        android:layout_weight="1"
-        android:clipToPadding="false" />
-</LinearLayout>
+            <com.google.android.material.button.MaterialButtonGroup
+                style="@style/Widget.Material3Expressive.MaterialButtonGroup.Connected"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_browse_mods"
+                    style="@style/Widget.Material3Expressive.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="64dp"
+                    android:layout_weight="1"
+                    android:text="@string/mods_browse"
+                    app:icon="@drawable/ic_nav_browse"
+                    app:iconGravity="textStart" />
+
+                <!-- developer features only -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_add_mod"
+                    style="@style/Widget.Material3Expressive.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="64dp"
+                    android:text="@string/mods_add"
+                    android:visibility="gone"
+                    app:icon="@drawable/ic_add"
+                    app:iconGravity="textStart" />
+            </com.google.android.material.button.MaterialButtonGroup>
+
+            <TextView
+                android:id="@+id/mods_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="40dp"
+                android:gravity="center"
+                android:text="@string/mods_empty"
+                android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/mods_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

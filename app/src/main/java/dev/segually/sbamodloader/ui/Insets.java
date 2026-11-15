@@ -24,6 +24,14 @@ public final class Insets {
      * stays readable on a wide screen (landscape, tablets, desktops). 0 means no limit.
      */
     public static void padForChrome(View view, int extraBottomPx, int maxContentDp) {
+        padForChrome(view, extraBottomPx, maxContentDp, true);
+    }
+
+    /**
+     * As above; {@code includeTop} false is for a page whose own app bar already sits below the status bar, so only
+     * the sides and the bottom are padded.
+     */
+    public static void padForChrome(View view, int extraBottomPx, int maxContentDp, boolean includeTop) {
         final int l = view.getPaddingLeft(), t = view.getPaddingTop(), r = view.getPaddingRight(), b = view.getPaddingBottom();
         final int maxPx = Math.round(maxContentDp * view.getResources().getDisplayMetrics().density);
         ViewCompat.setOnApplyWindowInsetsListener(view, (v, insets) -> {
@@ -34,7 +42,7 @@ public final class Insets {
                 side = Math.max(0, free / 2);
             }
             // Left and right matter in landscape, where a camera cutout or a side navigation bar can sit there.
-            v.setPadding(l + bars.left + side, t + bars.top, r + bars.right + side, b + bars.bottom + extraBottomPx);
+            v.setPadding(l + bars.left + side, t + (includeTop ? bars.top : 0), r + bars.right + side, b + bars.bottom + extraBottomPx);
             return insets;
         });
         if (maxPx > 0) {

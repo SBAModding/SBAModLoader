@@ -269,4 +269,7 @@
     <string name="mods_chip_assets">Assets</string>
     <string name="mods_chip_plugin">Plugin</string>
     <string name="mods_chip_pack">Pack</string>
+    <string name="hero_title">Super Bear Adventure</string>
+    <string name="hero_game_version">Game version %1$s</string>
+    <string name="detail_version_menu">Choose a version</string>
 </resources>

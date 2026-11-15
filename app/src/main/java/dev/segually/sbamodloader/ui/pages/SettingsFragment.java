@@ -84,7 +84,7 @@ public class SettingsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_settings, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 720);
+        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 720, false);
 
         devCard = v.findViewById(R.id.card_developer);
         libunityCard = v.findViewById(R.id.card_libunity);

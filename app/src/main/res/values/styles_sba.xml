@@ -5,6 +5,11 @@
     <!-- Page and section headings: large and bold, so the hierarchy reads at a glance. -->
     <style name="TextAppearance.SBA.PageTitle" parent="TextAppearance.SBA.DisplaySmallEmphasized">
         <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:fontFamily">@font/roboto_flex_heavy</item>
+        <item name="fontFamily">@font/roboto_flex_heavy</item>
+    </style>
+    <!-- Big names in hero cards. -->
+    <style name="TextAppearance.SBA.Hero" parent="TextAppearance.SBA.HeadlineLargeEmphasized">
         <item name="android:textStyle">bold</item>
     </style>
     <style name="TextAppearance.SBA.Section" parent="TextAppearance.SBA.LabelLargeEmphasized">
@@ -97,5 +102,17 @@
         <item name="android:textAppearance">@style/TextAppearance.SBA.TitleMediumEmphasized</item>
         <item name="iconGravity">textStart</item>
         <item name="iconPadding">12dp</item>
+    </style>
+
+    <!-- A large app bar: a big bold title that shrinks into the bar as the page scrolls. -->
+    <style name="Widget.SBA.CollapsingBar" parent="Widget.Material3Expressive.CollapsingToolbar.Large">
+        <item name="expandedTitleTextAppearance">@style/TextAppearance.SBA.PageTitle</item>
+        <item name="collapsedTitleTextAppearance">@style/TextAppearance.SBA.TitleLargeEmphasized</item>
+        <item name="expandedTitleTextColor">?attr/colorOnSurface</item>
+        <item name="contentScrim">?attr/colorSurface</item>
+        <item name="scrimAnimationDuration">200</item>
+        <item name="expandedTitleMarginStart">20dp</item>
+        <item name="expandedTitleMarginBottom">16dp</item>
+        <item name="titleCollapseMode">scale</item>
     </style>
 </resources>

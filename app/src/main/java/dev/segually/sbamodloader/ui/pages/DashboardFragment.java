@@ -35,6 +35,8 @@ public class DashboardFragment extends Fragment {
 
     private View stepGame, stepVersion, stepPatches;
     private TextView setupTitle;
+    private TextView heroSub;
+    private com.google.android.material.progressindicator.CircularProgressIndicator ringView;
     private MaterialButton btnRetry, btnLaunch;
     /** A newer version of the loader, or null when there is none (or it could not be checked). */
     private AppUpdater.Release newerVersion;
@@ -47,11 +49,13 @@ public class DashboardFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_dashboard, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 960);
+        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 760, false);
         stepGame = v.findViewById(R.id.step_game);
         stepVersion = v.findViewById(R.id.step_version);
         stepPatches = v.findViewById(R.id.step_patches);
         setupTitle = v.findViewById(R.id.setup_title);
+        heroSub = v.findViewById(R.id.hero_sub);
+        ringView = v.findViewById(R.id.setup_ring);
         btnRetry = v.findViewById(R.id.btn_retry_patches);
         btnLaunch = v.findViewById(R.id.btn_launch);
 
@@ -79,6 +83,14 @@ public class DashboardFragment extends Fragment {
     public void onResume() {
         super.onResume();
         syncPatches();
+    }
+
+    private String installedGameVersion() {
+        try {
+            return requireContext().getPackageManager().getPackageInfo(TargetGame.PACKAGE_NAME, 0).versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            return null;
+        }
     }
 
     private boolean gameInstalled() {
@@ -145,6 +157,10 @@ public class DashboardFragment extends Fragment {
 
         int done = (game ? 1 : 0) + (latest ? 1 : 0) + (patchesOk ? 1 : 0);
         setupTitle.setText(getString(R.string.setup_progress, done, 3));
+        ringView.setProgressCompat(done, true);
+        String gameVersion = installedGameVersion();
+        heroSub.setText(gameVersion == null ? getString(R.string.step_game_missing)
+                : getString(R.string.hero_game_version, gameVersion));
         btnRetry.setVisibility(failed ? View.VISIBLE : View.GONE);
         // Launching while a patch is being installed (or failed to install) would start an unpatched game.
         btnLaunch.setEnabled(game && patchResult != null && !failed);

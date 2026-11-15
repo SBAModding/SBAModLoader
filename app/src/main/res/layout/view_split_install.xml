@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Install (or update, or switch version) with a trailing button that opens the list of versions. -->
+<com.google.android.material.button.MaterialSplitButton
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/split_main"
+        style="?attr/materialSplitButtonLeadingFilledStyle"
+        android:layout_width="0dp"
+        android:layout_height="72dp"
+        android:layout_weight="1"
+        android:textAppearance="@style/TextAppearance.SBA.TitleMediumEmphasized"
+        app:icon="@drawable/ic_download"
+        app:iconGravity="textStart"
+        app:iconPadding="12dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/split_more"
+        style="?attr/materialSplitButtonIconFilledStyle"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:contentDescription="@string/detail_version_menu"
+        app:icon="@drawable/m3_split_button_chevron_avd" />
+</com.google.android.material.button.MaterialSplitButton>

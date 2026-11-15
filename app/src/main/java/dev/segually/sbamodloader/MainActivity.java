@@ -70,6 +70,9 @@ public class MainActivity extends AppCompatActivity {
             if (start == 1) nav.setSelectedItemId(R.id.nav_browse);
             else if (start == 2) nav.setSelectedItemId(R.id.nav_mods);
             else if (start == 3) nav.setSelectedItemId(R.id.nav_settings);
+            // ... and on a store page (--es sba_mod super-cars-adventure).
+            String mod = BuildConfig.DEBUG ? getIntent().getStringExtra("sba_mod") : null;
+            if (mod != null) openBrowse(mod);
         }
 
         CrashDetector.init(this);

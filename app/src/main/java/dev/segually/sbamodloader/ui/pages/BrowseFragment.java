@@ -114,7 +114,7 @@ public class BrowseFragment extends Fragment {
         detail.content = v.findViewById(R.id.detail_content);
         detail.empty = v.findViewById(R.id.detail_empty);
 
-        Insets.padForChrome(v.findViewById(R.id.browse_list_page), 0);
+        Insets.padForChrome(v.findViewById(R.id.browse_list_page), 0, 0, false);
         if (detailPage != null) Insets.padForChrome(detailPage, 0);
         else Insets.padForChrome(detail.scroll, 0);
 
@@ -346,34 +346,19 @@ public class BrowseFragment extends Fragment {
         detail.scroll.setVisibility(View.VISIBLE);
         detail.scroll.scrollTo(0, 0);
 
-        // Header
-        LinearLayout header = new LinearLayout(requireContext());
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        android.widget.FrameLayout avatarBox = new android.widget.FrameLayout(requireContext());
-        TextView avatar = new TextView(requireContext());
-        styleAvatar(avatar, e, 20);
-        avatar.setTextSize(32);
-        avatarBox.addView(avatar, new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        android.widget.ImageView headerIcon = new android.widget.ImageView(requireContext());
-        headerIcon.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-        avatarBox.addView(headerIcon, new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        bindIcon(headerIcon, e, 160, 20);
-        header.addView(avatarBox, new LinearLayout.LayoutParams(dp(80), dp(80)));
-        LinearLayout titles = new LinearLayout(requireContext());
-        titles.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        tlp.setMarginStart(dp(16));
-        titles.addView(text(e.name, R.style.TextAppearance_SBA_HeadlineSmallEmphasized,
-                com.google.android.material.R.attr.colorOnSurface));
-        titles.addView(text(e.author, R.style.TextAppearance_SBA_BodyMedium,
-                com.google.android.material.R.attr.colorOnSurfaceVariant));
-        titles.addView(text("v" + cv.version + " · " + kindLabel(e.kind),
-                R.style.TextAppearance_SBA_BodySmall,
-                com.google.android.material.R.attr.colorOnSurfaceVariant));
-        header.addView(titles, tlp);
+        // Header: a coloured card with decorative shapes, the icon in a cookie shape, the name and the author.
+        View header = LayoutInflater.from(requireContext()).inflate(R.layout.view_detail_header, c, false);
+        TextView headerAvatar = header.findViewById(R.id.header_avatar);
+        styleAvatar(headerAvatar, e, 0);
+        android.widget.ImageView headerIcon = header.findViewById(R.id.header_icon);
+        bindIcon(headerIcon, e, 256, 0);
+        for (View shaped : new View[]{headerAvatar, headerIcon}) {
+            shaped.setClipToOutline(true);
+            shaped.setOutlineProvider(dev.segually.sbamodloader.ui.ShapeBackdropView.cookieOutline(10, 0.05f));
+        }
+        ((TextView) header.findViewById(R.id.header_name)).setText(e.name);
+        ((TextView) header.findViewById(R.id.header_author)).setText(e.author);
+        ((TextView) header.findViewById(R.id.header_meta)).setText("v" + cv.version + " \u00b7 " + kindLabel(e.kind));
         c.addView(header);
 
         // Badges: audited, source
@@ -388,17 +373,6 @@ public class BrowseFragment extends Fragment {
         }
         c.addView(badges);
 
-        // Version: every release that is still offered, newest first. The default is the newest one that fits the game.
-        if (e.versions.size() > 1) {
-            MaterialButton picker = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-            picker.setText(getString(R.string.detail_version_button, cv.version) + " \u25BE");
-            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48));
-            plp.topMargin = dp(12);
-            picker.setLayoutParams(plp);
-            picker.setOnClickListener(x -> showVersionMenu(x, e));
-            c.addView(picker);
-        }
-
         // Install, update, remove
         LinearLayout installArea = new LinearLayout(requireContext());
         installArea.setOrientation(LinearLayout.VERTICAL);
@@ -412,6 +386,7 @@ public class BrowseFragment extends Fragment {
         LinearLayout stats = new LinearLayout(requireContext());
         stats.setOrientation(LinearLayout.HORIZONTAL);
         stats.setPadding(0, dp(20), 0, 0);
+        statIndex = 0;
         if (e.ratingCount > 0) {
             stats.addView(stat(String.format(Locale.US, "%.1f \u2605", e.rating), getString(R.string.detail_rating_count, e.ratingCount)));
         }
@@ -518,9 +493,30 @@ public class BrowseFragment extends Fragment {
             return;
         }
 
+        // A release other than the installed one, with other releases to pick from: a split button, whose trailing
+        // part opens the list of versions.
+        if ((installed == null || !installed.equals(cv.version)) && e.versions.size() > 1) {
+            View split = LayoutInflater.from(requireContext()).inflate(R.layout.view_split_install, area, false);
+            MaterialButton main = split.findViewById(R.id.split_main);
+            boolean newer = installed != null && ModVersions.compare(cv.version, installed) > 0;
+            main.setText(installed == null ? getString(R.string.detail_install)
+                    : getString(newer ? R.string.detail_update : R.string.detail_switch, cv.version));
+            main.setOnClickListener(x -> startInstall(area, e, cv));
+            MaterialButton more = split.findViewById(R.id.split_more);
+            more.setOnClickListener(x -> showVersionMenu(split, e, () -> more.setChecked(false)));
+            area.addView(split);
+            addRemoveButton(area, e, installed);
+            return;
+        }
+
         MaterialButton primary = new MaterialButton(requireContext());
         primary.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72)));
+        // setTextAppearance resets the text colour, so the colour is set again after it.
         primary.setTextAppearance(R.style.TextAppearance_SBA_TitleMediumEmphasized);
+        primary.setTextColor(color(com.google.android.material.R.attr.colorOnPrimary));
+        primary.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        primary.setIconPadding(dp(12));
+        primary.setIconTint(android.content.res.ColorStateList.valueOf(color(com.google.android.material.R.attr.colorOnPrimary)));
         if (working) {
             primary.setText(status != null ? status : getString(R.string.detail_working));
             primary.setEnabled(false);
@@ -541,19 +537,24 @@ public class BrowseFragment extends Fragment {
             primary.setOnClickListener(x -> startInstall(area, e, cv));
         }
         area.addView(primary);
-        if (!working && installed != null && !installed.equals(cv.version)) {
-            MaterialButton remove = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-            remove.setText(R.string.detail_remove);
-            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-            rlp.topMargin = dp(8);
-            remove.setLayoutParams(rlp);
-            remove.setOnClickListener(x -> {
-                ModInstaller.remove(requireContext(), e);
-                renderInstallArea(area, e, null);
-                adapter.notifyDataSetChanged();
-            });
-            area.addView(remove);
-        }
+        addRemoveButton(area, e, installed);
+    }
+
+    /** A secondary Remove under the main button, shown when another release than the installed one is selected. */
+    private void addRemoveButton(LinearLayout area, Entry e, @Nullable String installed) {
+        final Version cv = chosenVersion(e);
+        if (installed == null || installed.equals(cv.version)) return;
+        MaterialButton remove = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        remove.setText(R.string.detail_remove);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        rlp.topMargin = dp(8);
+        remove.setLayoutParams(rlp);
+        remove.setOnClickListener(x -> {
+            ModInstaller.remove(requireContext(), e);
+            renderInstallArea(area, e, null);
+            adapter.notifyDataSetChanged();
+        });
+        area.addView(remove);
     }
 
     /** Works out what the install involves; asks first when there is anything to warn about or extra to download. */
@@ -611,8 +612,9 @@ public class BrowseFragment extends Fragment {
 
     // ---- versions, warnings and dependencies -------------------------------------------------------
 
-    private void showVersionMenu(View anchor, Entry e) {
+    private void showVersionMenu(View anchor, Entry e, @Nullable Runnable onDismiss) {
         androidx.appcompat.widget.PopupMenu menu = new androidx.appcompat.widget.PopupMenu(requireContext(), anchor);
+        if (onDismiss != null) menu.setOnDismissListener(m -> onDismiss.run());
         String game = installedGameVersion();
         Version current = chosenVersion(e);
         for (int i = 0; i < e.versions.size(); i++) {
@@ -731,30 +733,46 @@ public class BrowseFragment extends Fragment {
         });
     }
 
+    /** Screenshots in a carousel: the first one large, the next ones peeking in at its side. */
     private View screenshotStrip(Entry e) {
-        android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(requireContext());
-        scroll.setHorizontalScrollBarEnabled(false);
-        LinearLayout row = new LinearLayout(requireContext());
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        scroll.addView(row);
-        for (String path : e.screenshots) {
-            android.widget.ImageView shot = new android.widget.ImageView(requireContext());
-            shot.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-            GradientDrawable placeholder = new GradientDrawable();
-            placeholder.setColor(color(com.google.android.material.R.attr.colorSurfaceVariant));
-            shot.setBackground(placeholder);
-            shot.setClipToOutline(true);
-            shot.setOutlineProvider(rounded(dp(12)));
-            shot.setTag(path);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(300), dp(170));
-            lp.setMarginEnd(dp(12));
-            row.addView(shot, lp);
-            ImageLoader.load(requireContext(), path, 1024, bitmap -> {
-                if (path.equals(shot.getTag())) shot.setImageBitmap(bitmap);
-            });
-            shot.setOnClickListener(x -> showFullScreen(path));
-        }
-        return scroll;
+        androidx.recyclerview.widget.RecyclerView strip = new androidx.recyclerview.widget.RecyclerView(requireContext());
+        strip.setLayoutManager(new com.google.android.material.carousel.CarouselLayoutManager(
+                new com.google.android.material.carousel.HeroCarouselStrategy()));
+        new com.google.android.material.carousel.CarouselSnapHelper().attachToRecyclerView(strip);
+        strip.setClipToPadding(false);
+        strip.setNestedScrollingEnabled(false);
+        strip.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
+        final List<String> paths = e.screenshots;
+        strip.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            @NonNull
+            @Override
+            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
+                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_carousel_shot, parent, false);
+                return new RecyclerView.ViewHolder(v) {
+                };
+            }
+
+            @Override
+            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder h, int position) {
+                String path = paths.get(position);
+                android.widget.ImageView image = h.itemView.findViewById(R.id.shot_image);
+                image.setImageDrawable(null);
+                image.setTag(path);
+                GradientDrawable placeholder = new GradientDrawable();
+                placeholder.setColor(color(com.google.android.material.R.attr.colorSurfaceVariant));
+                image.setBackground(placeholder);
+                ImageLoader.load(requireContext(), path, 1024, bitmap -> {
+                    if (path.equals(image.getTag())) image.setImageBitmap(bitmap);
+                });
+                h.itemView.setOnClickListener(x -> showFullScreen(path));
+            }
+
+            @Override
+            public int getItemCount() {
+                return paths.size();
+            }
+        });
+        return strip;
     }
 
     private void showFullScreen(String path) {
@@ -781,16 +799,24 @@ public class BrowseFragment extends Fragment {
         return chip;
     }
 
+    /** A numbered tile in the row of facts; each tile has its own corner shape, which gives the row some rhythm. */
+    private int statIndex;
+
     private View stat(String value, String label) {
-        LinearLayout col = new LinearLayout(requireContext());
-        col.setOrientation(LinearLayout.VERTICAL);
-        col.setGravity(Gravity.CENTER_HORIZONTAL);
-        col.addView(text(value, R.style.TextAppearance_SBA_TitleMediumEmphasized,
-                com.google.android.material.R.attr.colorOnSurface));
-        col.addView(text(label, R.style.TextAppearance_SBA_BodySmall,
-                com.google.android.material.R.attr.colorOnSurfaceVariant));
-        col.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        return col;
+        View tile = LayoutInflater.from(requireContext()).inflate(R.layout.view_stat_tile, null, false);
+        ((TextView) tile.findViewById(R.id.tile_value)).setText(value);
+        ((TextView) tile.findViewById(R.id.tile_label)).setText(label);
+        float big = dp(28), small = dp(8);
+        boolean even = statIndex++ % 2 == 0;
+        ((com.google.android.material.card.MaterialCardView) tile).setShapeAppearanceModel(
+                com.google.android.material.shape.ShapeAppearanceModel.builder()
+                        .setTopLeftCornerSize(even ? big : small).setBottomRightCornerSize(even ? big : small)
+                        .setTopRightCornerSize(even ? small : big).setBottomLeftCornerSize(even ? small : big)
+                        .build());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.setMarginEnd(dp(8));
+        tile.setLayoutParams(lp);
+        return tile;
     }
 
     private View verifyRow(int icon, String title, String body) {
