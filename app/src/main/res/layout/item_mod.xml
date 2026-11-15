@@ -116,6 +116,16 @@
                 android:orientation="horizontal" />
 
             <ImageButton
+                android:id="@+id/mod_settings"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/mod_settings_title"
+                android:src="@drawable/ic_settings"
+                android:visibility="gone"
+                app:tint="?attr/colorPrimary" />
+
+            <ImageButton
                 android:id="@+id/mod_remove"
                 android:layout_width="48dp"
                 android:layout_height="48dp"

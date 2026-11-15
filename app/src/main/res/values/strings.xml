@@ -331,4 +331,7 @@
     <string name="sources_remove_title">Remove this repository?</string>
     <string name="sources_remove_body">Mods you installed from it stay installed, but they will not show updates.</string>
     <string name="sources_from">From %1$s</string>
+    <string name="mod_settings_title">Settings</string>
+    <string name="mod_settings_note">Changes apply the next time the game starts.</string>
+    <string name="mod_settings_reset">Reset to defaults</string>
 </resources>

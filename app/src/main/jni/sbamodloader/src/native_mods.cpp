@@ -11,10 +11,11 @@ using IL2CPP_Ready_t = void (*)();
 
 static std::vector<std::pair<std::string, void *>> loaded_mods;
 
-// Mods look this up in libfusion.so to learn that the loader calls sba_il2cpp_ready. Version 1: that callback.
+// Mods look this up in libfusion.so to learn what the loader offers. Version 1: the sba_il2cpp_ready callback.
+// Version 2: the sba_get_setting_bool/int/float/string functions (see mod_settings.cpp).
 extern "C" __attribute__((visibility("default"))) int sba_native_api_version()
 {
-    return 1;
+    return 2;
 }
 
 void native_mods_load(const std::vector<std::string> &paths)

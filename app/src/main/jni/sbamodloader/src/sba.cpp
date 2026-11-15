@@ -13,6 +13,7 @@
 #include <hooking/allocator.h>
 #include <hooking/libunity.h>
 #include <hooking/houdini.h>
+#include <mod_settings.h>
 #include <dotnet.h>
 #include <native_mods.h>
 #include <memory_log.h>
@@ -70,6 +71,8 @@ int il2cpp_init_hook(char *domain_name)
     // Unity and il2cpp are already mapped by now, which is where native mods look for them.
     if (runtime_config.initialized)
     {
+        // Where the players' mod settings are, before any native mod can ask for one.
+        mod_settings_init(runtime_config.bepInExDirectory.c_str());
         native_mods_load(runtime_config.nativeMods);
     }
 

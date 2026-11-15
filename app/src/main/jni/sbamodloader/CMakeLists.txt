@@ -22,6 +22,7 @@ add_library(sbamodloader SHARED
         src/utilities/library.cpp
         src/utilities/java.cpp
         src/native_mods.cpp
+        src/mod_settings.cpp
         src/memory_log.cpp
 )
 

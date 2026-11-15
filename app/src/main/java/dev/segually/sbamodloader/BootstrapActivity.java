@@ -123,6 +123,8 @@ public class BootstrapActivity extends AppCompatActivity {
             failAndFinish("Failed to prepare mods", t);
             return;
         }
+        // The values the player chose in a mod's settings, in the files mods read them from.
+        dev.segually.sbamodloader.tools.ModSettingsStore.syncAll(getApplicationContext());
 
         try {
             gameContext = GameRuntime.prepareGameContext(gameContext, getClassLoader(), patch,

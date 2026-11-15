@@ -159,6 +159,25 @@ public class ModsFragment extends Fragment {
         reload();
         loadStoreNames();
         checkHealth(true);
+        if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_settings", false)) {
+            requireActivity().getIntent().removeExtra("sba_settings");
+            requireView().postDelayed(() -> { // debug builds: open the first mod's settings, for layout checks
+                for (File f : mods) {
+                    dev.segually.sbamodloader.tools.ModSettings declared = dev.segually.sbamodloader.tools.ModSettingsStore.schemaFor(f);
+                    if (declared != null) {
+                        try {
+                            dev.segually.sbamodloader.tools.ModSettingsStore.set(declared, "speed", "2.2");
+                            dev.segually.sbamodloader.tools.ModSettingsStore.set(declared, "mode", "fast");
+                            dev.segually.sbamodloader.tools.ModSettingsStore.set(declared, "name", "line\nbreak");
+                        } catch (java.io.IOException e) {
+                            android.util.Log.e("ModsFragment", "debug settings", e);
+                        }
+                        dev.segually.sbamodloader.ui.ModSettingsSheet.show(requireContext(), details(f).title, declared);
+                        return;
+                    }
+                }
+            }, 500);
+        }
         if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_fab", false)) {
             requireView().postDelayed(() -> fabMenu.open(), 400); // debug builds: open the menu, for layout checks
         }
@@ -531,6 +550,10 @@ public class ModsFragment extends Fragment {
             h.toggle.setOnCheckedChangeListener(null);
             h.toggle.setChecked(enabled);
             h.remove.setOnClickListener(v -> confirmRemove(mods.get(h.getBindingAdapterPosition())));
+            // A mod that declares settings gets a button for them.
+            final dev.segually.sbamodloader.tools.ModSettings declared = dev.segually.sbamodloader.tools.ModSettingsStore.schemaFor(f);
+            h.settings.setVisibility(declared == null ? View.GONE : View.VISIBLE);
+            h.settings.setOnClickListener(v -> dev.segually.sbamodloader.ui.ModSettingsSheet.show(requireContext(), d.title, declared));
             h.toggle.setOnCheckedChangeListener((b, on) -> {
                 int pos = h.getBindingAdapterPosition();
                 if (pos < 0) return;
@@ -656,6 +679,7 @@ public class ModsFragment extends Fragment {
             final TextView file;
             final MaterialSwitch toggle;
             final View remove;
+            final View settings;
             final View handle;
 
             Holder(View v) {
@@ -669,6 +693,7 @@ public class ModsFragment extends Fragment {
                 file = v.findViewById(R.id.mod_file);
                 toggle = v.findViewById(R.id.mod_switch);
                 remove = v.findViewById(R.id.mod_remove);
+                settings = v.findViewById(R.id.mod_settings);
                 handle = v.findViewById(R.id.mod_handle);
             }
         }
