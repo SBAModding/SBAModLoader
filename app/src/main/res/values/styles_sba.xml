@@ -115,4 +115,17 @@
         <item name="expandedTitleMarginBottom">16dp</item>
         <item name="titleCollapseMode">scale</item>
     </style>
+
+    <!-- App icons of mods: a soft rounded square with a thin outline. -->
+    <style name="ShapeAppearance.SBA.Icon" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">22%</item>
+    </style>
+    <style name="Widget.SBA.IconImage" parent="">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.SBA.Icon</item>
+        <item name="strokeColor">?attr/colorOutlineVariant</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="android:padding">1dp</item>
+        <item name="android:scaleType">centerCrop</item>
+    </style>
 </resources>

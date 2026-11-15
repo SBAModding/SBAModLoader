@@ -31,12 +31,12 @@
                     android:gravity="center"
                     android:textAppearance="@style/TextAppearance.SBA.DisplaySmallEmphasized" />
 
-                <ImageView
+                <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/header_icon"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:importantForAccessibility="no"
-                    android:scaleType="centerCrop"
+                    style="@style/Widget.SBA.IconImage"
                     android:visibility="gone" />
             </FrameLayout>
 

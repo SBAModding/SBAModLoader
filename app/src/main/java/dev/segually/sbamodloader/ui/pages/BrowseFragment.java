@@ -405,13 +405,9 @@ public class BrowseFragment extends Fragment {
         // Header: a coloured card with decorative shapes, the icon in a cookie shape, the name and the author.
         View header = LayoutInflater.from(requireContext()).inflate(R.layout.view_detail_header, c, false);
         TextView headerAvatar = header.findViewById(R.id.header_avatar);
-        styleAvatar(headerAvatar, e, 0);
+        styleAvatar(headerAvatar, e, 23);
         android.widget.ImageView headerIcon = header.findViewById(R.id.header_icon);
-        bindIcon(headerIcon, e, 256, 0);
-        for (View shaped : new View[]{headerAvatar, headerIcon}) {
-            shaped.setClipToOutline(true);
-            shaped.setOutlineProvider(dev.segually.sbamodloader.ui.ShapeBackdropView.cookieOutline(10, 0.05f));
-        }
+        bindIcon(headerIcon, e, 256, 23);
         ((TextView) header.findViewById(R.id.header_name)).setText(e.name);
         ((TextView) header.findViewById(R.id.header_author)).setText(e.author);
         ((TextView) header.findViewById(R.id.header_meta)).setText("v" + cv.version + " \u00b7 " + kindLabel(e.kind));
@@ -832,8 +828,6 @@ public class BrowseFragment extends Fragment {
         view.setImageDrawable(null);
         view.setVisibility(View.GONE);
         if (e.icon == null) return;
-        view.setClipToOutline(true);
-        view.setOutlineProvider(rounded(dp(radiusDp)));
         ImageLoader.load(requireContext(), e.icon, pixels, bitmap -> {
             if (!e.id.equals(view.getTag())) return; // the row was reused for another mod meanwhile
             view.setImageBitmap(bitmap);
@@ -1022,6 +1016,7 @@ public class BrowseFragment extends Fragment {
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[]{tint(e.id, 0.55f), tint(e.id + "b", 0.35f)});
         g.setCornerRadius(dp(radiusDp));
+        g.setStroke(dp(1.5f), color(com.google.android.material.R.attr.colorOutlineVariant)); // the same outline as the icon
         t.setBackground(g);
     }
 
@@ -1049,7 +1044,7 @@ public class BrowseFragment extends Fragment {
         @Override
         public void onBindViewHolder(@NonNull Holder h, int position) {
             Entry e = items.get(position);
-            styleAvatar(h.avatar, e, 16);
+            styleAvatar(h.avatar, e, 14);
             bindIcon(h.icon, e, 112, 16);
             h.name.setText(e.name);
             h.meta.setText(e.author + " · " + kindLabel(e.kind));

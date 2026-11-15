@@ -23,6 +23,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        if (BuildConfig.DEBUG) debugAppearance();
         dev.segually.sbamodloader.ui.Theming.apply(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -77,6 +78,15 @@ public class MainActivity extends AppCompatActivity {
 
         CrashDetector.init(this);
         if (savedInstanceState == null) checkForUpdate();
+    }
+
+    /** Debug builds can set the appearance from the launch intent, for layout checks (--ez sba_you false --ei sba_accent 0xFFE65100). */
+    private void debugAppearance() {
+        android.content.Intent i = getIntent();
+        if (i == null) return;
+        if (i.hasExtra("sba_you")) SBASettings.setMaterialYou(this, i.getBooleanExtra("sba_you", true));
+        if (i.hasExtra("sba_accent")) SBASettings.setAccentColor(this, i.getIntExtra("sba_accent", 0));
+        if (i.hasExtra("sba_theme")) SBASettings.setThemeMode(this, i.getIntExtra("sba_theme", 0));
     }
 
     private static final long UPDATE_CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000;

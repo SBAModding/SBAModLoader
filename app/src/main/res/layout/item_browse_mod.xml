@@ -29,12 +29,12 @@
                 android:textAppearance="@style/TextAppearance.SBA.HeadlineSmallEmphasized"
                 android:textColor="#FFFFFF" />
 
-            <ImageView
+            <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/item_icon"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:importantForAccessibility="no"
-                android:scaleType="centerCrop"
+                style="@style/Widget.SBA.IconImage"
                 android:visibility="gone" />
         </FrameLayout>
 

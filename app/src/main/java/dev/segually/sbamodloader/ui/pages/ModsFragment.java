@@ -372,14 +372,11 @@ public class ModsFragment extends Fragment {
             String letter = d.title == null || d.title.isEmpty() ? "?" : d.title.substring(0, 1).toUpperCase(java.util.Locale.ROOT);
             h.avatar.setText(letter);
             android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-            bg.setCornerRadius(16 * getResources().getDisplayMetrics().density);
+            bg.setCornerRadius(12 * getResources().getDisplayMetrics().density);
+            bg.setStroke(Math.round(1.5f * getResources().getDisplayMetrics().density), com.google.android.material.color.MaterialColors.getColor(h.itemView, com.google.android.material.R.attr.colorOutlineVariant));
             bg.setColor(com.google.android.material.color.MaterialColors.getColor(h.itemView,
                     com.google.android.material.R.attr.colorPrimaryContainer));
             h.avatar.setBackground(bg);
-            for (View shaped : new View[]{h.avatar, h.icon}) {
-                shaped.setClipToOutline(true);
-                shaped.setOutlineProvider(dev.segually.sbamodloader.ui.ShapeBackdropView.cookieOutline(8, 0.045f));
-            }
             h.avatar.setTextColor(com.google.android.material.color.MaterialColors.getColor(h.itemView,
                     com.google.android.material.R.attr.colorOnPrimaryContainer));
             h.icon.setTag(d.storeId);
