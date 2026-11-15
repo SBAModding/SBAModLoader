@@ -125,6 +125,7 @@ public class BrowseFragment extends Fragment {
         subsScroll = v.findViewById(R.id.subs_scroll);
 
         RecyclerView list = v.findViewById(R.id.browse_list);
+        listView = list;
         list.setLayoutManager(new LinearLayoutManager(requireContext()));
         list.setAdapter(adapter);
 
@@ -221,7 +222,19 @@ public class BrowseFragment extends Fragment {
                 String wanted = args == null ? null : args.getString(ARG_MOD_ID);
                 if (wanted != null) {
                     args.remove(ARG_MOD_ID); // only once; coming back to the list later should not reopen it
-                    for (Entry candidate : all) if (candidate.id.equals(wanted)) select(candidate);
+                    boolean click = dev.segually.sbamodloader.BuildConfig.DEBUG && args.getBoolean("debug_click");
+                    for (Entry candidate : all) {
+                        if (!candidate.id.equals(wanted)) continue;
+                        if (click && listView != null) {
+                            // Debug builds can open a page by "tapping" its card from code, to check the transition.
+                            listView.post(() -> {
+                                View card = findCard(candidate.id);
+                                if (card != null) card.performClick(); else select(candidate);
+                            });
+                        } else {
+                            select(candidate);
+                        }
+                    }
                 }
             });
         }, "browse-load").start();
@@ -284,21 +297,64 @@ public class BrowseFragment extends Fragment {
     // ---- detail ---------------------------------------------------------------------------------
 
     private void select(Entry e) {
+        select(e, null);
+    }
+
+    /** Opens the store page. On a phone the tapped card grows into the page; next to the list it just fills in. */
+    private void select(Entry e, @Nullable View source) {
         selectedId = e.id;
-        adapter.notifyDataSetChanged();
         showDetail(e);
         if (detailPage != null) {
-            requireView().findViewById(R.id.browse_list_page).setVisibility(View.GONE);
+            View listPage = requireView().findViewById(R.id.browse_list_page);
+            if (source != null && source.isAttachedToWindow()) {
+                lastSource = new java.lang.ref.WeakReference<>(source);
+                containerTransform(source, detailPage, true);
+            }
+            listPage.setVisibility(View.GONE);
             detailPage.setVisibility(View.VISIBLE);
             backCallback.setEnabled(true);
+        } else {
+            adapter.notifyDataSetChanged();
         }
     }
 
+    private java.lang.ref.WeakReference<View> lastSource;
+    private RecyclerView listView;
+
     private void closeDetail() {
         if (detailPage == null) return;
+        View listPage = requireView().findViewById(R.id.browse_list_page);
+        View back = findCard(selectedId);
+        if (back != null) {
+            containerTransform(detailPage, back, false);
+        }
         detailPage.setVisibility(View.GONE);
-        requireView().findViewById(R.id.browse_list_page).setVisibility(View.VISIBLE);
+        listPage.setVisibility(View.VISIBLE);
         backCallback.setEnabled(false);
+    }
+
+    /** The card of a mod in the list, if it is on screen. */
+    @Nullable
+    private View findCard(@Nullable String id) {
+        if (id == null || listView == null) return null;
+        int pos = adapter.positionOf(id);
+        if (pos < 0) return null;
+        RecyclerView.ViewHolder h = listView.findViewHolderForAdapterPosition(pos);
+        return h == null ? null : h.itemView;
+    }
+
+    /** Morphs {@code from} into {@code to}: the card and the page are the same surface at two sizes. */
+    private void containerTransform(View from, View to, boolean entering) {
+        if (!(requireView() instanceof ViewGroup)) return;
+        com.google.android.material.transition.MaterialContainerTransform t =
+                new com.google.android.material.transition.MaterialContainerTransform(requireContext(), entering);
+        t.setStartView(from);
+        t.setEndView(to);
+        t.addTarget(to);
+        t.setScrimColor(Color.TRANSPARENT);
+        t.setAllContainerColors(color(com.google.android.material.R.attr.colorSurfaceContainerHigh));
+        t.setDuration(450);
+        androidx.transition.TransitionManager.beginDelayedTransition((ViewGroup) requireView(), t);
     }
 
     private String installedGameVersion() {
@@ -474,7 +530,56 @@ public class BrowseFragment extends Fragment {
 
     /** Install, Update and Remove for {@code e}. {@code status} is a progress line while an install is running. */
     private void renderInstallArea(LinearLayout area, Entry e, @Nullable String status) {
-        area.removeAllViews();
+        // A running download only changes its text and bar, so update those in place instead of rebuilding them.
+        View first = area.getChildCount() > 0 ? area.getChildAt(0) : null;
+        if (busy.contains(e.id) && first != null && "progress".equals(first.getTag())) {
+            ((TextView) first.findViewById(R.id.install_status)).setText(status != null ? status : getString(R.string.detail_working));
+            com.google.android.material.progressindicator.LinearProgressIndicator bar = first.findViewById(R.id.install_progress);
+            if (installPercent > 0) {
+                bar.setIndeterminate(false);
+                bar.setProgressCompat(installPercent, true);
+            }
+            return;
+        }
+
+        // Build the new state next to the old one, then morph the old main button or bar into the new one.
+        final int before = area.getChildCount();
+        buildInstallViews(area, e, status);
+        final int after = area.getChildCount();
+        if (before == 0 || after == before) {
+            for (int i = before - 1; i >= 0; i--) area.removeViewAt(i);
+            return;
+        }
+        final View oldMain = area.getChildAt(0);
+        final View newMain = area.getChildAt(before);
+        boolean sameKind = String.valueOf(oldMain.getTag()).equals(String.valueOf(newMain.getTag()));
+        for (int i = before - 1; i >= 1; i--) area.removeViewAt(i);
+        if (sameKind || !area.isLaidOut() || !(area.getParent() instanceof ViewGroup)) {
+            area.removeView(oldMain);
+            return;
+        }
+        for (int i = 1; i < area.getChildCount(); i++) area.getChildAt(i).setVisibility(View.INVISIBLE);
+        com.google.android.material.transition.MaterialContainerTransform morph =
+                new com.google.android.material.transition.MaterialContainerTransform();
+        morph.setStartView(oldMain);
+        morph.setEndView(newMain);
+        morph.addTarget(newMain);
+        morph.setScrimColor(Color.TRANSPARENT);
+        morph.setDuration(450);
+        morph.setFadeMode(com.google.android.material.transition.MaterialContainerTransform.FADE_MODE_CROSS);
+        morph.setAllContainerColors(Color.TRANSPARENT);
+        morph.addListener(new androidx.transition.TransitionListenerAdapter() {
+            @Override
+            public void onTransitionEnd(@NonNull androidx.transition.Transition transition) {
+                area.removeView(oldMain);
+            }
+        });
+        androidx.transition.TransitionManager.beginDelayedTransition((ViewGroup) area.getParent(), morph);
+        oldMain.setVisibility(View.GONE);
+        for (int i = 1; i < area.getChildCount(); i++) area.getChildAt(i).setVisibility(View.VISIBLE);
+    }
+
+    private void buildInstallViews(LinearLayout area, Entry e, @Nullable String status) {
         final Version cv = chosenVersion(e);
         final String installed = ModInstaller.installedVersion(requireContext(), e);
         boolean working = busy.contains(e.id);
@@ -489,6 +594,7 @@ public class BrowseFragment extends Fragment {
                 bar.setIndeterminate(false);
                 bar.setProgressCompat(installPercent, true);
             }
+            progress.setTag("progress");
             area.addView(progress);
             return;
         }
@@ -504,6 +610,7 @@ public class BrowseFragment extends Fragment {
             main.setOnClickListener(x -> startInstall(area, e, cv));
             MaterialButton more = split.findViewById(R.id.split_more);
             more.setOnClickListener(x -> showVersionMenu(split, e, () -> more.setChecked(false)));
+            split.setTag("action");
             area.addView(split);
             addRemoveButton(area, e, installed);
             return;
@@ -536,6 +643,7 @@ public class BrowseFragment extends Fragment {
             primary.setIconResource(R.drawable.ic_download);
             primary.setOnClickListener(x -> startInstall(area, e, cv));
         }
+        primary.setTag("action");
         area.addView(primary);
         addRemoveButton(area, e, installed);
     }
@@ -807,7 +915,18 @@ public class BrowseFragment extends Fragment {
         ((TextView) tile.findViewById(R.id.tile_value)).setText(value);
         ((TextView) tile.findViewById(R.id.tile_label)).setText(label);
         float big = dp(28), small = dp(8);
+        int tone = statIndex % 3;
         boolean even = statIndex++ % 2 == 0;
+        // Tonal containers in turn (tertiary, secondary, primary), each with its own readable text colour.
+        int container = color(tone == 0 ? com.google.android.material.R.attr.colorTertiaryContainer
+                : tone == 1 ? com.google.android.material.R.attr.colorSecondaryContainer
+                : com.google.android.material.R.attr.colorPrimaryContainer);
+        int onContainer = color(tone == 0 ? com.google.android.material.R.attr.colorOnTertiaryContainer
+                : tone == 1 ? com.google.android.material.R.attr.colorOnSecondaryContainer
+                : com.google.android.material.R.attr.colorOnPrimaryContainer);
+        ((com.google.android.material.card.MaterialCardView) tile).setCardBackgroundColor(container);
+        ((TextView) tile.findViewById(R.id.tile_value)).setTextColor(onContainer);
+        ((TextView) tile.findViewById(R.id.tile_label)).setTextColor(onContainer);
         ((com.google.android.material.card.MaterialCardView) tile).setShapeAppearanceModel(
                 com.google.android.material.shape.ShapeAppearanceModel.builder()
                         .setTopLeftCornerSize(even ? big : small).setBottomRightCornerSize(even ? big : small)
@@ -911,6 +1030,11 @@ public class BrowseFragment extends Fragment {
     private final class ModAdapter extends RecyclerView.Adapter<ModAdapter.Holder> {
         private List<Entry> items = new ArrayList<>();
 
+        int positionOf(String id) {
+            for (int i = 0; i < items.size(); i++) if (items.get(i).id.equals(id)) return i;
+            return -1;
+        }
+
         void submit(List<Entry> list) {
             items = list;
             notifyDataSetChanged();
@@ -946,7 +1070,7 @@ public class BrowseFragment extends Fragment {
                     com.google.android.material.color.MaterialColors.getColor(h.root, selected
                             ? com.google.android.material.R.attr.colorSecondaryContainer
                             : com.google.android.material.R.attr.colorSurfaceContainerHigh));
-            h.root.setOnClickListener(v -> select(e));
+            h.root.setOnClickListener(v -> select(e, h.root));
         }
 
         @Override

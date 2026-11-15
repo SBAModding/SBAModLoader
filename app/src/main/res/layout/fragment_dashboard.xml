@@ -125,6 +125,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:indeterminate="false"
+                            app:indicatorColor="?attr/colorTertiary"
+                            app:trackColor="?attr/colorTertiaryContainer"
                             android:max="3"
                             android:progress="0" />
                     </LinearLayout>

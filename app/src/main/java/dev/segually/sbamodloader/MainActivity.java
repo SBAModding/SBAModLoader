@@ -125,6 +125,7 @@ public class MainActivity extends AppCompatActivity {
                 if (pendingBrowseMod != null) {
                     Bundle args = new Bundle();
                     args.putString(BrowseFragment.ARG_MOD_ID, pendingBrowseMod);
+                    args.putBoolean("debug_click", BuildConfig.DEBUG && getIntent().getBooleanExtra("sba_click", false));
                     browse.setArguments(args);
                     pendingBrowseMod = null;
                 }
@@ -134,8 +135,10 @@ public class MainActivity extends AppCompatActivity {
             case 3 -> new SettingsFragment();
             default -> new DashboardFragment();
         };
+        // Pages fade through each other (the old one fades out, then the new one fades and scales in).
+        f.setEnterTransition(new com.google.android.material.transition.MaterialFadeThrough());
+        f.setExitTransition(new com.google.android.material.transition.MaterialFadeThrough());
         getSupportFragmentManager().beginTransaction()
-                .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
                 .replace(R.id.page_container, f)
                 .commit();
     }

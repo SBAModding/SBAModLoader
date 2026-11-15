@@ -74,21 +74,22 @@ public final class ShapeBackdropView extends View {
         if (w <= 0 || h <= 0) return;
         float unit = Math.min(w, h);
 
-        int tertiary = MaterialColors.getColor(this, com.google.android.material.R.attr.colorTertiaryContainer);
-        int secondary = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer);
+        // Full-strength accent roles, so the shapes read clearly against the card they sit on.
+        int tertiary = MaterialColors.getColor(this, com.google.android.material.R.attr.colorTertiary);
+        int secondary = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondary);
         int primary = MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary);
 
         paint.setStyle(Paint.Style.FILL);
 
-        paint.setColor(withAlpha(tertiary, 0xCC));
-        blob(path, w - unit * 0.12f, unit * 0.18f, unit * 0.52f, 10, 0.055f, 0.3f);
+        paint.setColor(withAlpha(tertiary, 0xE6));
+        blob(path, w - unit * 0.06f, unit * 0.12f, unit * 0.42f, 10, 0.055f, 0.3f);
         canvas.drawPath(path, paint);
 
-        paint.setColor(withAlpha(secondary, 0xB3));
-        blob(path, w - unit * 0.62f, h - unit * 0.05f, unit * 0.34f, 6, 0.12f, 0.9f);
+        paint.setColor(withAlpha(secondary, 0xD9));
+        blob(path, w - unit * 0.1f, h - unit * 0.02f, unit * 0.27f, 6, 0.12f, 0.9f);
         canvas.drawPath(path, paint);
 
-        paint.setColor(withAlpha(primary, 0x2E));
+        paint.setColor(withAlpha(primary, 0x59));
         canvas.drawCircle(unit * 0.12f, h - unit * 0.1f, unit * 0.26f, paint);
     }
 
