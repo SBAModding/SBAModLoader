@@ -38,6 +38,10 @@ unlocks loading a local patch and using a custom patch source.
 | Native code | a `.so`, loaded before the game's runtime and before BepInEx |
 | Replaced or extra assets, texture packs, Java code, or a mix | an `.sbapack` |
 
+A mod can declare **settings** (switches, sliders, choices, text) in its `sbapack.json`; the Mods screen builds a
+settings page from them and native mods read the values with `sba_get_setting_*` (native API version 2). The format is
+described in the [mod maker skill](https://github.com/SBAModding/skill).
+
 To get a mod into the browser, follow the
 [mod repository's contributing guide](https://github.com/SBAModding/ModRepository/blob/main/CONTRIBUTING.md).
 

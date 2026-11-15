@@ -11,7 +11,9 @@ public final class Insets {
 
     /** Extra bottom space a page needs so its last item can scroll clear of the floating dock. */
     public static int navClearance(android.content.Context context) {
-        return Math.round(96 * context.getResources().getDisplayMetrics().density);
+        // On a desktop the navigation is a rail at the side, so nothing floats over the bottom of the page.
+        float dp = LayoutMode.current ? 24 : 96;
+        return Math.round(dp * context.getResources().getDisplayMetrics().density);
     }
 
     /** Pads a scrolling page so content clears the status bar and the floating nav bar. */
@@ -36,13 +38,16 @@ public final class Insets {
         final int maxPx = Math.round(maxContentDp * view.getResources().getDisplayMetrics().density);
         ViewCompat.setOnApplyWindowInsetsListener(view, (v, insets) -> {
             var bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            int side = 0;
+            int left = 0;
+            int right = 0;
             if (maxPx > 0) {
-                int free = v.getWidth() - bars.left - bars.right - l - r - maxPx;
-                side = Math.max(0, free / 2);
+                int free = Math.max(0, v.getWidth() - bars.left - bars.right - l - r - maxPx);
+                // On a desktop the content hugs the navigation rail, in line with the page title; elsewhere it is centred.
+                if (LayoutMode.current) right = free;
+                else left = right = free / 2;
             }
             // Left and right matter in landscape, where a camera cutout or a side navigation bar can sit there.
-            v.setPadding(l + bars.left + side, t + (includeTop ? bars.top : 0), r + bars.right + side, b + bars.bottom + extraBottomPx);
+            v.setPadding(l + bars.left + left, t + (includeTop ? bars.top : 0), r + bars.right + right, b + bars.bottom + extraBottomPx);
             return insets;
         });
         if (maxPx > 0) {

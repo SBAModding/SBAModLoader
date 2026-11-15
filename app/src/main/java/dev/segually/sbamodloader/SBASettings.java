@@ -101,6 +101,20 @@ public final class SBASettings {
         prefs(context).edit().putString(KEY_UPDATE_LATER, version).apply();
     }
 
+    /** Which layout to use: decided from the device, or always the phone or the desktop one. */
+    public static final int LAYOUT_AUTO = 0;
+    public static final int LAYOUT_PHONE = 1;
+    public static final int LAYOUT_DESKTOP = 2;
+
+    public static int getLayoutMode(Context context) {
+        int mode = prefs(context).getInt("layout_mode", LAYOUT_AUTO);
+        return mode == LAYOUT_PHONE || mode == LAYOUT_DESKTOP ? mode : LAYOUT_AUTO;
+    }
+
+    public static void setLayoutMode(Context context, int mode) {
+        prefs(context).edit().putInt("layout_mode", mode).apply();
+    }
+
     // ---- appearance -------------------------------------------------------------------------------
 
     /** Follow the system's light/dark setting. */

@@ -374,6 +374,19 @@ public class SettingsFragment extends Fragment {
             requireActivity().recreate();
         });
 
+        com.google.android.material.button.MaterialButtonToggleGroup layoutGroup = v.findViewById(R.id.layout_mode_group);
+        int layoutMode = SBASettings.getLayoutMode(app);
+        layoutGroup.check(layoutMode == SBASettings.LAYOUT_PHONE ? R.id.layout_phone
+                : layoutMode == SBASettings.LAYOUT_DESKTOP ? R.id.layout_desktop : R.id.layout_auto);
+        layoutGroup.addOnButtonCheckedListener((g, id, checked) -> {
+            if (!checked) return;
+            int chosen = id == R.id.layout_phone ? SBASettings.LAYOUT_PHONE
+                    : id == R.id.layout_desktop ? SBASettings.LAYOUT_DESKTOP : SBASettings.LAYOUT_AUTO;
+            if (chosen == SBASettings.getLayoutMode(app)) return;
+            SBASettings.setLayoutMode(app, chosen);
+            requireActivity().recreate();
+        });
+
         View materialYouRow = v.findViewById(R.id.row_material_you);
         MaterialSwitch materialYou = v.findViewById(R.id.switch_material_you);
         View accentRow = v.findViewById(R.id.row_accent);
