@@ -84,6 +84,24 @@ public class MainActivity extends AppCompatActivity {
             SBASettings.setDebugIndexUrl(this, "official".equals(url) ? "" : url); // "official" goes back to the real index
         }
         if (i.hasExtra("sba_fake")) dev.segually.sbamodloader.browser.ModHealth.debugFake = i.getBooleanExtra("sba_fake", false);
+        if (i.hasExtra("sba_addrepo")) {
+            // Debug builds: add a repository by address, as the Settings dialog would (--es sba_addrepo http://127.0.0.1:8765/other/index.json).
+            final String url = i.getStringExtra("sba_addrepo");
+            final android.content.Context app = getApplicationContext();
+            new Thread(() -> {
+                try {
+                    dev.segually.sbamodloader.browser.RepoSource source = dev.segually.sbamodloader.browser.RemoteModRepository.probe(url);
+                    java.util.List<dev.segually.sbamodloader.browser.RepoSource> now = SBASettings.getExtraRepos(app);
+                    boolean known = false;
+                    for (dev.segually.sbamodloader.browser.RepoSource r : now) known |= r.url.equals(url);
+                    if (!known) now.add(source);
+                    SBASettings.setExtraRepos(app, now);
+                } catch (java.io.IOException e) {
+                    android.util.Log.e("MainActivity", "sba_addrepo failed", e);
+                }
+            }, "debug-addrepo").start();
+        }
+        if (i.getBooleanExtra("sba_clearrepos", false)) SBASettings.setExtraRepos(this, new java.util.ArrayList<>());
         if (i.hasExtra("sba_theme")) SBASettings.setThemeMode(this, i.getIntExtra("sba_theme", 0));
     }
 

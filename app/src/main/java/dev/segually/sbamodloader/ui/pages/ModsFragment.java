@@ -169,7 +169,7 @@ public class ModsFragment extends Fragment {
         android.content.Context app = requireContext().getApplicationContext();
         new Thread(() -> {
             Map<String, BrowserModels.Entry> loaded = new HashMap<>();
-            for (BrowserModels.Entry e : new RemoteModRepository(app).loadCached()) loaded.put(e.id, e);
+            for (BrowserModels.Entry e : dev.segually.sbamodloader.browser.Repositories.load(app, false).entries) loaded.put(e.id, e);
             if (isAdded()) requireActivity().runOnUiThread(() -> {
                 storeEntries.clear();
                 storeEntries.putAll(loaded);
@@ -511,6 +511,10 @@ public class ModsFragment extends Fragment {
             bindChips(h, f);
             bindIcon(h, d);
             h.badge.setVisibility(d.storeId != null ? View.VISIBLE : View.GONE);
+            BrowserModels.Entry fromStore = d.storeId == null ? null : storeEntries.get(d.storeId);
+            // A mod from another repository is not checked by the team, and the badge says so.
+            ((android.widget.ImageView) h.badge).setImageResource(fromStore != null && !fromStore.official()
+                    ? R.drawable.ic_warning : R.drawable.ic_verified);
             h.itemView.setAlpha(enabled ? 1f : 0.6f);
             dev.segually.sbamodloader.ui.Motion.appear(h.itemView, position);
             h.file.setVisibility(developer ? View.VISIBLE : View.GONE);
@@ -616,7 +620,7 @@ public class ModsFragment extends Fragment {
             h.icon.setVisibility(View.GONE);
             BrowserModels.Entry store = d.storeId == null ? null : storeEntries.get(d.storeId);
             if (store == null || store.icon == null) return;
-            dev.segually.sbamodloader.browser.ImageLoader.load(requireContext(), store.icon, 160, bitmap -> {
+            dev.segually.sbamodloader.browser.ImageLoader.load(requireContext(), store.imageBase, store.icon, 160, bitmap -> {
                 if (!d.storeId.equals(h.icon.getTag())) return; // the row was reused for another mod meanwhile
                 h.icon.setImageBitmap(bitmap);
                 h.icon.setVisibility(View.VISIBLE);

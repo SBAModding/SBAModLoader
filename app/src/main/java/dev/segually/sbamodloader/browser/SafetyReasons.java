@@ -35,6 +35,8 @@ public final class SafetyReasons {
         OPEN_SOURCE,
         /** Closed source: {@code a} is the licence or terms, {@code b} the host the file comes from. */
         CLOSED_SOURCE,
+        /** From a repository the SBAModLoader team does not run: {@code a} is its name. Nothing else is claimed. */
+        UNVERIFIED,
         /** Made by the owner of the project. */
         OWNER,
         /** Earlier versions were checked too: {@code a} is how many. */
@@ -76,6 +78,16 @@ public final class SafetyReasons {
      */
     public static List<Reason> build(Entry entry, Version release, String owner) {
         List<Reason> out = new ArrayList<>();
+        if (!entry.official()) {
+            // Another repository's audits, notes and contents are only its word: none of it is shown as a reason.
+            out.add(new Reason(Type.UNVERIFIED, entry.repoName, null, null));
+            if (entry.openSource) {
+                out.add(new Reason(Type.OPEN_SOURCE, entry.license, release.source.repo, release.source.tag));
+            } else {
+                out.add(new Reason(Type.CLOSED_SOURCE, entry.license, release.source.host(), null));
+            }
+            return out;
+        }
         out.add(new Reason(Type.AUDITED, release.audit.version, release.audit.date, release.audit.by));
         for (String note : release.audit.notes) out.add(new Reason(Type.NOTE, note, null, null));
 

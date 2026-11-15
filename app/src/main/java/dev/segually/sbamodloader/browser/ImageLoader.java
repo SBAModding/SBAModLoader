@@ -57,8 +57,14 @@ public final class ImageLoader {
 
     /** The URL a repository-relative path is served from, or null when it is not a path this loader will fetch. */
     static String urlFor(String path) {
+        return urlFor(BASE, path);
+    }
+
+    /** The same for a repository other than the official one: {@code base} is the folder of its index. */
+    static String urlFor(String base, String path) {
         if (path == null || !path.startsWith("images/") || path.contains("..") || path.contains("//")) return null;
-        return BASE + path;
+        if (base == null || !(base.startsWith("https://") || base.startsWith("http://127.0.0.1")) || !base.endsWith("/")) return null;
+        return base + path;
     }
 
     /**
@@ -66,7 +72,12 @@ public final class ImageLoader {
      * Nothing is delivered when the image is not available (the caller keeps showing its placeholder).
      */
     public static void load(Context context, String path, int maxPixels, Callback callback) {
-        final String url = urlFor(path);
+        load(context, BASE, path, maxPixels, callback);
+    }
+
+    /** Loads a picture of a mod from {@code base} (the folder of the repository it is in). */
+    public static void load(Context context, String base, String path, int maxPixels, Callback callback) {
+        final String url = urlFor(base == null ? BASE : base, path);
         if (url == null) return;
         final String key = url + "@" + maxPixels;
         Bitmap hit = MEMORY.get(key);

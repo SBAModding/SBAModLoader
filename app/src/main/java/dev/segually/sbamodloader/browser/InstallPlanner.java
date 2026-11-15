@@ -24,6 +24,8 @@ public final class InstallPlanner {
     }
 
     public enum Kind {
+        /** The mod is from a repository the SBAModLoader team does not run: nobody has checked it for the player. */
+        UNVERIFIED_SOURCE(false),
         /** The chosen release was made for other game versions than the installed one. */
         GAME_MISMATCH(false),
         /** The chosen release is not the newest one. */
@@ -122,6 +124,9 @@ public final class InstallPlanner {
         Plan plan = new Plan();
         Context c = new Context(plan, index, installed, gameVersion);
 
+        if (!target.official()) {
+            plan.issues.add(new Issue(Kind.UNVERIFIED_SOURCE, target.name, null, null, chosen.version, target.repoName));
+        }
         if (gameVersion != null && !chosen.supportsGame(gameVersion)) {
             plan.issues.add(new Issue(Kind.GAME_MISMATCH, target.name, null, null, chosen.version,
                     String.join(", ", chosen.gameVersions)));
@@ -179,10 +184,17 @@ public final class InstallPlanner {
         }
 
         void resolve(Entry entry, Version version) {
-            for (Dependency d : version.dependencies) {
-                Entry dep = index.get(d.id);
+            for (Dependency d0 : version.dependencies) {
+                Entry dep = index.get(d0.id);
                 if (dep == null) {
-                    plan.issues.add(new Issue(Kind.DEP_MISSING, d.id, entry.name, d, null, null));
+                    // A mod from another repository may need one from the official repository.
+                    int colon = d0.id.indexOf(':');
+                    if (colon > 0) dep = index.get(d0.id.substring(colon + 1));
+                }
+                // From here on the dependency is known by the id it really has.
+                Dependency d = dep == null ? d0 : new Dependency(dep.id, d0.min, d0.max);
+                if (dep == null) {
+                    plan.issues.add(new Issue(Kind.DEP_MISSING, d.id.substring(d.id.indexOf(':') + 1), entry.name, d, null, null));
                     continue;
                 }
                 String have = effective.get(d.id);

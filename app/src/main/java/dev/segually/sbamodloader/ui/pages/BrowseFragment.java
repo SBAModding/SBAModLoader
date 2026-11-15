@@ -63,7 +63,6 @@ public class BrowseFragment extends Fragment {
     /** Argument: the id of a mod whose store page to open as soon as the list has loaded. */
     public static final String ARG_MOD_ID = "mod_id";
     private final BrowseQuery query = new BrowseQuery();
-    private RemoteModRepository repository;
     private boolean offlineCopy;
     /**
      * Mods being installed right now. Static because an install keeps running when the user leaves the Browse tab:
@@ -106,7 +105,6 @@ public class BrowseFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_browse, container, false);
         visible = new java.lang.ref.WeakReference<>(this);
-        repository = new RemoteModRepository(requireContext());
         detailPage = v.findViewById(R.id.detail_page);
 
         detail = new ScrollViewHolder();
@@ -199,16 +197,12 @@ public class BrowseFragment extends Fragment {
         resultCount.setText(R.string.browse_loading);
         retryButton.setVisibility(View.GONE);
         emptyView.setVisibility(View.GONE);
+        final android.content.Context app = requireContext().getApplicationContext();
         new Thread(() -> {
-            List<Entry> loaded;
-            try {
-                loaded = repository.load();
-            } catch (IOException e) {
-                android.util.Log.e("BrowseFragment", "Could not load the repository", e);
-                loaded = null;
-            }
-            List<Entry> result = loaded;
-            boolean cached = repository.loadedFromCache();
+            dev.segually.sbamodloader.browser.Repositories.Result read = dev.segually.sbamodloader.browser.Repositories.load(app, true);
+            // The official repository is the one that matters: without it (and without a saved copy) nothing is shown.
+            List<Entry> result = read.officialFailed && read.entries.isEmpty() ? null : read.entries;
+            boolean cached = read.anyFromCache;
             if (isAdded()) requireActivity().runOnUiThread(() -> {
                 if (result == null) {
                     resultCount.setText(R.string.browse_load_failed);
@@ -418,7 +412,11 @@ public class BrowseFragment extends Fragment {
         // Badges: audited, source
         ChipGroup badges = new ChipGroup(requireContext());
         badges.setPadding(0, dp(12), 0, 0);
-        badges.addView(badge(getString(R.string.browse_audited), R.drawable.ic_verified, true));
+        if (e.official()) {
+            badges.addView(badge(getString(R.string.browse_audited), R.drawable.ic_verified, true));
+        } else {
+            badges.addView(badge(getString(R.string.browse_unverified), R.drawable.ic_warning, false));
+        }
         badges.addView(badge(getString(e.openSource ? R.string.detail_open_source_short : R.string.detail_closed_source_short),
                 e.openSource ? R.drawable.ic_code : R.drawable.ic_lock, false));
         String installedGame = installedGameVersion();
@@ -462,7 +460,7 @@ public class BrowseFragment extends Fragment {
             if (dev.segually.sbamodloader.BuildConfig.DEBUG
                     && requireActivity().getIntent().getBooleanExtra("sba_viewer", false)) {
                 requireActivity().getIntent().removeExtra("sba_viewer");
-                c.post(() -> showViewer(e.screenshots, 1)); // debug builds: open the viewer, for layout checks
+                c.post(() -> showViewer(e.imageBase, e.screenshots, 1)); // debug builds: open the viewer, for layout checks
             }
         }
 
@@ -750,6 +748,9 @@ public class BrowseFragment extends Fragment {
 
     private String modName(String id) {
         for (Entry x : all) if (x.id.equals(id)) return x.name;
+        // A dependency of a mod from another repository may be in the official one.
+        int colon = id.indexOf(':');
+        if (colon > 0) for (Entry x : all) if (x.id.equals(id.substring(colon + 1))) return x.name;
         return id;
     }
 
@@ -812,7 +813,7 @@ public class BrowseFragment extends Fragment {
         view.setImageDrawable(null);
         view.setVisibility(View.GONE);
         if (e.icon == null) return;
-        ImageLoader.load(requireContext(), e.icon, pixels, bitmap -> {
+        ImageLoader.load(requireContext(), e.imageBase, e.icon, pixels, bitmap -> {
             if (!e.id.equals(view.getTag())) return; // the row was reused for another mod meanwhile
             view.setImageBitmap(bitmap);
             view.setVisibility(View.VISIBLE);
@@ -837,6 +838,7 @@ public class BrowseFragment extends Fragment {
         lp.setMarginEnd(-dp(24));
         strip.setLayoutParams(lp);
         final List<String> paths = e.screenshots;
+        final String base = e.imageBase;
         final float height = dp(220);
         strip.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             @NonNull
@@ -860,7 +862,7 @@ public class BrowseFragment extends Fragment {
                 placeholder.setColor(color(com.google.android.material.R.attr.colorSurfaceContainerHigh));
                 placeholder.setCornerRadius(dp(16));
                 image.setBackground(placeholder);
-                ImageLoader.load(requireContext(), path, 1024, bitmap -> {
+                ImageLoader.load(requireContext(), base, path, 1024, bitmap -> {
                     if (!path.equals(image.getTag())) return;
                     image.setImageBitmap(bitmap);
                     // As wide as the picture is at this height (a phone screenshot is narrow, a tablet one wide).
@@ -869,7 +871,7 @@ public class BrowseFragment extends Fragment {
                     image.setLayoutParams(lp2);
                 });
                 dev.segually.sbamodloader.ui.Motion.pressable(image);
-                image.setOnClickListener(x -> showViewer(paths, position));
+                image.setOnClickListener(x -> showViewer(base, paths, position));
             }
 
             @Override
@@ -881,7 +883,7 @@ public class BrowseFragment extends Fragment {
     }
 
     /** A full screen viewer for the screenshots: swipe between them, with a counter and a close button. */
-    private void showViewer(List<String> paths, int start) {
+    private void showViewer(String base, List<String> paths, int start) {
         android.app.Dialog dialog = new android.app.Dialog(requireContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen);
         android.widget.FrameLayout root = new android.widget.FrameLayout(requireContext());
         root.setBackgroundColor(Color.BLACK);
@@ -907,7 +909,7 @@ public class BrowseFragment extends Fragment {
                 String path = paths.get(position);
                 v.setImageDrawable(null);
                 v.setTag(path);
-                ImageLoader.load(requireContext(), path, 2048, bitmap -> {
+                ImageLoader.load(requireContext(), base, path, 2048, bitmap -> {
                     if (path.equals(v.getTag())) v.setImageBitmap(bitmap);
                 });
                 v.setOnClickListener(x -> dialog.dismiss());
@@ -1013,6 +1015,9 @@ public class BrowseFragment extends Fragment {
             case AUDITED:
                 return verifyRow(R.drawable.ic_verified, getString(R.string.detail_audited_title),
                         getString(R.string.detail_audited_body, r.a, r.b));
+            case UNVERIFIED:
+                return verifyRow(R.drawable.ic_warning, getString(R.string.safety_unverified, r.a),
+                        getString(R.string.safety_unverified_body));
             case NOTE:
                 return verifyRow(R.drawable.ic_check_circle, r.a, null);
             case NO_CODE:
@@ -1046,7 +1051,8 @@ public class BrowseFragment extends Fragment {
         row.setPadding(0, dp(12), 0, 0);
         android.widget.ImageView iv = new android.widget.ImageView(requireContext());
         iv.setImageResource(icon);
-        iv.setColorFilter(color(androidx.appcompat.R.attr.colorPrimary));
+        // A warning is red; everything else that backs the mod up is the accent colour.
+        iv.setColorFilter(color(icon == R.drawable.ic_warning ? androidx.appcompat.R.attr.colorError : androidx.appcompat.R.attr.colorPrimary));
         row.addView(iv, new LinearLayout.LayoutParams(dp(24), dp(24)));
         LinearLayout col = new LinearLayout(requireContext());
         col.setOrientation(LinearLayout.VERTICAL);
@@ -1157,7 +1163,8 @@ public class BrowseFragment extends Fragment {
             styleAvatar(h.avatar, e, 14);
             bindIcon(h.icon, e, 112, 16);
             h.name.setText(e.name);
-            h.meta.setText(e.author + " · " + kindLabel(e.kind));
+            h.meta.setText(e.author + " · " + kindLabel(e.kind) + (e.official() ? "" : " · " + e.repoName));
+            h.verified.setVisibility(e.official() ? View.VISIBLE : View.GONE);
             h.summary.setText(e.summary);
             StringBuilder stats = new StringBuilder();
             if (e.ratingCount > 0) stats.append(String.format(Locale.US, "\u2605 %.1f  \u00b7  ", e.rating));
@@ -1189,12 +1196,14 @@ public class BrowseFragment extends Fragment {
             final View root;
             final TextView avatar, name, meta, summary, stats;
             final android.widget.ImageView icon;
+            final View verified;
 
             Holder(View v) {
                 super(v);
                 root = v.findViewById(R.id.item_root);
                 avatar = v.findViewById(R.id.item_avatar);
                 icon = v.findViewById(R.id.item_icon);
+                verified = v.findViewById(R.id.item_verified);
                 name = v.findViewById(R.id.item_name);
                 meta = v.findViewById(R.id.item_meta);
                 summary = v.findViewById(R.id.item_summary);

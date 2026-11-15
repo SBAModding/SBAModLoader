@@ -56,6 +56,22 @@
         android:layout_marginTop="12dp"
         android:text="@string/patch_load_local" />
 
+    <TextView
+        android:id="@+id/export_info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/export_assemblies_info"
+        android:textAppearance="@style/TextAppearance.SBA.RowBody" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_export_assemblies"
+        style="@style/Widget.Material3Expressive.Button.TonalButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="8dp"
+        android:text="@string/export_assemblies" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_remove_patch"
         style="@style/Widget.Material3Expressive.Button.TextButton"

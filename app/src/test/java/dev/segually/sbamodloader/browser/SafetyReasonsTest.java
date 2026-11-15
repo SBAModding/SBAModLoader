@@ -120,4 +120,23 @@ public class SafetyReasonsTest {
         assertEquals("2", history.a);
         assertFalse(types(SafetyReasons.build(e, old, "owner")).contains(Type.HISTORY));
     }
+
+    @Test
+    public void aModFromAnotherRepositoryClaimsNothingAboutBeingChecked() {
+        Version v = audited("1.0", "assets");
+        v.audit.notes.add("Looks fine to me");
+        Entry e = entry(true, "Segually", v);
+        e.repoId = "rabc123";
+        e.repoName = "Friends";
+        List<Reason> r = SafetyReasons.build(e, v, "segually");
+        assertEquals(Type.UNVERIFIED, r.get(0).type);
+        assertEquals("Friends", r.get(0).a);
+        List<Type> t = types(r);
+        assertFalse(t.contains(Type.AUDITED));
+        assertFalse(t.contains(Type.NOTE));
+        assertFalse(t.contains(Type.NO_CODE));
+        assertFalse(t.contains(Type.OWNER));
+        assertFalse(t.contains(Type.HISTORY));
+        assertFalse(r.get(0).positive());
+    }
 }

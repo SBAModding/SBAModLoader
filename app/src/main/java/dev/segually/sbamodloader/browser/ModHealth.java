@@ -30,20 +30,9 @@ public final class ModHealth {
         Context app = context.getApplicationContext();
         ModHealth h = new ModHealth();
         if (dev.segually.sbamodloader.BuildConfig.DEBUG && debugFake) return fake();
-        RemoteModRepository repository = new RemoteModRepository(app);
-        List<Entry> entries;
-        if (useNetwork) {
-            try {
-                entries = repository.load();
-                h.fromCache = repository.loadedFromCache();
-            } catch (IOException e) {
-                entries = repository.loadCached();
-                h.fromCache = true;
-            }
-        } else {
-            entries = repository.loadCached();
-            h.fromCache = true;
-        }
+        Repositories.Result read = Repositories.load(app, useNetwork);
+        List<Entry> entries = read.entries;
+        h.fromCache = read.anyFromCache;
         for (Entry e : entries) h.index.put(e.id, e);
         try {
             h.gameVersion = app.getPackageManager().getPackageInfo(TargetGame.PACKAGE_NAME, 0).versionName;

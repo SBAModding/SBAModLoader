@@ -135,6 +135,34 @@ public final class SBASettings {
         prefs(context).edit().putInt(KEY_ACCENT_COLOR, argb).apply();
     }
 
+    /** The mod repositories the player added, in order. The official repository is always there and is not in this list. */
+    public static java.util.List<dev.segually.sbamodloader.browser.RepoSource> getExtraRepos(Context context) {
+        java.util.List<dev.segually.sbamodloader.browser.RepoSource> out = new java.util.ArrayList<>();
+        try {
+            org.json.JSONArray a = new org.json.JSONArray(prefs(context).getString("extra_repos", "[]"));
+            for (int i = 0; i < a.length(); i++) {
+                org.json.JSONObject o = a.getJSONObject(i);
+                out.add(new dev.segually.sbamodloader.browser.RepoSource(o.optString("name", "Repository"),
+                        o.getString("url"), o.optBoolean("enabled", true)));
+            }
+        } catch (org.json.JSONException e) {
+            // A damaged list is treated as empty; the official repository still works.
+        }
+        return out;
+    }
+
+    public static void setExtraRepos(Context context, java.util.List<dev.segually.sbamodloader.browser.RepoSource> repos) {
+        org.json.JSONArray a = new org.json.JSONArray();
+        try {
+            for (dev.segually.sbamodloader.browser.RepoSource r : repos) {
+                a.put(new org.json.JSONObject().put("name", r.name).put("url", r.url).put("enabled", r.enabled));
+            }
+        } catch (org.json.JSONException e) {
+            throw new IllegalStateException(e);
+        }
+        prefs(context).edit().putString("extra_repos", a.toString()).apply();
+    }
+
     /** Debug builds only: read the mod index from this URL instead of the official one ("" for the official one). */
     public static String getDebugIndexUrl(Context context) {
         return prefs(context).getString("debug_index_url", "");

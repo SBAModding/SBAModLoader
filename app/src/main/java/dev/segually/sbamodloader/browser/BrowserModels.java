@@ -192,6 +192,22 @@ public final class BrowserModels {
         public boolean openSource;
         public Source source;
         public Audit audit;
+        /** The repository this mod comes from: null for the official one, otherwise that repository's short id. */
+        public String repoId;
+        public String repoName;
+        /** Where this mod's repository-relative image paths are resolved from (the folder of its index.json). */
+        public String imageBase;
+
+        /** Whether this mod is in the official repository, the only one whose audits are the project team's. */
+        public boolean official() {
+            return repoId == null;
+        }
+
+        /** The id the mod has in its own repository (the id above has the repository prefix for other repositories). */
+        public String rawId() {
+            int i = id.indexOf(':');
+            return i < 0 ? id : id.substring(i + 1);
+        }
 
         /** The newest release. */
         public Version latest() {

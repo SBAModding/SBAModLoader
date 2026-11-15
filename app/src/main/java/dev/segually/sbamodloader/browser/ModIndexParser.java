@@ -34,6 +34,25 @@ public final class ModIndexParser {
      * a file that is not an index at all, or has an unknown schema version, is an error.
      */
     public static List<Entry> parse(String json) throws JSONException {
+        return parse(json, null);
+    }
+
+    /** The optional name a repository gives itself (a top-level {@code name} in the index), or null. */
+    public static String indexName(String json) {
+        try {
+            String name = new JSONObject(json).optString("name", "").trim();
+            return name.isEmpty() ? null : (name.length() > 40 ? name.substring(0, 40) : name);
+        } catch (JSONException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Like {@link #parse(String)}. With a {@code repoId}, the mods belong to another repository than the official one:
+     * their ids (and the ids they depend on) get {@code repoId:} in front, so the same id in two repositories cannot
+     * be mixed up, and each mod remembers which repository it came from.
+     */
+    public static List<Entry> parse(String json, String repoId) throws JSONException {
         JSONObject root = new JSONObject(json);
         if (root.getInt("schemaVersion") != 1) throw new JSONException("Unsupported schema version");
         JSONArray mods = root.getJSONArray("mods");
@@ -42,7 +61,20 @@ public final class ModIndexParser {
         List<Entry> out = new ArrayList<>();
         for (int i = 0; i < mods.length(); i++) {
             try {
-                out.add(entry(mods.getJSONObject(i), date));
+                Entry e = entry(mods.getJSONObject(i), date);
+                if (repoId != null) {
+                    e.repoId = repoId;
+                    String prefix = repoId + ":";
+                    e.id = prefix + e.id;
+                    for (int r = 0; r < e.requires.size(); r++) e.requires.set(r, prefix + e.requires.get(r));
+                    for (Version v : e.versions) {
+                        for (int d = 0; d < v.dependencies.size(); d++) {
+                            Dependency old = v.dependencies.get(d);
+                            v.dependencies.set(d, new Dependency(prefix + old.id, old.min, old.max));
+                        }
+                    }
+                }
+                out.add(e);
             } catch (JSONException | ParseException | IllegalArgumentException e) {
                 Log.w(TAG, "Skipping a malformed mod entry (#" + i + "): " + e.getMessage());
             }

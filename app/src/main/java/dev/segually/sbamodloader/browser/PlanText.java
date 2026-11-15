@@ -21,6 +21,8 @@ public final class PlanText {
     public static String issue(Context context, InstallPlanner.Issue i, String gameVersion) {
         String needs = i.requirement == null ? "" : bounds(context, i.requirement);
         switch (i.kind) {
+            case UNVERIFIED_SOURCE:
+                return context.getString(R.string.plan_unverified, i.mod, i.other);
             case GAME_MISMATCH:
                 return context.getString(R.string.plan_game_mismatch, i.mod, i.version, i.other,
                         gameVersion != null ? gameVersion : context.getString(R.string.plan_game_unknown));
