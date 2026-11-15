@@ -11,6 +11,8 @@ dependencies {
     implementation("androidx.coordinatorlayout:coordinatorlayout:1.3.0")
     implementation("com.google.android.material:material:1.14.0")
     implementation("com.google.protobuf:protobuf-javalite:4.36.1")
+
+    testImplementation("junit:junit:4.13.2")
 }
 
 /** The short commit hash the build was made from, for the About card; "unknown" outside a git checkout. */

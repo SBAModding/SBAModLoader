@@ -117,18 +117,29 @@ public final class BrowserModels {
         }
     }
 
-    public static final class Entry {
-        public String id, name, author, summary, description, version, license, sha256, changelog;
-        public Kind kind;
-        public List<Sub> categories = new ArrayList<>();
+    /** A mod this release needs, and the versions of it that it works with (both bounds inclusive, either may be null). */
+    public static final class Dependency {
+        public final String id;
+        public final String min;
+        public final String max;
+
+        public Dependency(String id, String min, String max) {
+            this.id = id;
+            this.min = min;
+            this.max = max;
+        }
+    }
+
+    /**
+     * One release of a mod: what to download and what it was made for. An {@link Entry} lists every release it
+     * still offers, newest first.
+     */
+    public static final class Version {
+        public String version, sha256, changelog;
         public List<String> gameVersions = new ArrayList<>();
-        public List<String> tags = new ArrayList<>();
-        public List<String> requires = new ArrayList<>();
         public List<String> mirrors = new ArrayList<>();
-        public long size, downloads, updatedMillis;
-        public float rating;
-        public int ratingCount;
-        public boolean openSource;
+        public List<Dependency> dependencies = new ArrayList<>();
+        public long size, updatedMillis;
         public Source source;
         public Audit audit;
 
@@ -146,6 +157,52 @@ public final class BrowserModels {
             int q = u.indexOf('?');
             if (q >= 0) u = u.substring(0, q);
             return u.substring(u.lastIndexOf('/') + 1);
+        }
+
+        public boolean supportsGame(String gameVersion) {
+            return gameVersion != null && gameVersions.contains(gameVersion);
+        }
+    }
+
+    public static final class Entry {
+        public String id, name, author, summary, description, version, license, sha256, changelog;
+        /** Every release still offered, newest first. The first one is the same release as the fields below. */
+        public List<Version> versions = new ArrayList<>();
+        /** Repository-relative image paths (under images/&lt;id&gt;/), or null / empty when there are none. */
+        public String icon;
+        public List<String> screenshots = new ArrayList<>();
+        public Kind kind;
+        public List<Sub> categories = new ArrayList<>();
+        public List<String> gameVersions = new ArrayList<>();
+        public List<String> tags = new ArrayList<>();
+        public List<String> requires = new ArrayList<>();
+        public List<String> mirrors = new ArrayList<>();
+        public long size, downloads, updatedMillis;
+        public float rating;
+        public int ratingCount;
+        public boolean openSource;
+        public Source source;
+        public Audit audit;
+
+        /** The newest release. */
+        public Version latest() {
+            return versions.get(0);
+        }
+
+        /** The release with this version number, or null when it is not offered any more. */
+        public Version version(String number) {
+            for (Version v : versions) if (v.version.equals(number)) return v;
+            return null;
+        }
+
+        /** The primary download URL followed by the mirrors; every one must serve exactly the pinned file. */
+        public List<String> downloadUrls() {
+            return latest().downloadUrls();
+        }
+
+        /** The file name the newest release ships as, taken from the end of its URL. */
+        public String assetName() {
+            return latest().assetName();
         }
 
         public boolean inCategory(Category c) {
