@@ -34,7 +34,10 @@ public final class FloatingNav {
         this.listener = listener;
         buttons = new MaterialButton[icons.length];
         for (int i = 0; i < icons.length; i++) {
-            MaterialButton b = new MaterialButton(context, null, com.google.android.material.R.attr.materialButtonStyle);
+            MaterialButton b = new MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle);
+            b.setElevation(0f);
+            b.setStateListAnimator(null);
+            b.setStrokeWidth(0);
             b.setIconResource(icons[i]);
             b.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
             b.setInsetTop(0);

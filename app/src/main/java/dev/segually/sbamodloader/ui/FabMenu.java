@@ -47,7 +47,10 @@ public final class FabMenu {
 
     /** Adds an action. Returns its button, so the caller can hide it for some users. */
     public MaterialButton addItem(@StringRes int label, @DrawableRes int icon, Runnable action) {
-        MaterialButton b = new MaterialButton(context, null, com.google.android.material.R.attr.materialButtonStyle);
+        MaterialButton b = new MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle);
+        b.setElevation(0f);
+        b.setStateListAnimator(null);
+        b.setStrokeWidth(0);
         b.setText(label);
         b.setIconResource(icon);
         b.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
