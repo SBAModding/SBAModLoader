@@ -243,7 +243,8 @@ public class ModsFragment extends Fragment {
     private Details details(File f) {
         Details d = new Details();
         String base = ModPacks.baseName(f);
-        d.storeId = new InstalledMods(requireContext()).idForFile(f);
+        InstalledMods installed = new InstalledMods(requireContext());
+        d.storeId = installed.idForFile(f);
         BrowserModels.Entry store = d.storeId == null ? null : storeEntries.get(d.storeId);
         if (base.endsWith(ModPacks.PACK_EXTENSION)) {
             ModPacks.Info info = ModPacks.info(f);
@@ -254,7 +255,11 @@ public class ModsFragment extends Fragment {
         if (store != null) {
             if (d.title == null) d.title = store.name;
             if (d.author == null) d.author = store.author;
-            if (d.version == null) d.version = store.version;
+            if (d.version == null) {
+                // The version the browser installed, not the store's newest: an older release may be the one in use.
+                InstalledMods.Record record = installed.get(d.storeId);
+                d.version = record != null && !record.version.isEmpty() ? record.version : store.version;
+            }
         }
         ModNames.Parsed fromFile = ModNames.parse(base);
         if (d.title == null || d.title.isEmpty()) d.title = fromFile.name.isEmpty() ? base : fromFile.name;
