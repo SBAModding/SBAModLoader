@@ -68,44 +68,58 @@
             android:layout_marginTop="8dp"
             android:scrollbars="none">
 
-            <com.google.android.material.chip.ChipGroup
+            <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/chips_kind"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="20dp"
                 app:selectionRequired="true"
-                app:singleLine="true"
                 app:singleSelection="true">
 
-                <com.google.android.material.chip.Chip
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/chip_kind_all"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="48dp"
+                    android:checkable="true"
                     android:checked="true"
-                    android:text="@string/browse_all" />
+                    android:text="@string/browse_all"
+                    android:textColor="@color/toggle_text"
+                    app:backgroundTint="@color/toggle_bg" />
 
-                <com.google.android.material.chip.Chip
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/chip_kind_fusion"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/kind_fusion_plural" />
+                    android:layout_height="48dp"
+                    android:checkable="true"
+                    
+                    android:text="@string/kind_fusion_plural"
+                    android:textColor="@color/toggle_text"
+                    app:backgroundTint="@color/toggle_bg" />
 
-                <com.google.android.material.chip.Chip
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/chip_kind_native"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/kind_native_plural" />
+                    android:layout_height="48dp"
+                    android:checkable="true"
+                    
+                    android:text="@string/kind_native_plural"
+                    android:textColor="@color/toggle_text"
+                    app:backgroundTint="@color/toggle_bg" />
 
-                <com.google.android.material.chip.Chip
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/chip_kind_pack"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/kind_pack_plural" />
-            </com.google.android.material.chip.ChipGroup>
+                    android:layout_height="48dp"
+                    android:checkable="true"
+                    
+                    android:text="@string/kind_pack_plural"
+                    android:textColor="@color/toggle_text"
+                    app:backgroundTint="@color/toggle_bg" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
         </HorizontalScrollView>
 
         <HorizontalScrollView
@@ -113,37 +127,47 @@
             android:layout_height="wrap_content"
             android:scrollbars="none">
 
-            <com.google.android.material.chip.ChipGroup
+            <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/chips_category"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="20dp"
                 app:selectionRequired="true"
-                app:singleLine="true"
                 app:singleSelection="true">
 
-                <com.google.android.material.chip.Chip
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/chip_cat_all"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="48dp"
+                    android:checkable="true"
                     android:checked="true"
-                    android:text="@string/browse_all_categories" />
+                    android:text="@string/browse_all_categories"
+                    android:textColor="@color/toggle_text"
+                    app:backgroundTint="@color/toggle_bg" />
 
-                <com.google.android.material.chip.Chip
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/chip_cat_texture"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/category_texture_pack" />
+                    android:layout_height="48dp"
+                    android:checkable="true"
+                    
+                    android:text="@string/category_texture_pack"
+                    android:textColor="@color/toggle_text"
+                    app:backgroundTint="@color/toggle_bg" />
 
-                <com.google.android.material.chip.Chip
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/chip_cat_mod"
-                    style="@style/Widget.Material3.Chip.Filter"
+                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/category_mod" />
-            </com.google.android.material.chip.ChipGroup>
+                    android:layout_height="48dp"
+                    android:checkable="true"
+                    
+                    android:text="@string/category_mod"
+                    android:textColor="@color/toggle_text"
+                    app:backgroundTint="@color/toggle_bg" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
         </HorizontalScrollView>
 
         <HorizontalScrollView

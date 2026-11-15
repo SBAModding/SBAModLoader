@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One screenshot in the row on a store page: fixed height, the width follows the picture. -->
+<com.google.android.material.imageview.ShapeableImageView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/shot_image"
+    android:layout_width="340dp"
+    android:layout_height="220dp"
+    android:layout_marginEnd="10dp"
+    android:contentDescription="@string/detail_screenshots"
+    android:foreground="?attr/selectableItemBackground"
+    android:padding="1dp"
+    android:scaleType="centerCrop"
+    app:shapeAppearanceOverlay="@style/ShapeAppearance.SBA.Shot"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:strokeWidth="1dp" />

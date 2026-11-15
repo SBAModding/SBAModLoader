@@ -57,6 +57,8 @@ public class ModsFragment extends Fragment {
     /** Mods that came from the store, by id: their names and authors come from the store's copy of the index. */
     private final Map<String, BrowserModels.Entry> storeEntries = new HashMap<>();
     private boolean developer;
+    private dev.segually.sbamodloader.ui.FabMenu fabMenu;
+    private com.google.android.material.button.MaterialButton addModItem;
 
     private final ActivityResultLauncher<String[]> picker =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::importMod);
@@ -121,8 +123,22 @@ public class ModsFragment extends Fragment {
         touchHelper.attachToRecyclerView(list);
         // Adding files by hand skips the store's audit and hash check, so the button only exists with developer
         // features on (see onResume).
-        v.findViewById(R.id.btn_add_mod).setOnClickListener(x -> picker.launch(new String[]{"*/*"}));
-        v.findViewById(R.id.btn_browse_mods).setOnClickListener(x -> ((MainActivity) requireActivity()).openBrowse(null));
+        fabMenu = new dev.segually.sbamodloader.ui.FabMenu(v.findViewById(R.id.fab_main), v.findViewById(R.id.fab_items),
+                v.findViewById(R.id.fab_scrim));
+        addModItem = fabMenu.addItem(R.string.mods_add, R.drawable.ic_add, () -> picker.launch(new String[]{"*/*"}));
+        fabMenu.addItem(R.string.mods_browse, R.drawable.ic_nav_browse, () -> ((MainActivity) requireActivity()).openBrowse(null));
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
+                new androidx.activity.OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        if (fabMenu.isOpen()) {
+                            fabMenu.close();
+                        } else {
+                            setEnabled(false);
+                            requireActivity().getOnBackPressedDispatcher().onBackPressed();
+                        }
+                    }
+                });
         return v;
     }
 
@@ -130,9 +146,12 @@ public class ModsFragment extends Fragment {
     public void onResume() {
         super.onResume();
         developer = SBASettings.getDeveloperFeatures(requireContext());
-        requireView().findViewById(R.id.btn_add_mod).setVisibility(developer ? View.VISIBLE : View.GONE);
+        addModItem.setVisibility(developer ? View.VISIBLE : View.GONE);
         reload();
         loadStoreNames();
+        if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_fab", false)) {
+            requireView().postDelayed(() -> fabMenu.open(), 400); // debug builds: open the menu, for layout checks
+        }
     }
 
     /** Reads the store's saved copy of the index (no network) so store mods show their store names. */
@@ -284,12 +303,14 @@ public class ModsFragment extends Fragment {
             boolean enabled = !f.getName().endsWith(DISABLED);
             boolean orderable = position < orderableCount;
             Details d = details(f);
+            dev.segually.sbamodloader.ui.Motion.pressable(h.itemView);
             h.name.setText(d.title);
             h.kind.setText(describe(d, orderable ? position + 1 : 0));
             bindChips(h, f);
             bindIcon(h, d);
             h.badge.setVisibility(d.storeId != null ? View.VISIBLE : View.GONE);
             h.itemView.setAlpha(enabled ? 1f : 0.6f);
+            dev.segually.sbamodloader.ui.Motion.appear(h.itemView, position);
             h.file.setVisibility(developer ? View.VISIBLE : View.GONE);
             if (developer) h.file.setText(technical(f));
             // A mod from the store opens its store page when tapped.

@@ -47,33 +47,6 @@
                 android:text="@string/mods_order_hint"
                 android:textAppearance="@style/TextAppearance.SBA.RowBody" />
 
-            <com.google.android.material.button.MaterialButtonGroup
-                style="@style/Widget.Material3Expressive.MaterialButtonGroup.Connected"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_browse_mods"
-                    style="@style/Widget.Material3Expressive.Button.TonalButton"
-                    android:layout_width="0dp"
-                    android:layout_height="64dp"
-                    android:layout_weight="1"
-                    android:text="@string/mods_browse"
-                    app:icon="@drawable/ic_nav_browse"
-                    app:iconGravity="textStart" />
-
-                <!-- developer features only -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_add_mod"
-                    style="@style/Widget.Material3Expressive.Button.TonalButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="64dp"
-                    android:text="@string/mods_add"
-                    android:visibility="gone"
-                    app:icon="@drawable/ic_add"
-                    app:iconGravity="textStart" />
-            </com.google.android.material.button.MaterialButtonGroup>
 
             <TextView
                 android:id="@+id/mods_empty"
@@ -95,4 +68,34 @@
                 android:nestedScrollingEnabled="false" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <View
+        android:id="@+id/fab_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:alpha="0.32"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/fab_items"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="308dp"
+        android:gravity="end"
+        android:orientation="vertical"
+        android:visibility="gone" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_main"
+        style="@style/Widget.Material3Expressive.FloatingActionButton.Large"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="200dp"
+        android:contentDescription="@string/mods_actions"
+        app:srcCompat="@drawable/ic_add" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

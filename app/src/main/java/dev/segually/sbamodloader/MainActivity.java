@@ -4,11 +4,10 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.navigation.NavigationBarView;
 import androidx.fragment.app.Fragment;
 
 import dev.segually.sbamodloader.tools.CrashDetector;
-import dev.segually.sbamodloader.ui.GlassBar;
+import dev.segually.sbamodloader.ui.FloatingNav;
 import dev.segually.sbamodloader.ui.pages.BrowseFragment;
 import dev.segually.sbamodloader.ui.pages.DashboardFragment;
 import dev.segually.sbamodloader.ui.pages.ModsFragment;
@@ -17,7 +16,8 @@ import dev.segually.sbamodloader.ui.pages.SettingsFragment;
 public class MainActivity extends AppCompatActivity {
     private static final String KEY_PAGE = "page";
     private int page = 0;
-    private NavigationBarView nav;
+    private android.view.View nav;
+    private FloatingNav navigation;
     /** Set by {@link #openBrowse}: the store page the Browse tab should open on when it is created. */
     private String pendingBrowseMod;
 
@@ -38,23 +38,17 @@ public class MainActivity extends AppCompatActivity {
                 new int[]{page, (page & 0x00FFFFFF)}));
 
         nav = findViewById(R.id.nav_bar);
-        GlassBar.apply(nav);
-        // Material pads the bar by the system bar insets. The activity already positions the bar clear of them
-        // (see below), so the padding would be counted twice, which is very visible on tablets with a taskbar.
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(nav, (v, insets) -> insets);
-        nav.setPadding(0, 0, 0, 0);
-        nav.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-            showPage(id == R.id.nav_browse ? 1 : id == R.id.nav_mods ? 2 : id == R.id.nav_settings ? 3 : 0);
-            return true;
-        });
+        navigation = new FloatingNav(findViewById(R.id.nav_items),
+                new int[]{R.drawable.ic_nav_dashboard, R.drawable.ic_nav_browse, R.drawable.ic_nav_mods, R.drawable.ic_nav_settings},
+                new int[]{R.string.nav_home, R.string.nav_browse, R.string.nav_mods, R.string.nav_settings},
+                this::showPage);
+        navigation.select(0, false);
 
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main_root), (v, insets) -> {
             float density = getResources().getDisplayMetrics().density;
             var bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
             var lp = (android.widget.FrameLayout.LayoutParams) nav.getLayoutParams();
             lp.bottomMargin = bars.bottom + Math.round(16 * density);
-            lp.width = Math.min(Math.round(400 * density), getResources().getDisplayMetrics().widthPixels - Math.round(32 * density));
             nav.setLayoutParams(lp);
             var fade = findViewById(R.id.edge_fade).getLayoutParams();
             fade.height = bars.bottom + Math.round(140 * density);
@@ -64,13 +58,12 @@ public class MainActivity extends AppCompatActivity {
 
         if (savedInstanceState != null) {
             page = savedInstanceState.getInt(KEY_PAGE, 0);
+            navigation.select(page, false);
         } else {
             showPage(0);
             // Debug builds can open on a given page (adb shell am start ... --ei sba_page 2), for layout checks.
             int start = BuildConfig.DEBUG ? getIntent().getIntExtra("sba_page", 0) : 0;
-            if (start == 1) nav.setSelectedItemId(R.id.nav_browse);
-            else if (start == 2) nav.setSelectedItemId(R.id.nav_mods);
-            else if (start == 3) nav.setSelectedItemId(R.id.nav_settings);
+            if (start >= 1 && start <= 3) navigation.select(start, true);
             // ... and on a store page (--es sba_mod super-cars-adventure).
             String mod = BuildConfig.DEBUG ? getIntent().getStringExtra("sba_mod") : null;
             if (mod != null) openBrowse(mod);
@@ -120,11 +113,7 @@ public class MainActivity extends AppCompatActivity {
     /** Switches to the Browse tab, on the store page of {@code modId} when it is not null. */
     public void openBrowse(String modId) {
         pendingBrowseMod = modId;
-        if (nav.getSelectedItemId() == R.id.nav_browse) {
-            showPage(1); // already selected: the listener would not fire
-        } else {
-            nav.setSelectedItemId(R.id.nav_browse);
-        }
+        navigation.select(1, true);
     }
 
     private void showPage(int index) {

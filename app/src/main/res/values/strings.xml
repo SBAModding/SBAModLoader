@@ -272,4 +272,5 @@
     <string name="hero_title">Super Bear Adventure</string>
     <string name="hero_game_version">Game version %1$s</string>
     <string name="detail_version_menu">Choose a version</string>
+    <string name="mods_actions">Mod actions</string>
 </resources>

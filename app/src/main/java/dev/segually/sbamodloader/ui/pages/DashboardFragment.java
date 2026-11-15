@@ -36,6 +36,7 @@ public class DashboardFragment extends Fragment {
     private View stepGame, stepVersion, stepPatches;
     private TextView setupTitle;
     private TextView heroSub;
+    private View ringCheck;
     private com.google.android.material.progressindicator.CircularProgressIndicator ringView;
     private MaterialButton btnRetry, btnLaunch;
     /** A newer version of the loader, or null when there is none (or it could not be checked). */
@@ -56,6 +57,10 @@ public class DashboardFragment extends Fragment {
         setupTitle = v.findViewById(R.id.setup_title);
         heroSub = v.findViewById(R.id.hero_sub);
         ringView = v.findViewById(R.id.setup_ring);
+        ringCheck = v.findViewById(R.id.setup_ring_check);
+        dev.segually.sbamodloader.ui.Motion.pressable(v.findViewById(R.id.btn_launch));
+        android.view.ViewGroup content = v.findViewById(R.id.dashboard_content);
+        for (int i = 0; i < content.getChildCount(); i++) dev.segually.sbamodloader.ui.Motion.appear(content.getChildAt(i), i);
         btnRetry = v.findViewById(R.id.btn_retry_patches);
         btnLaunch = v.findViewById(R.id.btn_launch);
 
@@ -158,6 +163,7 @@ public class DashboardFragment extends Fragment {
         int done = (game ? 1 : 0) + (latest ? 1 : 0) + (patchesOk ? 1 : 0);
         setupTitle.setText(getString(R.string.setup_progress, done, 3));
         ringView.setProgressCompat(done, true);
+        ringCheck.setVisibility(done == 3 ? View.VISIBLE : View.GONE);
         String gameVersion = installedGameVersion();
         heroSub.setText(gameVersion == null ? getString(R.string.step_game_missing)
                 : getString(R.string.hero_game_version, gameVersion));

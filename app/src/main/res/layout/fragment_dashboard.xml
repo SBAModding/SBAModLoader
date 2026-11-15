@@ -119,16 +119,31 @@
                             android:textAppearance="@style/TextAppearance.SBA.TitleLargeEmphasized"
                             android:textColor="?attr/colorOnSurface" />
 
-                        <com.google.android.material.progressindicator.CircularProgressIndicator
-                            android:id="@+id/setup_ring"
-                            style="@style/Widget.SBA.Progress.Circular.Wavy"
+                        <FrameLayout
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:indeterminate="false"
-                            app:indicatorColor="?attr/colorTertiary"
-                            app:trackColor="?attr/colorTertiaryContainer"
-                            android:max="3"
-                            android:progress="0" />
+                            android:layout_height="wrap_content">
+
+                            <com.google.android.material.progressindicator.CircularProgressIndicator
+                                android:id="@+id/setup_ring"
+                                style="@style/Widget.SBA.Progress.Circular.Wavy"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:indeterminate="false"
+                                app:indicatorColor="?attr/colorTertiary"
+                                app:trackColor="?attr/colorTertiaryContainer"
+                                android:max="3"
+                                android:progress="0" />
+
+                            <ImageView
+                                android:id="@+id/setup_ring_check"
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:layout_gravity="center"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_check"
+                                android:visibility="gone"
+                                app:tint="?attr/colorTertiary" />
+                        </FrameLayout>
                     </LinearLayout>
 
                     <include layout="@layout/item_step" android:id="@+id/step_game" />

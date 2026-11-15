@@ -141,17 +141,19 @@ public class BrowseFragment extends Fragment {
             }
         });
 
-        ChipGroup kinds = v.findViewById(R.id.chips_kind);
-        kinds.setOnCheckedStateChangeListener((group, ids) -> {
-            int id = ids.isEmpty() ? R.id.chip_kind_all : ids.get(0);
+        com.google.android.material.button.MaterialButtonToggleGroup kinds = v.findViewById(R.id.chips_kind);
+        kinds.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (!isChecked) return;
+            int id = checkedId;
             query.kind = id == R.id.chip_kind_fusion ? Kind.FUSION
                     : id == R.id.chip_kind_native ? Kind.NATIVE
                     : id == R.id.chip_kind_pack ? Kind.PACK : null;
             refresh();
         });
-        ChipGroup categories = v.findViewById(R.id.chips_category);
-        categories.setOnCheckedStateChangeListener((group, ids) -> {
-            int id = ids.isEmpty() ? R.id.chip_cat_all : ids.get(0);
+        com.google.android.material.button.MaterialButtonToggleGroup categories = v.findViewById(R.id.chips_category);
+        categories.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (!isChecked) return;
+            int id = checkedId;
             query.category = id == R.id.chip_cat_texture ? Category.TEXTURE_PACK
                     : id == R.id.chip_cat_mod ? Category.MOD : null;
             query.subs.clear();
@@ -452,6 +454,11 @@ public class BrowseFragment extends Fragment {
         if (!e.screenshots.isEmpty()) {
             c.addView(section(getString(R.string.detail_screenshots)));
             c.addView(screenshotStrip(e));
+            if (dev.segually.sbamodloader.BuildConfig.DEBUG
+                    && requireActivity().getIntent().getBooleanExtra("sba_viewer", false)) {
+                requireActivity().getIntent().removeExtra("sba_viewer");
+                c.post(() -> showViewer(e.screenshots, 1)); // debug builds: open the viewer, for layout checks
+            }
         }
 
         // About
@@ -835,38 +842,57 @@ public class BrowseFragment extends Fragment {
         });
     }
 
-    /** Screenshots in a carousel: the first one large, the next ones peeking in at its side. */
+    /**
+     * Screenshots as a row of pictures at one height, each as wide as the picture is, running to the edges of the
+     * screen (like the store apps do). Tapping one opens a full screen viewer you can swipe through.
+     */
     private View screenshotStrip(Entry e) {
-        androidx.recyclerview.widget.RecyclerView strip = new androidx.recyclerview.widget.RecyclerView(requireContext());
-        strip.setLayoutManager(new com.google.android.material.carousel.CarouselLayoutManager(
-                new com.google.android.material.carousel.HeroCarouselStrategy()));
-        new com.google.android.material.carousel.CarouselSnapHelper().attachToRecyclerView(strip);
+        RecyclerView strip = new RecyclerView(requireContext());
+        strip.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(requireContext(),
+                androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false));
         strip.setClipToPadding(false);
+        strip.setPadding(dp(24), 0, dp(14), 0);
+        strip.setOverScrollMode(View.OVER_SCROLL_NEVER);
         strip.setNestedScrollingEnabled(false);
-        strip.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
+        // The page has 24dp of side padding; the row ignores it so the pictures slide out under the screen edge.
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(230));
+        lp.setMarginStart(-dp(24));
+        lp.setMarginEnd(-dp(24));
+        strip.setLayoutParams(lp);
         final List<String> paths = e.screenshots;
+        final float height = dp(220);
         strip.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             @NonNull
             @Override
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
-                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_carousel_shot, parent, false);
-                return new RecyclerView.ViewHolder(v) {
+                return new RecyclerView.ViewHolder(LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_screenshot, parent, false)) {
                 };
             }
 
             @Override
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder h, int position) {
                 String path = paths.get(position);
-                android.widget.ImageView image = h.itemView.findViewById(R.id.shot_image);
+                android.widget.ImageView image = (android.widget.ImageView) h.itemView;
+                ViewGroup.LayoutParams params = image.getLayoutParams();
+                params.width = dp(340);
+                image.setLayoutParams(params);
                 image.setImageDrawable(null);
                 image.setTag(path);
                 GradientDrawable placeholder = new GradientDrawable();
-                placeholder.setColor(color(com.google.android.material.R.attr.colorSurfaceVariant));
+                placeholder.setColor(color(com.google.android.material.R.attr.colorSurfaceContainerHigh));
+                placeholder.setCornerRadius(dp(16));
                 image.setBackground(placeholder);
                 ImageLoader.load(requireContext(), path, 1024, bitmap -> {
-                    if (path.equals(image.getTag())) image.setImageBitmap(bitmap);
+                    if (!path.equals(image.getTag())) return;
+                    image.setImageBitmap(bitmap);
+                    // As wide as the picture is at this height (a phone screenshot is narrow, a tablet one wide).
+                    ViewGroup.LayoutParams lp2 = image.getLayoutParams();
+                    lp2.width = Math.max(dp(120), Math.min(dp(480), Math.round(height * bitmap.getWidth() / bitmap.getHeight())));
+                    image.setLayoutParams(lp2);
                 });
-                h.itemView.setOnClickListener(x -> showFullScreen(path));
+                dev.segually.sbamodloader.ui.Motion.pressable(image);
+                image.setOnClickListener(x -> showViewer(paths, position));
             }
 
             @Override
@@ -877,14 +903,84 @@ public class BrowseFragment extends Fragment {
         return strip;
     }
 
-    private void showFullScreen(String path) {
+    /** A full screen viewer for the screenshots: swipe between them, with a counter and a close button. */
+    private void showViewer(List<String> paths, int start) {
         android.app.Dialog dialog = new android.app.Dialog(requireContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen);
-        android.widget.ImageView view = new android.widget.ImageView(requireContext());
-        view.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        view.setBackgroundColor(Color.BLACK);
-        view.setOnClickListener(x -> dialog.dismiss());
-        dialog.setContentView(view);
-        ImageLoader.load(requireContext(), path, 2048, view::setImageBitmap);
+        android.widget.FrameLayout root = new android.widget.FrameLayout(requireContext());
+        root.setBackgroundColor(Color.BLACK);
+
+        RecyclerView pager = new RecyclerView(requireContext());
+        pager.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(requireContext(),
+                androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false));
+        new androidx.recyclerview.widget.PagerSnapHelper().attachToRecyclerView(pager);
+        pager.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            @NonNull
+            @Override
+            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
+                android.widget.ImageView v = new android.widget.ImageView(parent.getContext());
+                v.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                v.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                return new RecyclerView.ViewHolder(v) {
+                };
+            }
+
+            @Override
+            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder h, int position) {
+                android.widget.ImageView v = (android.widget.ImageView) h.itemView;
+                String path = paths.get(position);
+                v.setImageDrawable(null);
+                v.setTag(path);
+                ImageLoader.load(requireContext(), path, 2048, bitmap -> {
+                    if (path.equals(v.getTag())) v.setImageBitmap(bitmap);
+                });
+                v.setOnClickListener(x -> dialog.dismiss());
+            }
+
+            @Override
+            public int getItemCount() {
+                return paths.size();
+            }
+        });
+        root.addView(pager, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        pager.scrollToPosition(start);
+
+        TextView counter = new TextView(requireContext());
+        counter.setTextAppearance(R.style.TextAppearance_SBA_TitleMediumEmphasized);
+        counter.setTextColor(Color.WHITE);
+        counter.setText((start + 1) + " / " + paths.size());
+        counter.setPadding(dp(16), dp(8), dp(16), dp(8));
+        GradientDrawable pill = new GradientDrawable();
+        pill.setColor(0x80000000);
+        pill.setCornerRadius(dp(20));
+        counter.setBackground(pill);
+        android.widget.FrameLayout.LayoutParams clp = new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        clp.topMargin = dp(36);
+        root.addView(counter, clp);
+        pager.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                androidx.recyclerview.widget.LinearLayoutManager lm = (androidx.recyclerview.widget.LinearLayoutManager) rv.getLayoutManager();
+                int position = lm == null ? -1 : lm.findFirstCompletelyVisibleItemPosition();
+                if (position >= 0) counter.setText((position + 1) + " / " + paths.size());
+            }
+        });
+
+        android.widget.ImageButton close = new android.widget.ImageButton(requireContext());
+        close.setImageResource(R.drawable.ic_close);
+        close.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+        GradientDrawable round = new GradientDrawable();
+        round.setShape(GradientDrawable.OVAL);
+        round.setColor(0x80000000);
+        close.setBackground(round);
+        close.setContentDescription(getString(android.R.string.cancel));
+        close.setOnClickListener(x -> dialog.dismiss());
+        android.widget.FrameLayout.LayoutParams xlp = new android.widget.FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.START);
+        xlp.topMargin = dp(32);
+        xlp.setMarginStart(dp(16));
+        root.addView(close, xlp);
+
+        dialog.setContentView(root);
         dialog.show();
     }
 
@@ -1066,6 +1162,8 @@ public class BrowseFragment extends Fragment {
                             ? com.google.android.material.R.attr.colorSecondaryContainer
                             : com.google.android.material.R.attr.colorSurfaceContainerHigh));
             h.root.setOnClickListener(v -> select(e, h.root));
+            dev.segually.sbamodloader.ui.Motion.pressable(h.root);
+            dev.segually.sbamodloader.ui.Motion.appear(h.itemView, position);
         }
 
         @Override
