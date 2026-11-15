@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <color name="staticSplashScreenBackgroundColor">#231F20</color>
-  <!-- fallback palette when Material You dynamic color is unavailable -->
-  <color name="sba_bg">#101412</color>
-  <color name="sba_surface">#101412</color>
-  <color name="sba_surface_container">#1C211E</color>
-  <color name="sba_surface_high">#262B28</color>
-  <color name="sba_primary">#7FD1A7</color>
-  <color name="sba_on_primary">#00391F</color>
-  <color name="sba_text">#E0E3DF</color>
-  <color name="sba_text_dim">#A0A9A3</color>
-  <color name="sba_error">#FFB4AB</color>
+  <!-- The default accent: the seed the static scheme (colors_scheme.xml) is generated from. -->
+  <color name="sba_default_accent">#7FD1A7</color>
 </resources>

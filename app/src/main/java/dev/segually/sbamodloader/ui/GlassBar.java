@@ -21,11 +21,11 @@ public final class GlassBar {
         var ctx = bar.getContext();
         float density = ctx.getResources().getDisplayMetrics().density;
 
-        int container = MaterialColors.getColor(bar, com.google.android.material.R.attr.colorSurfaceContainer);
+        int container = MaterialColors.getColor(bar, com.google.android.material.R.attr.colorSurfaceContainerHigh);
         int onSurface = MaterialColors.getColor(bar, com.google.android.material.R.attr.colorOnSurface);
         // Reduce-transparency equivalent: respect high contrast text and stay opaque.
         boolean opaque = Settings.Secure.getInt(ctx.getContentResolver(), "high_text_contrast_enabled", 0) == 1;
-        int alpha = opaque ? 0xFF : 0xB8;
+        int alpha = opaque ? 0xFF : 0xE0;
         int body = (container & 0x00FFFFFF) | (alpha << 24);
 
         var shape = ShapeAppearanceModel.builder().setAllCornerSizes(ShapeAppearanceModel.PILL).build();

@@ -3,14 +3,14 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
-    android:minHeight="56dp"
+    android:minHeight="64dp"
     android:orientation="horizontal"
-    android:paddingHorizontal="12dp">
+    android:paddingHorizontal="20dp">
 
     <ImageView
         android:id="@+id/step_icon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
         android:importantForAccessibility="no" />
 
     <TextView
@@ -19,6 +19,6 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_weight="1"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="15sp" />
+        android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
+        android:textColor="?attr/colorOnSurface" />
 </LinearLayout>

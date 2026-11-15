@@ -12,13 +12,14 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/update_downloading"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="16sp" />
+        android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
+        android:textColor="?attr/colorOnSurface" />
 
     <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/update_progress"
+        style="@style/Widget.SBA.Progress.Wavy"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="16dp"
         android:indeterminate="true" />
 </LinearLayout>

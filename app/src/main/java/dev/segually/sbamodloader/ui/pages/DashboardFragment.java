@@ -47,7 +47,7 @@ public class DashboardFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_dashboard, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()));
+        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 960);
         stepGame = v.findViewById(R.id.step_game);
         stepVersion = v.findViewById(R.id.step_version);
         stepPatches = v.findViewById(R.id.step_patches);

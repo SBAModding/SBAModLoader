@@ -61,7 +61,7 @@ public class BootstrapActivity extends AppCompatActivity {
     public static final String IL2CPP_API_MAP = "il2cpp-api.map";
     private TextView statusView;
     private TextView progressDetailsView;
-    private ProgressBar spinnerProgress;
+    private View spinnerProgress;
     private ProgressBar downloadProgress;
     private final AtomicReference<Uri> selectedFileUri = new AtomicReference<>(null);
     private volatile CountDownLatch filePickerLatch;
@@ -83,6 +83,7 @@ public class BootstrapActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        dev.segually.sbamodloader.ui.Theming.apply(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_bootstrap);
         statusView = findViewById(R.id.bootstrap_status);

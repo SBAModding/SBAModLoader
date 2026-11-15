@@ -5,7 +5,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:paddingTop="16dp">
+    android:paddingTop="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginBottom="16dp"
+        android:text="@string/nav_browse"
+        android:textAppearance="@style/TextAppearance.SBA.PageTitle" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/search_layout"
@@ -142,8 +150,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="13sp" />
+            android:textAppearance="@style/TextAppearance.SBA.RowBody" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_sort"
@@ -174,14 +181,15 @@
             android:layout_marginTop="48dp"
             android:gravity="center"
             android:text="@string/browse_no_results"
+            android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/browse_retry"
-            style="@style/Widget.Material3.Button.TonalButton"
+            style="@style/Widget.Material3Expressive.Button.TonalButton"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:layout_gravity="top|center_horizontal"
             android:layout_marginTop="120dp"
             android:text="@string/browse_retry"

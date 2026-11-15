@@ -6,6 +6,9 @@ import android.content.SharedPreferences;
 public final class SBASettings {
     private static final String PREFS_NAME = "sba_settings";
     private static final String KEY_MOD_ORDER = "mod_order";
+    private static final String KEY_THEME_MODE = "theme_mode";
+    private static final String KEY_MATERIAL_YOU = "material_you";
+    private static final String KEY_ACCENT_COLOR = "accent_color";
     private static final String KEY_DEVELOPER_FEATURES = "developer_features";
     private static final String KEY_CUSTOM_PATCH_URL = "custom_patch_url";
     private static final String KEY_DOWNLOAD_UNSTRIPPED_LIBUNITY = "download_unstripped_libunity";
@@ -96,6 +99,40 @@ public final class SBASettings {
 
     public static void setUpdateLater(Context context, String version) {
         prefs(context).edit().putString(KEY_UPDATE_LATER, version).apply();
+    }
+
+    // ---- appearance -------------------------------------------------------------------------------
+
+    /** Follow the system's light/dark setting. */
+    public static final int THEME_SYSTEM = 0;
+    public static final int THEME_LIGHT = 1;
+    public static final int THEME_DARK = 2;
+
+    public static int getThemeMode(Context context) {
+        int mode = prefs(context).getInt(KEY_THEME_MODE, THEME_SYSTEM);
+        return mode == THEME_LIGHT || mode == THEME_DARK ? mode : THEME_SYSTEM;
+    }
+
+    public static void setThemeMode(Context context, int mode) {
+        prefs(context).edit().putInt(KEY_THEME_MODE, mode).apply();
+    }
+
+    /** Colours from the wallpaper (Android 12 and newer). On by default, like it was before there was a switch. */
+    public static boolean getMaterialYou(Context context) {
+        return prefs(context).getBoolean(KEY_MATERIAL_YOU, true);
+    }
+
+    public static void setMaterialYou(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_MATERIAL_YOU, enabled).apply();
+    }
+
+    /** The accent colour as ARGB, or 0 for the app's own green. Used when Material You is off. */
+    public static int getAccentColor(Context context) {
+        return prefs(context).getInt(KEY_ACCENT_COLOR, 0);
+    }
+
+    public static void setAccentColor(Context context, int argb) {
+        prefs(context).edit().putInt(KEY_ACCENT_COLOR, argb).apply();
     }
 
     public static boolean getDeveloperFeatures(Context context) {

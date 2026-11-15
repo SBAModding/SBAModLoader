@@ -65,7 +65,7 @@ public class ModsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_mods, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_root), 0);
+        Insets.padForChrome(v.findViewById(R.id.page_root), 0, getResources().getInteger(R.integer.mods_columns) > 1 ? 0 : 720);
         list = v.findViewById(R.id.mods_list);
         list.setPadding(0, 0, 0, Insets.navClearance(requireContext()));
         empty = v.findViewById(R.id.mods_empty);
@@ -286,7 +286,11 @@ public class ModsFragment extends Fragment {
             boolean orderable = position < orderableCount;
             Details d = details(f);
             h.name.setText(d.title);
-            h.kind.setText(describe(f, d, orderable ? position + 1 : 0));
+            h.kind.setText(describe(d, orderable ? position + 1 : 0));
+            bindChips(h, f);
+            bindIcon(h, d);
+            h.badge.setVisibility(d.storeId != null ? View.VISIBLE : View.GONE);
+            h.itemView.setAlpha(enabled ? 1f : 0.6f);
             h.file.setVisibility(developer ? View.VISIBLE : View.GONE);
             if (developer) h.file.setText(technical(f));
             // A mod from the store opens its store page when tapped.
@@ -311,23 +315,88 @@ public class ModsFragment extends Fragment {
             });
         }
 
-        /** The line under the name: what kind of mod it is, who made it, which version, and where it came from. */
-        private String describe(File f, Details d, int number) {
-            String base = ModPacks.baseName(f);
+        /** The line under the name: who made it and which version. */
+        private String describe(Details d, int number) {
             List<String> parts = new ArrayList<>();
             if (developer && number > 0) parts.add("#" + number);
-            if (base.endsWith(ModPacks.PACK_EXTENSION)) {
-                parts.add(getString(R.string.mods_kind_pack));
-            } else if (base.endsWith(".so")) {
-                parts.add(getString(R.string.mods_kind_native));
-            } else {
-                parts.add(getString(R.string.mods_kind_plugin));
-                if (!SBASettings.getFusionEnabled(requireContext())) parts.add(getString(R.string.mods_needs_fusion));
-            }
             if (d.author != null) parts.add(getString(R.string.mods_by_author, d.author));
             if (d.version != null) parts.add(getString(R.string.mods_version, d.version));
-            if (d.storeId != null) parts.add(getString(R.string.mods_from_store));
             return String.join(" \u00b7 ", parts);
+        }
+
+        /** Small labels for what the mod is made of: native code, Java code, assets, or a plugin. */
+        private void bindChips(Holder h, File f) {
+            h.chips.removeAllViews();
+            String base = ModPacks.baseName(f);
+            List<Integer> labels = new ArrayList<>();
+            List<Integer> icons = new ArrayList<>();
+            if (base.endsWith(ModPacks.PACK_EXTENSION)) {
+                for (String p : ModPacks.describe(f)) {
+                    labels.add("native".equals(p) ? R.string.mods_chip_native
+                            : "java".equals(p) ? R.string.mods_chip_java : R.string.mods_chip_assets);
+                    icons.add("assets".equals(p) ? R.drawable.ic_folder : R.drawable.ic_code);
+                }
+                if (labels.isEmpty()) {
+                    labels.add(R.string.mods_chip_pack);
+                    icons.add(R.drawable.ic_folder);
+                }
+            } else if (base.endsWith(".so")) {
+                labels.add(R.string.mods_chip_native);
+                icons.add(R.drawable.ic_code);
+            } else {
+                labels.add(R.string.mods_chip_plugin);
+                icons.add(R.drawable.ic_code);
+            }
+            for (int i = 0; i < labels.size(); i++) addChip(h.chips, labels.get(i), icons.get(i));
+            if (!base.endsWith(ModPacks.PACK_EXTENSION) && !base.endsWith(".so")
+                    && !SBASettings.getFusionEnabled(requireContext())) {
+                addChip(h.chips, R.string.mods_needs_fusion, R.drawable.ic_warning);
+            }
+        }
+
+        private void addChip(ViewGroup into, int label, int icon) {
+            TextView chip = (TextView) LayoutInflater.from(into.getContext()).inflate(R.layout.view_chip, into, false);
+            chip.setText(label);
+            android.graphics.drawable.Drawable d = androidx.appcompat.content.res.AppCompatResources.getDrawable(into.getContext(), icon);
+            if (d != null) {
+                d = d.mutate();
+                int size = Math.round(14 * getResources().getDisplayMetrics().density);
+                d.setBounds(0, 0, size, size);
+                d.setTint(chip.getCurrentTextColor());
+                chip.setCompoundDrawables(d, null, null, null);
+            }
+            into.addView(chip);
+        }
+
+        /** The store's icon when the mod came from the store, otherwise the first letter of its name. */
+        private void bindIcon(Holder h, Details d) {
+            String letter = d.title == null || d.title.isEmpty() ? "?" : d.title.substring(0, 1).toUpperCase(java.util.Locale.ROOT);
+            h.avatar.setText(letter);
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setCornerRadius(16 * getResources().getDisplayMetrics().density);
+            bg.setColor(com.google.android.material.color.MaterialColors.getColor(h.itemView,
+                    com.google.android.material.R.attr.colorPrimaryContainer));
+            h.avatar.setBackground(bg);
+            h.avatar.setTextColor(com.google.android.material.color.MaterialColors.getColor(h.itemView,
+                    com.google.android.material.R.attr.colorOnPrimaryContainer));
+            h.icon.setTag(d.storeId);
+            h.icon.setImageDrawable(null);
+            h.icon.setVisibility(View.GONE);
+            BrowserModels.Entry store = d.storeId == null ? null : storeEntries.get(d.storeId);
+            if (store == null || store.icon == null) return;
+            h.icon.setClipToOutline(true);
+            final int radius = Math.round(16 * getResources().getDisplayMetrics().density);
+            h.icon.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                @Override
+                public void getOutline(View view, android.graphics.Outline outline) {
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
+                }
+            });
+            dev.segually.sbamodloader.browser.ImageLoader.load(requireContext(), store.icon, 160, bitmap -> {
+                if (!d.storeId.equals(h.icon.getTag())) return; // the row was reused for another mod meanwhile
+                h.icon.setImageBitmap(bitmap);
+                h.icon.setVisibility(View.VISIBLE);
+            });
         }
 
         /** Developer view: the real file name and what is inside. */
@@ -339,9 +408,9 @@ public class ModsFragment extends Fragment {
                     parts.add(getString("native".equals(p) ? R.string.mods_part_native
                             : "java".equals(p) ? R.string.mods_part_java : R.string.mods_part_assets));
                 }
-                return f.getName() + (parts.isEmpty() ? "" : " \u00b7 " + String.join(", ", parts));
+                return base + (parts.isEmpty() ? "" : " \u00b7 " + String.join(", ", parts));
             }
-            return f.getName();
+            return base;
         }
 
         @Override
@@ -351,6 +420,10 @@ public class ModsFragment extends Fragment {
 
         class Holder extends RecyclerView.ViewHolder {
             final TextView name;
+            final TextView avatar;
+            final android.widget.ImageView icon;
+            final View badge;
+            final ViewGroup chips;
             final TextView kind;
             final TextView file;
             final MaterialSwitch toggle;
@@ -360,6 +433,10 @@ public class ModsFragment extends Fragment {
             Holder(View v) {
                 super(v);
                 name = v.findViewById(R.id.mod_name);
+                avatar = v.findViewById(R.id.mod_avatar);
+                icon = v.findViewById(R.id.mod_icon);
+                badge = v.findViewById(R.id.mod_store_badge);
+                chips = v.findViewById(R.id.mod_chips);
                 kind = v.findViewById(R.id.mod_kind);
                 file = v.findViewById(R.id.mod_file);
                 toggle = v.findViewById(R.id.mod_switch);

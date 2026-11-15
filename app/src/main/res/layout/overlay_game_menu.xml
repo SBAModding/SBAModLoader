@@ -30,7 +30,7 @@
             android:layout_marginHorizontal="12dp"
             android:layout_marginVertical="8dp"
             android:text="@string/game_menu_title"
-            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textAppearance="@style/TextAppearance.SBA.TitleLargeEmphasized"
             android:textColor="?attr/colorOnSurface" />
 
         <LinearLayout
@@ -55,8 +55,8 @@
                 android:layout_marginStart="16dp"
                 android:layout_weight="1"
                 android:text="@string/game_menu_freeze"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp" />
+                android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
+                android:textColor="?attr/colorOnSurface" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/menu_freeze_switch"
@@ -89,8 +89,8 @@
                 android:layout_marginStart="16dp"
                 android:layout_weight="1"
                 android:text="@string/game_menu_logcat_open"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp" />
+                android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
+                android:textColor="?attr/colorOnSurface" />
         </LinearLayout>
 
         <LinearLayout
@@ -115,8 +115,8 @@
                 android:layout_marginStart="16dp"
                 android:layout_weight="1"
                 android:text="@string/game_menu_exit"
-                android:textColor="?attr/colorError"
-                android:textSize="15sp" />
+                android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
+                android:textColor="?attr/colorError" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

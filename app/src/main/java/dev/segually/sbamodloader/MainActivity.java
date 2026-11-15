@@ -5,7 +5,6 @@ import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.navigation.NavigationBarView;
-import com.google.android.material.color.DynamicColors;
 import androidx.fragment.app.Fragment;
 
 import dev.segually.sbamodloader.tools.CrashDetector;
@@ -24,9 +23,18 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        DynamicColors.applyToActivityIfAvailable(this);
+        dev.segually.sbamodloader.ui.Theming.apply(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        dev.segually.sbamodloader.ui.Theming.applySystemBars(this);
+
+        // The fade under the floating bar goes from the page colour to the same colour, transparent: a plain
+        // "to transparent black" gradient leaves a grey band on a light theme.
+        int page = com.google.android.material.color.MaterialColors.getColor(findViewById(R.id.main_root),
+                android.R.attr.colorBackground);
+        findViewById(R.id.edge_fade).setBackground(new android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
+                new int[]{page, (page & 0x00FFFFFF)}));
 
         nav = findViewById(R.id.nav_bar);
         GlassBar.apply(nav);

@@ -9,18 +9,203 @@
     <item name="android:windowIsTranslucent">true</item>
     <item name="android:windowBackground">@android:color/transparent</item>
 </style>
-<style name="Theme.SBA" parent="Theme.Material3.Dark.NoActionBar">
-    <item name="colorPrimary">@color/sba_primary</item>
-    <item name="colorOnPrimary">@color/sba_on_primary</item>
-    <item name="colorSurface">@color/sba_surface</item>
-    <item name="colorSurfaceContainer">@color/sba_surface_container</item>
-    <item name="colorSurfaceContainerHigh">@color/sba_surface_high</item>
-    <item name="colorOnSurface">@color/sba_text</item>
-    <item name="colorOnSurfaceVariant">@color/sba_text_dim</item>
-    <item name="colorError">@color/sba_error</item>
-    <item name="android:colorBackground">@color/sba_bg</item>
-    <item name="android:windowBackground">@color/sba_bg</item>
+<!-- The app theme. Colours come from the generated scheme (scripts/gen_color_scheme.py) and are replaced by
+     Material You or the chosen accent when ui/Theming applies them. -->
+<style name="Theme.SBA" parent="Theme.Material3Expressive.DayNight.NoActionBar">
+    <item name="colorPrimary">@color/sba_scheme_primary</item>
+    <item name="colorOnPrimary">@color/sba_scheme_on_primary</item>
+    <item name="colorPrimaryContainer">@color/sba_scheme_primary_container</item>
+    <item name="colorOnPrimaryContainer">@color/sba_scheme_on_primary_container</item>
+    <item name="colorSecondary">@color/sba_scheme_secondary</item>
+    <item name="colorOnSecondary">@color/sba_scheme_on_secondary</item>
+    <item name="colorSecondaryContainer">@color/sba_scheme_secondary_container</item>
+    <item name="colorOnSecondaryContainer">@color/sba_scheme_on_secondary_container</item>
+    <item name="colorTertiary">@color/sba_scheme_tertiary</item>
+    <item name="colorOnTertiary">@color/sba_scheme_on_tertiary</item>
+    <item name="colorTertiaryContainer">@color/sba_scheme_tertiary_container</item>
+    <item name="colorOnTertiaryContainer">@color/sba_scheme_on_tertiary_container</item>
+    <item name="colorError">@color/sba_scheme_error</item>
+    <item name="colorOnError">@color/sba_scheme_on_error</item>
+    <item name="colorErrorContainer">@color/sba_scheme_error_container</item>
+    <item name="colorOnErrorContainer">@color/sba_scheme_on_error_container</item>
+    <item name="colorSurface">@color/sba_scheme_surface</item>
+    <item name="colorOnSurface">@color/sba_scheme_on_surface</item>
+    <item name="colorSurfaceVariant">@color/sba_scheme_surface_variant</item>
+    <item name="colorOnSurfaceVariant">@color/sba_scheme_on_surface_variant</item>
+    <item name="colorSurfaceDim">@color/sba_scheme_surface_dim</item>
+    <item name="colorSurfaceBright">@color/sba_scheme_surface_bright</item>
+    <item name="colorSurfaceContainerLowest">@color/sba_scheme_surface_container_lowest</item>
+    <item name="colorSurfaceContainerLow">@color/sba_scheme_surface_container_low</item>
+    <item name="colorSurfaceContainer">@color/sba_scheme_surface_container</item>
+    <item name="colorSurfaceContainerHigh">@color/sba_scheme_surface_container_high</item>
+    <item name="colorSurfaceContainerHighest">@color/sba_scheme_surface_container_highest</item>
+    <item name="colorOutline">@color/sba_scheme_outline</item>
+    <item name="colorOutlineVariant">@color/sba_scheme_outline_variant</item>
+    <item name="colorSurfaceInverse">@color/sba_scheme_inverse_surface</item>
+    <item name="colorOnSurfaceInverse">@color/sba_scheme_inverse_on_surface</item>
+    <item name="colorPrimaryInverse">@color/sba_scheme_inverse_primary</item>
+    <item name="android:colorBackground">@color/sba_scheme_surface</item>
+    <item name="colorOnBackground">@color/sba_scheme_on_surface</item>
+    <item name="android:windowBackground">@color/sba_scheme_surface</item>
     <item name="android:statusBarColor">@android:color/transparent</item>
     <item name="android:navigationBarColor">@android:color/transparent</item>
+
+    <item name="materialSwitchStyle">@style/Widget.SBA.Switch</item>
+
+    <!-- One typeface for the whole app. -->
+    <item name="fontFamily">@font/roboto_flex</item>
+    <item name="android:fontFamily">@font/roboto_flex</item>
+
+    <!-- The whole type scale (and its emphasized variants) uses the one font. -->
+    <item name="textAppearanceDisplayLarge">@style/TextAppearance.SBA.DisplayLarge</item>
+    <item name="textAppearanceDisplayLargeEmphasized">@style/TextAppearance.SBA.DisplayLargeEmphasized</item>
+    <item name="textAppearanceDisplayMedium">@style/TextAppearance.SBA.DisplayMedium</item>
+    <item name="textAppearanceDisplayMediumEmphasized">@style/TextAppearance.SBA.DisplayMediumEmphasized</item>
+    <item name="textAppearanceDisplaySmall">@style/TextAppearance.SBA.DisplaySmall</item>
+    <item name="textAppearanceDisplaySmallEmphasized">@style/TextAppearance.SBA.DisplaySmallEmphasized</item>
+    <item name="textAppearanceHeadlineLarge">@style/TextAppearance.SBA.HeadlineLarge</item>
+    <item name="textAppearanceHeadlineLargeEmphasized">@style/TextAppearance.SBA.HeadlineLargeEmphasized</item>
+    <item name="textAppearanceHeadlineMedium">@style/TextAppearance.SBA.HeadlineMedium</item>
+    <item name="textAppearanceHeadlineMediumEmphasized">@style/TextAppearance.SBA.HeadlineMediumEmphasized</item>
+    <item name="textAppearanceHeadlineSmall">@style/TextAppearance.SBA.HeadlineSmall</item>
+    <item name="textAppearanceHeadlineSmallEmphasized">@style/TextAppearance.SBA.HeadlineSmallEmphasized</item>
+    <item name="textAppearanceTitleLarge">@style/TextAppearance.SBA.TitleLarge</item>
+    <item name="textAppearanceTitleLargeEmphasized">@style/TextAppearance.SBA.TitleLargeEmphasized</item>
+    <item name="textAppearanceTitleMedium">@style/TextAppearance.SBA.TitleMedium</item>
+    <item name="textAppearanceTitleMediumEmphasized">@style/TextAppearance.SBA.TitleMediumEmphasized</item>
+    <item name="textAppearanceTitleSmall">@style/TextAppearance.SBA.TitleSmall</item>
+    <item name="textAppearanceTitleSmallEmphasized">@style/TextAppearance.SBA.TitleSmallEmphasized</item>
+    <item name="textAppearanceBodyLarge">@style/TextAppearance.SBA.BodyLarge</item>
+    <item name="textAppearanceBodyLargeEmphasized">@style/TextAppearance.SBA.BodyLargeEmphasized</item>
+    <item name="textAppearanceBodyMedium">@style/TextAppearance.SBA.BodyMedium</item>
+    <item name="textAppearanceBodyMediumEmphasized">@style/TextAppearance.SBA.BodyMediumEmphasized</item>
+    <item name="textAppearanceBodySmall">@style/TextAppearance.SBA.BodySmall</item>
+    <item name="textAppearanceBodySmallEmphasized">@style/TextAppearance.SBA.BodySmallEmphasized</item>
+    <item name="textAppearanceLabelLarge">@style/TextAppearance.SBA.LabelLarge</item>
+    <item name="textAppearanceLabelLargeEmphasized">@style/TextAppearance.SBA.LabelLargeEmphasized</item>
+    <item name="textAppearanceLabelMedium">@style/TextAppearance.SBA.LabelMedium</item>
+    <item name="textAppearanceLabelMediumEmphasized">@style/TextAppearance.SBA.LabelMediumEmphasized</item>
+    <item name="textAppearanceLabelSmall">@style/TextAppearance.SBA.LabelSmall</item>
+    <item name="textAppearanceLabelSmallEmphasized">@style/TextAppearance.SBA.LabelSmallEmphasized</item>
+</style>
+<style name="TextAppearance.SBA.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.DisplayLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.DisplayLarge.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.DisplayMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.DisplayMedium.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.DisplaySmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.DisplaySmall.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.HeadlineLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.HeadlineLarge.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.HeadlineMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.HeadlineMedium.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.HeadlineSmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.HeadlineSmall.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.TitleLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.TitleLarge.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.TitleMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.TitleMedium.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.TitleSmall" parent="TextAppearance.Material3.TitleSmall">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.TitleSmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.TitleSmall.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.BodyLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.BodyLarge.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.BodyMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.BodyMedium.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.BodySmall" parent="TextAppearance.Material3.BodySmall">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.BodySmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.BodySmall.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.LabelLargeEmphasized" parent="TextAppearance.M3.Sys.Typescale.LabelLarge.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.LabelMedium" parent="TextAppearance.Material3.LabelMedium">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.LabelMediumEmphasized" parent="TextAppearance.M3.Sys.Typescale.LabelMedium.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
+</style>
+<style name="TextAppearance.SBA.LabelSmallEmphasized" parent="TextAppearance.M3.Sys.Typescale.LabelSmall.Emphasized">
+    <item name="android:fontFamily">@font/roboto_flex</item>
+    <item name="fontFamily">@font/roboto_flex</item>
 </style>
 </resources>

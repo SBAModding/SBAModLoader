@@ -1,70 +1,138 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/item_root"
+    style="@style/Widget.SBA.Card.High"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="10dp"
-    android:background="@drawable/bg_card"
-    android:foreground="?attr/selectableItemBackground"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:padding="16dp">
-
-    <ImageView
-        android:id="@+id/mod_handle"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="-8dp"
-        android:layout_marginEnd="4dp"
-        android:contentDescription="@string/mods_drag_handle"
-        android:padding="8dp"
-        android:src="@drawable/ic_drag"
-        app:tint="?attr/colorOnSurfaceVariant"
-        xmlns:app="http://schemas.android.com/apk/res-auto" />
+    android:clickable="true"
+    android:focusable="true">
 
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="8dp">
 
-        <TextView
-            android:id="@+id/mod_name"
-            android:layout_width="wrap_content"
-            android:textStyle="bold"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="15sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/mod_kind"
-            android:layout_width="wrap_content"
+            <ImageView
+                android:id="@+id/mod_handle"
+                android:layout_width="32dp"
+                android:layout_height="48dp"
+                android:contentDescription="@string/mods_drag_handle"
+                android:paddingHorizontal="4dp"
+                android:src="@drawable/ic_drag"
+                app:tint="?attr/colorOnSurfaceVariant" />
+
+            <FrameLayout
+                android:layout_width="56dp"
+                android:layout_height="56dp">
+
+                <TextView
+                    android:id="@+id/mod_avatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textAppearance="@style/TextAppearance.SBA.TitleLargeEmphasized" />
+
+                <ImageView
+                    android:id="@+id/mod_icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/mod_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="2"
+                        android:textAppearance="@style/TextAppearance.SBA.TitleMediumEmphasized"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <ImageView
+                        android:id="@+id/mod_store_badge"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="6dp"
+                        android:contentDescription="@string/mods_from_store"
+                        android:src="@drawable/ic_verified"
+                        android:visibility="gone"
+                        app:tint="?attr/colorPrimary" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/mod_kind"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.SBA.RowBody" />
+            </LinearLayout>
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/mod_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="12sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="32dp">
+
+            <LinearLayout
+                android:id="@+id/mod_chips"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="horizontal" />
+
+            <ImageButton
+                android:id="@+id/mod_remove"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/mods_remove"
+                android:src="@drawable/ic_delete"
+                app:tint="?attr/colorOnSurfaceVariant" />
+        </LinearLayout>
 
         <!-- file name and technical details: developer features only -->
         <TextView
             android:id="@+id/mod_file"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="11sp"
+            android:paddingBottom="8dp"
+            android:paddingStart="32dp"
+            android:textAppearance="@style/TextAppearance.SBA.Caption"
             android:visibility="gone" />
     </LinearLayout>
-
-    <ImageButton
-        android:id="@+id/mod_remove"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="@string/mods_remove"
-        android:src="@drawable/ic_delete"
-        app:tint="?attr/colorOnSurfaceVariant"
-        xmlns:app="http://schemas.android.com/apk/res-auto" />
-
-    <com.google.android.material.materialswitch.MaterialSwitch
-        android:id="@+id/mod_switch"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>

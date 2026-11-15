@@ -10,7 +10,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.util.Log;
-import android.view.ContextThemeWrapper;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -23,7 +22,6 @@ import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 
-import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.shape.MaterialShapeDrawable;
@@ -63,7 +61,7 @@ public final class GameOverlay {
 
     private GameOverlay(Activity activity, Context sbaBase) {
         this.activity = activity;
-        this.ui = DynamicColors.wrapContextIfAvailable(new ContextThemeWrapper(sbaBase, R.style.Theme_SBA));
+        this.ui = Theming.wrap(sbaBase);
         this.host = new FrameLayout(ui);
     }
 
@@ -111,7 +109,8 @@ public final class GameOverlay {
         frozenChip = new TextView(ui);
         frozenChip.setText(R.string.game_frozen);
         frozenChip.setTextColor(MaterialColors.getColor(panel, com.google.android.material.R.attr.colorOnSurface));
-        frozenChip.setTextSize(12);
+        frozenChip.setTextSize(13);
+        frozenChip.setTypeface(Theming.font(ui, true));
         frozenChip.setPadding(Math.round(14 * density), Math.round(6 * density), Math.round(14 * density), Math.round(6 * density));
         MaterialShapeDrawable chipBg = new MaterialShapeDrawable(ShapeAppearanceModel.builder()
                 .setAllCornerSizes(ShapeAppearanceModel.PILL).build());

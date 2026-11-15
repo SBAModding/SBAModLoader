@@ -2,7 +2,6 @@ package dev.segually.sbamodloader.ui;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.view.Gravity;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -85,7 +84,7 @@ public final class FusionWarning {
         tv.setTextSize(sp);
         tv.setTextColor(com.google.android.material.color.MaterialColors.getColor(tv,
                 com.google.android.material.R.attr.colorOnSurface, Color.WHITE));
-        if (bold) tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
+        tv.setTypeface(Theming.font(context, bold));
         return tv;
     }
 }

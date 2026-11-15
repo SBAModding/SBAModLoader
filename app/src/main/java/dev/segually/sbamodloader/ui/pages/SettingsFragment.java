@@ -24,7 +24,9 @@ import dev.segually.sbamodloader.ui.UpdatePrompt;
 import android.widget.Toast;
 import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.Utilities;
+import dev.segually.sbamodloader.ui.AccentSwatches;
 import dev.segually.sbamodloader.ui.Insets;
+import dev.segually.sbamodloader.ui.Theming;
 
 public class SettingsFragment extends Fragment {
     private View devSection;
@@ -82,7 +84,7 @@ public class SettingsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_settings, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()));
+        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 720);
 
         devCard = v.findViewById(R.id.card_developer);
         libunityCard = v.findViewById(R.id.card_libunity);
@@ -120,6 +122,13 @@ public class SettingsFragment extends Fragment {
         v.findViewById(R.id.safety_github).setOnClickListener(x -> openLink(AppUpdater.REPO_URL));
         v.findViewById(R.id.safety_discord).setOnClickListener(x -> openLink(AppUpdater.DISCORD_URL));
         setUpUpdates(v);
+        setUpAppearance(v);
+        rowToggles(v, R.id.card_libunity, R.id.switch_libunity);
+        rowToggles(v, R.id.card_fusion, R.id.switch_fusion);
+        rowToggles(v, R.id.card_skipfusion, R.id.switch_skipfusion);
+        rowToggles(v, R.id.card_developer, R.id.switch_developer);
+        rowToggles(v, R.id.row_autoupdate, R.id.switch_autoupdate);
+        rowToggles(v, R.id.row_prereleases, R.id.switch_prereleases);
 
         devSection = v.findViewById(R.id.dev_section);
         patchInfo = v.findViewById(R.id.patch_info);
@@ -157,6 +166,54 @@ public class SettingsFragment extends Fragment {
         version.setOnClickListener(x -> onVersionTapped());
         ((TextView) v.findViewById(R.id.about_build)).setText(buildData());
         return v;
+    }
+
+    /** Makes the whole row toggle its switch, not just the switch itself. */
+    private static void rowToggles(View root, int rowId, int switchId) {
+        View row = root.findViewById(rowId);
+        MaterialSwitch sw = root.findViewById(switchId);
+        row.setOnClickListener(x -> sw.toggle());
+    }
+
+    private void setUpAppearance(View v) {
+        android.content.Context app = requireContext().getApplicationContext();
+        com.google.android.material.button.MaterialButtonToggleGroup group = v.findViewById(R.id.theme_mode_group);
+        int mode = SBASettings.getThemeMode(app);
+        group.check(mode == SBASettings.THEME_LIGHT ? R.id.theme_light
+                : mode == SBASettings.THEME_DARK ? R.id.theme_dark : R.id.theme_system);
+        group.addOnButtonCheckedListener((g, id, checked) -> {
+            if (!checked) return;
+            int chosen = id == R.id.theme_light ? SBASettings.THEME_LIGHT
+                    : id == R.id.theme_dark ? SBASettings.THEME_DARK : SBASettings.THEME_SYSTEM;
+            if (chosen == SBASettings.getThemeMode(app)) return;
+            SBASettings.setThemeMode(app, chosen);
+            requireActivity().recreate();
+        });
+
+        View materialYouRow = v.findViewById(R.id.row_material_you);
+        MaterialSwitch materialYou = v.findViewById(R.id.switch_material_you);
+        View accentRow = v.findViewById(R.id.row_accent);
+        boolean dynamic = Theming.accentSupported();
+        // Without dynamic colours (Android 11 and older) there is nothing to choose: the app's own colours are used.
+        materialYouRow.setVisibility(dynamic ? View.VISIBLE : View.GONE);
+        accentRow.setVisibility(dynamic ? View.VISIBLE : View.GONE);
+        materialYou.setChecked(SBASettings.getMaterialYou(app));
+        rowToggles(v, R.id.row_material_you, R.id.switch_material_you);
+        AccentSwatches swatches = new AccentSwatches(requireContext(), v.findViewById(R.id.accent_swatches),
+                () -> requireActivity().recreate());
+        Runnable showAccent = () -> {
+            boolean you = SBASettings.getMaterialYou(app);
+            v.findViewById(R.id.accent_scroll).setAlpha(you ? 0.38f : 1f);
+            swatches.setEnabled(!you);
+            ((TextView) v.findViewById(R.id.accent_hint)).setText(
+                    you ? R.string.appearance_accent_off : R.string.appearance_accent_desc);
+        };
+        showAccent.run();
+        materialYou.setOnCheckedChangeListener((b, on) -> {
+            SBASettings.setMaterialYou(app, on);
+            showAccent.run();
+            requireActivity().recreate();
+        });
     }
 
     private void openLink(String url) {

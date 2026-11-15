@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- A setting with a switch: the whole row toggles it. -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-        android:id="@+id/card_libunity"
+    android:id="@+id/card_libunity"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="12dp"
-    android:background="@drawable/bg_card"
+    android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical"
+    android:minHeight="72dp"
     android:orientation="horizontal"
-    android:padding="16dp">
+    android:paddingHorizontal="20dp"
+    android:paddingVertical="12dp">
 
     <LinearLayout
         android:layout_width="0dp"
@@ -21,21 +23,19 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/settings_libunity_title"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp" />
+            android:textAppearance="@style/TextAppearance.SBA.RowTitle" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="2dp"
             android:text="@string/settings_libunity_desc"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="13sp" />
+            android:textAppearance="@style/TextAppearance.SBA.RowBody" />
     </LinearLayout>
 
     <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/switch_libunity"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp" />
+        android:layout_marginStart="16dp" />
 </LinearLayout>

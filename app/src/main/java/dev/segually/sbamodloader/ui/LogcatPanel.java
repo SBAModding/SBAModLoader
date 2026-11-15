@@ -3,7 +3,6 @@ package dev.segually.sbamodloader.ui;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
@@ -61,7 +60,7 @@ public final class LogcatPanel extends LinearLayout {
         header.setPadding(dp(10), 0, dp(2), 0);
 
         TextView title = text(context, context.getString(R.string.logcat_title), 12, Color.WHITE);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTypeface(Theming.font(context, true));
         header.addView(title, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView clear = text(context, context.getString(R.string.logcat_clear), 12, 0xFF7FD1A7);
@@ -82,7 +81,7 @@ public final class LogcatPanel extends LinearLayout {
         header.setOnTouchListener(this::drag);
 
         body = text(context, "", 9, 0xFFE6E9EE);
-        body.setTypeface(Typeface.MONOSPACE);
+        body.setTypeface(Theming.font(context, false));
         body.setBackgroundColor(0xB3000000);
         body.setPadding(dp(8), dp(6), dp(8), dp(6));
         body.setMaxLines(VISIBLE_LINES);
@@ -100,6 +99,7 @@ public final class LogcatPanel extends LinearLayout {
         t.setText(s);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
         t.setTextColor(color);
+        t.setTypeface(Theming.font(c, false));
         return t;
     }
 

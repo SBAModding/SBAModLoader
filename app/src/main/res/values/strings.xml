@@ -247,4 +247,25 @@
     <string name="update_allow_title">Allow updates</string>
     <string name="update_allow_message">Android needs your OK before SBAModLoader can install its own updates. On the next screen, turn on \"Allow from this source\", then come back and tap Update again.</string>
     <string name="update_open_settings">Open settings</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_game">Game</string>
+    <string name="settings_section_developer">Developer</string>
+    <string name="appearance_theme">Theme</string>
+    <string name="appearance_theme_system">System</string>
+    <string name="appearance_theme_light">Light</string>
+    <string name="appearance_theme_dark">Dark</string>
+    <string name="appearance_material_you">Material You</string>
+    <string name="appearance_material_you_desc">Use the colours of your wallpaper.</string>
+    <string name="appearance_accent">Accent colour</string>
+    <string name="appearance_accent_desc">The colour of buttons, switches and highlights.</string>
+    <string name="appearance_accent_off">Turn off Material You to choose your own accent colour.</string>
+    <string name="appearance_accent_custom">Your own colour</string>
+    <string name="appearance_accent_hue">Colour</string>
+    <string name="appearance_accent_strength">Strength</string>
+    <string name="appearance_accent_use">Use this colour</string>
+    <string name="mods_chip_native">Native</string>
+    <string name="mods_chip_java">Java</string>
+    <string name="mods_chip_assets">Assets</string>
+    <string name="mods_chip_plugin">Plugin</string>
+    <string name="mods_chip_pack">Pack</string>
 </resources>

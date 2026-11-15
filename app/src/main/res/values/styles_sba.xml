@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app's own styles on top of Material 3 Expressive: every screen uses these, so the look stays in one place. -->
+<resources>
+
+    <!-- Page and section headings: large and bold, so the hierarchy reads at a glance. -->
+    <style name="TextAppearance.SBA.PageTitle" parent="TextAppearance.SBA.DisplaySmallEmphasized">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+    <style name="TextAppearance.SBA.Section" parent="TextAppearance.SBA.LabelLargeEmphasized">
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:letterSpacing">0.04</item>
+    </style>
+    <style name="TextAppearance.SBA.RowTitle" parent="TextAppearance.SBA.BodyLargeEmphasized">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+    <style name="TextAppearance.SBA.RowBody" parent="TextAppearance.SBA.BodyMedium">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+    <style name="TextAppearance.SBA.Caption" parent="TextAppearance.SBA.LabelMedium">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- Shapes: big, soft corners; rows in a group have tight inner corners and round outer ones. -->
+    <style name="ShapeAppearance.SBA.Card" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">28dp</item>
+    </style>
+    <style name="ShapeAppearance.SBA.GroupTop" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">28dp</item>
+        <item name="cornerSizeTopRight">28dp</item>
+        <item name="cornerSizeBottomLeft">6dp</item>
+        <item name="cornerSizeBottomRight">6dp</item>
+    </style>
+    <style name="ShapeAppearance.SBA.GroupMiddle" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">6dp</item>
+    </style>
+    <style name="ShapeAppearance.SBA.GroupBottom" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">6dp</item>
+        <item name="cornerSizeTopRight">6dp</item>
+        <item name="cornerSizeBottomLeft">28dp</item>
+        <item name="cornerSizeBottomRight">28dp</item>
+    </style>
+
+    <!-- Cards -->
+    <style name="Widget.SBA.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="shapeAppearance">@style/ShapeAppearance.SBA.Card</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+    <style name="Widget.SBA.Card.High" parent="Widget.SBA.Card">
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainerHigh</item>
+    </style>
+    <style name="Widget.SBA.Card.Primary" parent="Widget.SBA.Card">
+        <item name="cardBackgroundColor">?attr/colorPrimaryContainer</item>
+    </style>
+    <!-- One row of a grouped list. -->
+    <style name="Widget.SBA.Card.Row" parent="Widget.SBA.Card">
+        <item name="shapeAppearance">@style/ShapeAppearance.SBA.GroupMiddle</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
+    </style>
+    <style name="Widget.SBA.Card.Row.Top">
+        <item name="shapeAppearance">@style/ShapeAppearance.SBA.GroupTop</item>
+    </style>
+    <style name="Widget.SBA.Card.Row.Bottom">
+        <item name="shapeAppearance">@style/ShapeAppearance.SBA.GroupBottom</item>
+    </style>
+    <style name="Widget.SBA.Card.Row.Single">
+        <item name="shapeAppearance">@style/ShapeAppearance.SBA.Card</item>
+    </style>
+
+    <!-- Switches: a bigger thumb that always shows a check or a cross. -->
+    <style name="Widget.SBA.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="thumbIcon">@drawable/sba_switch_thumb</item>
+        <item name="thumbIconSize">16dp</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+
+    <!-- Progress: thick and wavy while a download is running. -->
+    <style name="Widget.SBA.Progress.Wavy" parent="Widget.Material3Expressive.LinearProgressIndicator.Wavy">
+        <item name="trackThickness">8dp</item>
+        <item name="trackCornerRadius">4dp</item>
+    </style>
+    <style name="Widget.SBA.Progress.Circular.Wavy" parent="Widget.Material3Expressive.CircularProgressIndicator.Wavy">
+        <item name="trackThickness">8dp</item>
+        <item name="trackCornerRadius">4dp</item>
+        <item name="indicatorSize">52dp</item>
+    </style>
+
+    <!-- Large primary action -->
+    <style name="Widget.SBA.Button.Hero" parent="Widget.Material3Expressive.Button">
+        <item name="android:minHeight">72dp</item>
+        <item name="android:textAppearance">@style/TextAppearance.SBA.TitleMediumEmphasized</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">12dp</item>
+    </style>
+</resources>

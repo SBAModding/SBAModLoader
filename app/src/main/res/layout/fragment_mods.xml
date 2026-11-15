@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:paddingHorizontal="20dp"
-    android:paddingTop="24dp">
+    android:paddingTop="32dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -17,17 +17,17 @@
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
             android:layout_weight="1"
             android:text="@string/nav_mods"
-            android:textAppearance="?attr/textAppearanceHeadlineLarge"
-            android:textColor="?attr/colorOnSurface" />
+            android:textAppearance="@style/TextAppearance.SBA.PageTitle" />
 
         <!-- developer features only -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_add_mod"
-            style="@style/Widget.Material3.Button.TonalButton"
+            style="@style/Widget.Material3Expressive.Button.TonalButton"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:text="@string/mods_add"
             android:visibility="gone"
             app:icon="@drawable/ic_add" />
@@ -36,17 +36,17 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="8dp"
         android:text="@string/mods_order_hint"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="13sp" />
+        android:textAppearance="@style/TextAppearance.SBA.RowBody" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_browse_mods"
-        style="@style/Widget.Material3.Button.TonalButton"
+        style="@style/Widget.Material3Expressive.Button.TonalButton"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_height="64dp"
+        android:layout_marginTop="16dp"
         android:text="@string/mods_browse"
         app:icon="@drawable/ic_nav_browse" />
 
@@ -54,9 +54,10 @@
         android:id="@+id/mods_empty"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="40dp"
         android:gravity="center"
         android:text="@string/mods_empty"
+        android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:visibility="gone" />
 
@@ -64,7 +65,7 @@
         android:id="@+id/mods_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="20dp"
         android:layout_weight="1"
         android:clipToPadding="false" />
 </LinearLayout>

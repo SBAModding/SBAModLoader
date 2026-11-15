@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:orientation="horizontal"
     android:paddingHorizontal="24dp"
-    android:paddingTop="24dp">
+    android:paddingTop="32dp">
 
     <!-- Landscape: title, hint and buttons on the left; the mods fill the rest of the width in two columns. -->
     <ScrollView
@@ -23,22 +23,20 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/nav_mods"
-                android:textAppearance="?attr/textAppearanceHeadlineLarge"
-                android:textColor="?attr/colorOnSurface" />
+                android:textAppearance="@style/TextAppearance.SBA.PageTitle" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/mods_order_hint"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="13sp" />
+                android:textAppearance="@style/TextAppearance.SBA.RowBody" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_browse_mods"
-                style="@style/Widget.Material3.Button.TonalButton"
+                style="@style/Widget.Material3Expressive.Button.TonalButton"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="64dp"
                 android:layout_marginTop="16dp"
                 android:text="@string/mods_browse"
                 app:icon="@drawable/ic_nav_browse" />
@@ -46,9 +44,9 @@
             <!-- developer features only -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_add_mod"
-                style="@style/Widget.Material3.Button.TonalButton"
+                style="@style/Widget.Material3Expressive.Button.TonalButton"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="64dp"
                 android:layout_marginTop="8dp"
                 android:text="@string/mods_add"
                 android:visibility="gone"
@@ -69,6 +67,7 @@
             android:layout_marginTop="32dp"
             android:gravity="center"
             android:text="@string/mods_empty"
+            android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:visibility="gone" />
 

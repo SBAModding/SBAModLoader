@@ -1,28 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/bootstrap_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
     android:background="?android:attr/colorBackground"
-    android:padding="24dp">
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp">
 
-    <ProgressBar
+    <com.google.android.material.loadingindicator.LoadingIndicator
         android:id="@+id/bootstrap_progress"
-        style="?android:attr/progressBarStyleLarge"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:indeterminate="true" />
+        android:layout_width="96dp"
+        android:layout_height="96dp" />
 
-    <ProgressBar
+    <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/bootstrap_download_progress"
-        style="?android:attr/progressBarStyleHorizontal"
+        style="@style/Widget.SBA.Progress.Wavy"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:max="100"
+        android:layout_marginTop="24dp"
         android:indeterminate="false"
+        android:max="100"
         android:progress="0"
         android:visibility="gone" />
 
@@ -30,22 +29,21 @@
         android:id="@+id/bootstrap_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="28dp"
         android:gravity="center"
         android:text="@string/bootstrap_title"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:textAppearance="@style/TextAppearance.SBA.HeadlineMediumEmphasized"
+        android:textColor="?attr/colorOnSurface" />
 
     <TextView
         android:id="@+id/bootstrap_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="12dp"
         android:gravity="center"
         android:text="@string/bootstrap_status_preparing"
-        android:textColor="?android:attr/textColorSecondary"
-        android:textSize="14sp" />
+        android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
+        android:textColor="?attr/colorOnSurfaceVariant" />
 
     <TextView
         android:id="@+id/bootstrap_progress_details"
@@ -53,9 +51,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:gravity="center"
-        android:textColor="?android:attr/textColorSecondary"
-        android:textSize="12sp"
+        android:textAppearance="@style/TextAppearance.SBA.Caption"
         android:visibility="gone" />
-
 </LinearLayout>
-

@@ -62,7 +62,8 @@ project's BepInEx fork.
 
 It also uses [BepInEx](https://github.com/BepInEx/BepInEx), [Il2CppInterop](https://github.com/BepInEx/Il2CppInterop),
 the [.NET runtime](https://github.com/dotnet/runtime), [Dobby](https://github.com/jmpews/Dobby) and Material
-Components for Android.
+Components for Android. The app's font is [Roboto Flex](https://github.com/googlefonts/roboto-flex) (SIL Open Font
+License 1.1, see `third_party/roboto-flex/OFL.txt`).
 
 Licensed under the GNU General Public License v3.0; see [LICENSE](LICENSE).
 

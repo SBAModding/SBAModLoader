@@ -326,7 +326,7 @@ public class BrowseFragment extends Fragment {
     }
 
     private TextView section(String title) {
-        TextView t = text(title, com.google.android.material.R.style.TextAppearance_Material3_TitleMedium,
+        TextView t = text(title, R.style.TextAppearance_SBA_TitleLargeEmphasized,
                 com.google.android.material.R.attr.colorOnSurface);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = dp(28);
@@ -334,6 +334,9 @@ public class BrowseFragment extends Fragment {
         t.setLayoutParams(lp);
         return t;
     }
+
+    /** Progress of the download that is running, 0 to 100 (0 shows an indeterminate bar). */
+    private int installPercent;
 
     private void showDetail(Entry e) {
         final Version cv = chosenVersion(e);
@@ -363,12 +366,12 @@ public class BrowseFragment extends Fragment {
         titles.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         tlp.setMarginStart(dp(16));
-        titles.addView(text(e.name, com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall,
+        titles.addView(text(e.name, R.style.TextAppearance_SBA_HeadlineSmallEmphasized,
                 com.google.android.material.R.attr.colorOnSurface));
-        titles.addView(text(e.author, com.google.android.material.R.style.TextAppearance_Material3_BodyMedium,
+        titles.addView(text(e.author, R.style.TextAppearance_SBA_BodyMedium,
                 com.google.android.material.R.attr.colorOnSurfaceVariant));
         titles.addView(text("v" + cv.version + " · " + kindLabel(e.kind),
-                com.google.android.material.R.style.TextAppearance_Material3_BodySmall,
+                R.style.TextAppearance_SBA_BodySmall,
                 com.google.android.material.R.attr.colorOnSurfaceVariant));
         header.addView(titles, tlp);
         c.addView(header);
@@ -426,7 +429,7 @@ public class BrowseFragment extends Fragment {
 
         // About
         c.addView(section(getString(R.string.detail_about)));
-        c.addView(text(e.description, com.google.android.material.R.style.TextAppearance_Material3_BodyMedium,
+        c.addView(text(e.description, R.style.TextAppearance_SBA_BodyMedium,
                 com.google.android.material.R.attr.colorOnSurface));
 
         // Verification
@@ -447,14 +450,13 @@ public class BrowseFragment extends Fragment {
         // The checksum means nothing to most people; it is there for developers.
         if (dev.segually.sbamodloader.SBASettings.getDeveloperFeatures(requireContext())) {
             TextView hashTitle = text(getString(R.string.detail_hash_title),
-                    com.google.android.material.R.style.TextAppearance_Material3_LabelMedium,
+                    R.style.TextAppearance_SBA_LabelMedium,
                     com.google.android.material.R.attr.colorOnSurfaceVariant);
             LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             hlp.topMargin = dp(12);
             card.addView(hashTitle, hlp);
-            TextView hash = text(cv.sha256, com.google.android.material.R.style.TextAppearance_Material3_BodySmall,
+            TextView hash = text(cv.sha256, R.style.TextAppearance_SBA_BodySmall,
                     com.google.android.material.R.attr.colorOnSurface);
-            hash.setTypeface(android.graphics.Typeface.MONOSPACE);
             hash.setTextIsSelectable(true);
             card.addView(hash);
         }
@@ -484,7 +486,7 @@ public class BrowseFragment extends Fragment {
 
         if (!cv.changelog.isEmpty()) {
             c.addView(section(getString(R.string.detail_whats_new)));
-            c.addView(text(cv.changelog, com.google.android.material.R.style.TextAppearance_Material3_BodyMedium,
+            c.addView(text(cv.changelog, R.style.TextAppearance_SBA_BodyMedium,
                     com.google.android.material.R.attr.colorOnSurface));
         }
     }
@@ -502,8 +504,23 @@ public class BrowseFragment extends Fragment {
         final String installed = ModInstaller.installedVersion(requireContext(), e);
         boolean working = busy.contains(e.id);
 
+        if (working) {
+            // A wavy bar and a line saying what is happening, instead of a disabled button.
+            View progress = LayoutInflater.from(requireContext()).inflate(R.layout.view_install_progress, area, false);
+            TextView line = progress.findViewById(R.id.install_status);
+            line.setText(status != null ? status : getString(R.string.detail_working));
+            com.google.android.material.progressindicator.LinearProgressIndicator bar = progress.findViewById(R.id.install_progress);
+            if (installPercent > 0) {
+                bar.setIndeterminate(false);
+                bar.setProgressCompat(installPercent, true);
+            }
+            area.addView(progress);
+            return;
+        }
+
         MaterialButton primary = new MaterialButton(requireContext());
-        primary.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)));
+        primary.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72)));
+        primary.setTextAppearance(R.style.TextAppearance_SBA_TitleMediumEmphasized);
         if (working) {
             primary.setText(status != null ? status : getString(R.string.detail_working));
             primary.setEnabled(false);
@@ -557,6 +574,7 @@ public class BrowseFragment extends Fragment {
             for (String id : ids) if (busy.contains(id)) return;
             busy.addAll(ids);
         }
+        installPercent = 0;
         renderInstallArea(area, e, getString(R.string.detail_working));
         adapter.notifyDataSetChanged();
         // The worker thread must not touch this fragment: the user can leave the tab while it runs. It only uses
@@ -569,7 +587,9 @@ public class BrowseFragment extends Fragment {
                     String line = mod.id.equals(e.id)
                             ? app.getString(R.string.detail_downloading, total > 0 ? (int) (done * 100 / total) : 0)
                             : app.getString(R.string.detail_downloading_requirement, mod.name);
+                    final int percent = total > 0 ? (int) (done * 100 / total) : 0;
                     onUi(f -> {
+                        f.installPercent = percent;
                         if (e.id.equals(f.selectedId) && f.installArea != null) f.renderInstallArea(f.installArea, e, line);
                     });
                 });
@@ -765,9 +785,9 @@ public class BrowseFragment extends Fragment {
         LinearLayout col = new LinearLayout(requireContext());
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER_HORIZONTAL);
-        col.addView(text(value, com.google.android.material.R.style.TextAppearance_Material3_TitleMedium,
+        col.addView(text(value, R.style.TextAppearance_SBA_TitleMediumEmphasized,
                 com.google.android.material.R.attr.colorOnSurface));
-        col.addView(text(label, com.google.android.material.R.style.TextAppearance_Material3_BodySmall,
+        col.addView(text(label, R.style.TextAppearance_SBA_BodySmall,
                 com.google.android.material.R.attr.colorOnSurfaceVariant));
         col.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         return col;
@@ -785,9 +805,9 @@ public class BrowseFragment extends Fragment {
         col.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         clp.setMarginStart(dp(16));
-        col.addView(text(title, com.google.android.material.R.style.TextAppearance_Material3_BodyLarge,
+        col.addView(text(title, R.style.TextAppearance_SBA_BodyLarge,
                 com.google.android.material.R.attr.colorOnSurface));
-        col.addView(text(body, com.google.android.material.R.style.TextAppearance_Material3_BodySmall,
+        col.addView(text(body, R.style.TextAppearance_SBA_BodySmall,
                 com.google.android.material.R.attr.colorOnSurfaceVariant));
         row.addView(col, clp);
         return row;
@@ -797,10 +817,10 @@ public class BrowseFragment extends Fragment {
         LinearLayout row = new LinearLayout(requireContext());
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(0, dp(6), 0, dp(6));
-        TextView l = text(label, com.google.android.material.R.style.TextAppearance_Material3_BodyMedium,
+        TextView l = text(label, R.style.TextAppearance_SBA_BodyMedium,
                 com.google.android.material.R.attr.colorOnSurfaceVariant);
         row.addView(l, new LinearLayout.LayoutParams(dp(140), ViewGroup.LayoutParams.WRAP_CONTENT));
-        TextView v = text(value, com.google.android.material.R.style.TextAppearance_Material3_BodyMedium,
+        TextView v = text(value, R.style.TextAppearance_SBA_BodyMedium,
                 com.google.android.material.R.attr.colorOnSurface);
         row.addView(v, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         return row;
@@ -895,8 +915,11 @@ public class BrowseFragment extends Fragment {
             String game = installedGameVersion();
             if (game != null && ModVersions.bestFor(e, game) == null) stats.append("  \u00b7  ").append(getString(R.string.detail_other_game));
             h.stats.setText(stats);
-            h.root.setBackgroundResource(e.id.equals(selectedId) && detailPage == null
-                    ? R.drawable.bg_card_selected : R.drawable.bg_card);
+            boolean selected = e.id.equals(selectedId) && detailPage == null;
+            ((com.google.android.material.card.MaterialCardView) h.root).setCardBackgroundColor(
+                    com.google.android.material.color.MaterialColors.getColor(h.root, selected
+                            ? com.google.android.material.R.attr.colorSecondaryContainer
+                            : com.google.android.material.R.attr.colorSurfaceContainerHigh));
             h.root.setOnClickListener(v -> select(e));
         }
 

@@ -1,19 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<merge xmlns:android="http://schemas.android.com/apk/res/android">
+<!-- Developer information: where the mods live. Hidden unless developer features are on. -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
     <TextView
         android:id="@+id/data_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="16dp"
         android:text="@string/settings_data_location"
-        android:textAppearance="?attr/textAppearanceTitleSmall"
-        android:textColor="?attr/colorOnSurface" />
+        android:textAppearance="@style/TextAppearance.SBA.RowTitle" />
+
     <TextView
         android:id="@+id/data_path"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textIsSelectable="true"
-        android:textSize="13sp" />
-</merge>
+        android:paddingBottom="20dp"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="2dp"
+        android:textAppearance="@style/TextAppearance.SBA.RowBody"
+        android:textIsSelectable="true" />
+</LinearLayout>
