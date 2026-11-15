@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "mods": [
+    {
+      "id": "hive-reborn",
+      "name": "Hive Reborn",
+      "author": "anima",
+      "kind": "sbapack",
+      "summary": "A texture pack that replaces the game's art with the Hive Reborn look.",
+      "description": "Hive Reborn is a texture pack by anima. It replaces the game's main data file (data.unity3d) with its own, so the game's art changes everywhere. It contains art only: no code and no native libraries.",
+      "categories": [
+        "texture_pack/replacement"
+      ],
+      "version": "1.0.1",
+      "gameVersions": [
+        "13.0.8"
+      ],
+      "size": 355696382,
+      "sha256": "1db7fa3187e4d234d1c06544e473aa8da6d9a8b4c78a33d86421398581db8ebd",
+      "updated": "2026-11-15",
+      "source": {
+        "kind": "external",
+        "url": "https://github.com/SBAModding/ReleaseRepository/releases/download/hive-reborn-1.0.1/HiveReborn.sbapack"
+      },
+      "openSource": false,
+      "license": "No License",
+      "audited": {
+        "version": "1.0.1",
+        "date": "2026-11-15",
+        "by": "SBAModLoader team"
+      },
+      "changelog": "Added missing textures and adds small details",
+      "tags": [
+        "textures",
+        "hive"
+      ],
+      "requires": [],
+      "previousVersions": [
+        {
+          "version": "1.0.0",
+          "gameVersions": [
+            "13.0.8"
+          ],
+          "size": 355595950,
+          "sha256": "7e87ea7b29c0440efd1132b102b7a1de8d947948b58956abfff58fbe58dddf00",
+          "updated": "2026-11-14",
+          "source": {
+            "kind": "external",
+            "url": "https://github.com/SBAModding/ReleaseRepository/releases/download/hive-reborn-1.0.0/HiveReborn.sbapack"
+          },
+          "audited": {
+            "version": "1.0.0",
+            "date": "2026-11-14",
+            "by": "SBAModLoader team"
+          },
+          "changelog": "First release for SBAModLoader."
+        }
+      ]
+    },
+    {
+      "id": "segualsba-client",
+      "name": "SegualSBA Client",
+      "author": "Segually",
+      "kind": "sbapack",
+      "summary": "A mod menu opened from a draggable bird: custom server, nickname, lobby size, and unlock toggles.",
+      "description": "SegualSBA Client adds a draggable bird over the game that opens a small mod menu. It has a custom server toggle that connects the game's online features to a self-hosted Photon server instead of Photon Cloud, a custom nickname, a toggle that unlocks all cosmetics and emotes (developer-only cosmetics stay locked), and a toggle that unlocks all bears and gold times, and a slider for the maximum number of players in a lobby (4 like the real game by default, up to 99, or Infinite). The unlock toggles only change what the game shows and never write to your save, so turning one off puts everything back. This is an SBA pack with native code. It works best with SBAModLoader 0.0.1c or newer.",
+      "categories": [
+        "mod/cheats",
+        "mod/changes"
+      ],
+      "version": "1.0.1",
+      "gameVersions": [
+        "13.0.8"
+      ],
+      "size": 231125,
+      "sha256": "03cbd8015707fa327661131dd138bd30c99656e0ff8238432843defa1eaabd33",
+      "updated": "2026-11-14",
+      "source": {
+        "kind": "external",
+        "url": "https://github.com/SBAModding/ReleaseRepository/releases/download/segualsba-client-1.0.1/SegualSBAClient.sbapack"
+      },
+      "openSource": false,
+      "license": "All rights reserved",
+      "audited": {
+        "version": "1.0.1",
+        "date": "2026-11-14",
+        "by": "SBAModLoader team"
+      },
+      "changelog": "Adds a Maximum lobby players slider: 1 to 99, or Infinite (1000). The default stays at 4.",
+      "tags": [
+        "client",
+        "menu",
+        "nickname",
+        "unlock",
+        "multiplayer",
+        "lobby"
+      ],
+      "requires": [],
+      "previousVersions": [
+        {
+          "version": "1.0.0",
+          "gameVersions": [
+            "13.0.8"
+          ],
+          "size": 229512,
+          "sha256": "911c68493e8d94af10afb62a674fb86cf35e42d5bc874aded99f3a93412ba85c",
+          "updated": "2026-11-14",
+          "source": {
+            "kind": "external",
+            "url": "https://github.com/SBAModding/ReleaseRepository/releases/download/segualsba-client-1.0.0/SegualSBAClient.sbapack"
+          },
+          "audited": {
+            "version": "1.0.0",
+            "date": "2026-11-14",
+            "by": "SBAModLoader team"
+          },
+          "changelog": "First release for SBAModLoader."
+        }
+      ]
+    },
+    {
+      "id": "super-cars-adventure",
+      "name": "Super Cars Adventure",
+      "author": "GaLazo",
+      "kind": "sbapack",
+      "summary": "Drivable cars and a whole city inside Super Bear Adventure, with party and online features.",
+      "description": "Super Cars Adventure adds a large collection of drivable cars and a city to build around them, all built into the game's own world. It includes its own HUD, sounds and music, and online party features. This is an SBA pack: it carries native code, Java code and its assets together.",
+      "categories": [
+        "mod/expansion"
+      ],
+      "version": "1.0.0",
+      "gameVersions": [
+        "13.0.8"
+      ],
+      "size": 114419900,
+      "sha256": "7686cd2c8c899e781cb6c44a69f0308b29f5ed4c8898e24d1f5a056f04f7b70c",
+      "updated": "2026-11-13",
+      "source": {
+        "kind": "external",
+        "url": "https://github.com/SBAModding/ReleaseRepository/releases/download/super-cars-adventure-1.0.0/SuperCarsAdventure.sbapack"
+      },
+      "openSource": false,
+      "license": "All rights reserved",
+      "audited": {
+        "version": "1.0.0",
+        "date": "2026-11-13",
+        "by": "SBAModLoader team"
+      },
+      "changelog": "First release for SBAModLoader.",
+      "tags": [
+        "cars",
+        "city",
+        "multiplayer"
+      ],
+      "requires": []
+    }
+  ]
+}

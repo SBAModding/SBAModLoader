@@ -13,6 +13,8 @@ dependencies {
     implementation("com.google.protobuf:protobuf-javalite:4.36.1")
 
     testImplementation("junit:junit:4.13.2")
+    // The real org.json, because the Android one is only a stub in JVM unit tests.
+    testImplementation("org.json:json:20240303")
 }
 
 /** The short commit hash the build was made from, for the About card; "unknown" outside a git checkout. */
@@ -49,6 +51,11 @@ android {
             abiFilters.add("arm64-v8a")
             // abiFilters.add("armeabi-v7a")
         }
+    }
+
+    testOptions {
+        // android.util.Log and friends return defaults instead of throwing, so plain-Java code that logs can be tested.
+        unitTests.isReturnDefaultValues = true
     }
 
     externalNativeBuild {
