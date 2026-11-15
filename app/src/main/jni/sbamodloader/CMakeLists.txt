@@ -16,6 +16,7 @@ add_library(sbamodloader SHARED
         src/hooking/il2cpp.cpp
         src/hooking/safehook.cpp
         src/hooking/libunity.cpp
+        src/hooking/houdini.cpp
         src/utilities/asm.cpp
         src/utilities/elf.cpp
         src/utilities/library.cpp

@@ -12,6 +12,7 @@
 #include <hooking/safehook.h>
 #include <hooking/allocator.h>
 #include <hooking/libunity.h>
+#include <hooking/houdini.h>
 #include <dotnet.h>
 #include <native_mods.h>
 #include <memory_log.h>
@@ -217,6 +218,9 @@ extern "C" [[maybe_unused]] bool sba_bootstrap_from_libmain(JNIEnv *env)
         log(LogLevel::ERROR, TAG, "Failed to initialize SafeHook");
         return false;
     }
+
+    // Required on libhoudini emulators (a no-op everywhere else); keep it when merging upstream.
+    houdini_install_fixes(il2cpp_get_handle());
 
     log(LogLevel::INFO, TAG, "Installing il2cpp hooks...");
     il2cpp_install_init_hook(il2cpp_init_hook);
