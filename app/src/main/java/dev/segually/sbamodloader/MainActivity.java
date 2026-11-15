@@ -106,6 +106,39 @@ public class MainActivity extends AppCompatActivity {
         }
         if (i.getBooleanExtra("sba_clearrepos", false)) SBASettings.setExtraRepos(this, new java.util.ArrayList<>());
         if (i.hasExtra("sba_layout")) SBASettings.setLayoutMode(this, i.getIntExtra("sba_layout", 0));
+        if (i.hasExtra("sba_install")) {
+            // Debug builds: install "<id>@<version>" through the same planner and installer the store page uses.
+            final String spec = i.getStringExtra("sba_install");
+            final android.content.Context app = getApplicationContext();
+            new Thread(() -> {
+                try {
+                    String[] parts = spec.split("@");
+                    dev.segually.sbamodloader.browser.Repositories.Result read = dev.segually.sbamodloader.browser.Repositories.load(app, true);
+                    java.util.Map<String, dev.segually.sbamodloader.browser.BrowserModels.Entry> index = new java.util.HashMap<>();
+                    for (dev.segually.sbamodloader.browser.BrowserModels.Entry e : read.entries) index.put(e.id, e);
+                    dev.segually.sbamodloader.browser.BrowserModels.Entry entry = index.get(parts[0]);
+                    dev.segually.sbamodloader.browser.BrowserModels.Version version = entry.version(parts[1]);
+                    dev.segually.sbamodloader.browser.InstallPlanner.Plan plan = dev.segually.sbamodloader.browser.InstallPlanner.plan(
+                            entry, version, index, dev.segually.sbamodloader.browser.ModInstaller.installedVersions(app, index.values()), null);
+                    dev.segually.sbamodloader.browser.ModInstaller.install(app, plan, (mod, done, total) -> { });
+                    android.util.Log.i("SBA.Test", "sba_install done: " + spec + " steps=" + plan.steps.size());
+                } catch (Exception e) {
+                    android.util.Log.e("SBA.Test", "sba_install failed: " + spec, e);
+                }
+            }, "debug-install").start();
+        }
+        if (i.hasExtra("sba_export")) {
+            final String path = i.getStringExtra("sba_export");
+            final android.content.Context app = getApplicationContext();
+            new Thread(() -> {
+                try {
+                    dev.segually.sbamodloader.tools.InteropExport.export(app, android.net.Uri.fromFile(new java.io.File(path)));
+                    android.util.Log.i("SBA.Test", "sba_export done: " + path);
+                } catch (Exception e) {
+                    android.util.Log.e("SBA.Test", "sba_export failed", e);
+                }
+            }, "debug-export").start();
+        }
         if (i.hasExtra("sba_theme")) SBASettings.setThemeMode(this, i.getIntExtra("sba_theme", 0));
     }
 

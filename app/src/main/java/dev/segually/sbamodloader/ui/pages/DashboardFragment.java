@@ -89,6 +89,11 @@ public class DashboardFragment extends Fragment {
         super.onResume();
         syncPatches();
         checkMods();
+        if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_launch", false)) {
+            requireActivity().getIntent().removeExtra("sba_launch");
+            // Debug builds: start the game as the Launch button does, once the game setup has been checked.
+            requireView().postDelayed(this::launchBootstrap, 4000);
+        }
     }
 
     /** Shows a card when installed mods have updates. */

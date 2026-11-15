@@ -235,6 +235,25 @@ public class ModsFragment extends Fragment {
                 ? getString(R.string.problems_body_one) : getString(R.string.problems_body, h.fixes.issues.size()));
         root.findViewById(R.id.btn_problems).setOnClickListener(x -> showProblems());
         if (list != null && list.getAdapter() != null) list.getAdapter().notifyDataSetChanged();
+        if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_updateall", false)
+                && !h.updates.isEmpty() && !updating) {
+            requireActivity().getIntent().removeExtra("sba_updateall");
+            requireView().post(this::updateAll); // debug builds: press Update all
+        }
+        if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_fix", false)
+                && h.hasProblems() && !h.fixes.blocked()) {
+            requireActivity().getIntent().removeExtra("sba_fix");
+            final android.content.Context app = requireContext().getApplicationContext();
+            new Thread(() -> { // debug builds: press Fix automatically
+                try {
+                    ModInstaller.install(app, h.fixes, (mod, done, total) -> { });
+                    android.util.Log.i("SBA.Test", "sba_fix done: " + h.fixes.steps.size() + " steps");
+                } catch (Exception e) {
+                    android.util.Log.e("SBA.Test", "sba_fix failed", e);
+                }
+                post(() -> { reload(); checkHealth(true); });
+            }, "debug-fix").start();
+        }
         if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_problems", false)) {
             requireActivity().getIntent().removeExtra("sba_problems");
             requireView().post(this::showProblems); // debug builds: open the list, for layout checks
