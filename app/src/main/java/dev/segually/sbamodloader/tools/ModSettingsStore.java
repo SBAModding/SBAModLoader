@@ -61,7 +61,9 @@ public final class ModSettingsStore {
                     }
                 }
             } else {
+                // Both "Plugin.dll.sbasettings.json" and "Plugin.sbasettings.json" are accepted.
                 File sidecar = new File(mod.getParentFile(), base + ".sbasettings.json");
+                if (!sidecar.isFile()) sidecar = new File(mod.getParentFile(), fallback + ".sbasettings.json");
                 if (sidecar.isFile() && sidecar.length() <= (1 << 16)) {
                     json = new JSONObject(new String(Files.readAllBytes(sidecar.toPath()), StandardCharsets.UTF_8));
                 }
