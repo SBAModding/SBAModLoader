@@ -146,7 +146,24 @@ public final class ModIndexParser {
         }
 
         JSONObject a = o.getJSONObject("audited");
-        v.audit = new Audit(a.getString("version"), a.getString("date"), a.getString("by"));
+        List<String> notes = new ArrayList<>();
+        JSONArray noteList = a.optJSONArray("notes");
+        if (noteList != null) {
+            for (int i = 0; i < noteList.length() && notes.size() < 6; i++) {
+                String note = noteList.optString(i, "").trim();
+                if (!note.isEmpty()) notes.add(note.length() > 120 ? note.substring(0, 120) : note);
+            }
+        }
+        v.audit = new Audit(a.getString("version"), a.getString("date"), a.getString("by"), notes);
+
+        // What the release is made of; unknown words are ignored, so a newer repository cannot break an older loader.
+        JSONArray contains = o.optJSONArray("contains");
+        if (contains != null) {
+            for (int i = 0; i < contains.length(); i++) {
+                String c = contains.optString(i, "");
+                if (java.util.Arrays.asList("assets", "native", "java", "fusion").contains(c) && !v.contains.contains(c)) v.contains.add(c);
+            }
+        }
         // An audit covers one exact version; anything else is not shown as audited, so it is not offered at all.
         if (!v.audit.version.equals(v.version)) throw new JSONException("Not audited at this version");
         return v;

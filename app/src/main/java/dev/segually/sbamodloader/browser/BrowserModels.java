@@ -109,11 +109,18 @@ public final class BrowserModels {
         public final String version;
         public final String date;
         public final String by;
+        /** Short reasons the reviewer wrote down (at most 6), shown as why the mod is rated safe. */
+        public final List<String> notes;
 
         public Audit(String version, String date, String by) {
+            this(version, date, by, new ArrayList<>());
+        }
+
+        public Audit(String version, String date, String by, List<String> notes) {
             this.version = version;
             this.date = date;
             this.by = by;
+            this.notes = notes;
         }
     }
 
@@ -139,6 +146,8 @@ public final class BrowserModels {
         public List<String> gameVersions = new ArrayList<>();
         public List<String> mirrors = new ArrayList<>();
         public List<Dependency> dependencies = new ArrayList<>();
+        /** What the release is made of: assets, native, java, fusion. Empty when the repository does not say. */
+        public List<String> contains = new ArrayList<>();
         public long size, updatedMillis;
         public Source source;
         public Audit audit;

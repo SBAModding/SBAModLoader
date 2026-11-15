@@ -292,4 +292,17 @@
     <string name="problems_close">Close</string>
     <string name="dashboard_mod_updates_one">1 mod has an update</string>
     <string name="dashboard_mod_updates">%1$d mods have updates</string>
+    <string name="safety_no_code">Contains no code</string>
+    <string name="safety_no_code_body">Only images, sounds and other files that replace the game\'s own. It cannot run anything.</string>
+    <string name="safety_native">Contains native code</string>
+    <string name="safety_native_body">Code that runs inside the game. It was part of the review.</string>
+    <string name="safety_java">Contains Java code</string>
+    <string name="safety_java_body">Code that runs inside the game. It was part of the review.</string>
+    <string name="safety_plugin">Is a plugin</string>
+    <string name="safety_plugin_body">A .NET plugin that runs inside the game. It was part of the review.</string>
+    <string name="safety_owner">Made by the project owner</string>
+    <string name="safety_owner_body">%1$s also makes SBAModLoader.</string>
+    <string name="safety_history_one">1 earlier version was checked too</string>
+    <string name="safety_history">%1$d earlier versions were checked too</string>
+    <string name="safety_history_body">Every version in the store is reviewed before it is listed.</string>
 </resources>

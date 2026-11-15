@@ -450,6 +450,11 @@ public class BrowseFragment extends Fragment {
                 DateUtils.DAY_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString(), getString(R.string.detail_updated).toLowerCase(Locale.ROOT)));
         c.addView(stats);
 
+        if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().hasExtra("sba_scroll")) {
+            final int y = requireActivity().getIntent().getIntExtra("sba_scroll", 0); // debug builds: scroll, for layout checks
+            detail.scroll.postDelayed(() -> detail.scroll.scrollTo(0, y), 600);
+        }
+
         // Screenshots
         if (!e.screenshots.isEmpty()) {
             c.addView(section(getString(R.string.detail_screenshots)));
@@ -472,14 +477,9 @@ public class BrowseFragment extends Fragment {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackgroundResource(R.drawable.bg_card);
         card.setPadding(dp(16), dp(8), dp(16), dp(16));
-        card.addView(verifyRow(R.drawable.ic_verified, getString(R.string.detail_audited_title),
-                getString(R.string.detail_audited_body, cv.audit.version, cv.audit.date)));
-        if (e.openSource) {
-            card.addView(verifyRow(R.drawable.ic_code, getString(R.string.detail_open_source_title, e.license),
-                    getString(R.string.detail_open_source_body, cv.source.repo, cv.source.tag)));
-        } else {
-            card.addView(verifyRow(R.drawable.ic_lock, getString(R.string.detail_closed_source_title, e.license),
-                    getString(R.string.detail_closed_source_body, cv.source.host())));
+        for (dev.segually.sbamodloader.browser.SafetyReasons.Reason reason
+                : dev.segually.sbamodloader.browser.SafetyReasons.build(e, cv, PROJECT_OWNER)) {
+            card.addView(reasonRow(reason, cv));
         }
         // The checksum means nothing to most people; it is there for developers.
         if (dev.segually.sbamodloader.SBASettings.getDeveloperFeatures(requireContext())) {
@@ -1005,6 +1005,41 @@ public class BrowseFragment extends Fragment {
         return tile;
     }
 
+    /** The name the project's owner publishes under; their mods say so on the safety card. */
+    private static final String PROJECT_OWNER = "Segually";
+
+    private View reasonRow(dev.segually.sbamodloader.browser.SafetyReasons.Reason r, Version cv) {
+        switch (r.type) {
+            case AUDITED:
+                return verifyRow(R.drawable.ic_verified, getString(R.string.detail_audited_title),
+                        getString(R.string.detail_audited_body, r.a, r.b));
+            case NOTE:
+                return verifyRow(R.drawable.ic_check_circle, r.a, null);
+            case NO_CODE:
+                return verifyRow(R.drawable.ic_check_circle, getString(R.string.safety_no_code), getString(R.string.safety_no_code_body));
+            case NATIVE_CODE:
+                return verifyRow(R.drawable.ic_code, getString(R.string.safety_native), getString(R.string.safety_native_body));
+            case JAVA_CODE:
+                return verifyRow(R.drawable.ic_code, getString(R.string.safety_java), getString(R.string.safety_java_body));
+            case PLUGIN_CODE:
+                return verifyRow(R.drawable.ic_code, getString(R.string.safety_plugin), getString(R.string.safety_plugin_body));
+            case OPEN_SOURCE:
+                return verifyRow(R.drawable.ic_code, getString(R.string.detail_open_source_title, r.a),
+                        getString(R.string.detail_open_source_body, r.b, r.c));
+            case CLOSED_SOURCE:
+                return verifyRow(R.drawable.ic_lock, getString(R.string.detail_closed_source_title, r.a),
+                        getString(R.string.detail_closed_source_body, r.b));
+            case OWNER:
+                return verifyRow(R.drawable.ic_verified, getString(R.string.safety_owner), getString(R.string.safety_owner_body, r.a));
+            default: {
+                int n = Integer.parseInt(r.a);
+                return verifyRow(R.drawable.ic_check_circle,
+                        n == 1 ? getString(R.string.safety_history_one) : getString(R.string.safety_history, n),
+                        getString(R.string.safety_history_body));
+            }
+        }
+    }
+
     private View verifyRow(int icon, String title, String body) {
         LinearLayout row = new LinearLayout(requireContext());
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -1019,8 +1054,10 @@ public class BrowseFragment extends Fragment {
         clp.setMarginStart(dp(16));
         col.addView(text(title, R.style.TextAppearance_SBA_BodyLarge,
                 com.google.android.material.R.attr.colorOnSurface));
-        col.addView(text(body, R.style.TextAppearance_SBA_BodySmall,
-                com.google.android.material.R.attr.colorOnSurfaceVariant));
+        if (body != null) {
+            col.addView(text(body, R.style.TextAppearance_SBA_BodySmall,
+                    com.google.android.material.R.attr.colorOnSurfaceVariant));
+        }
         row.addView(col, clp);
         return row;
     }

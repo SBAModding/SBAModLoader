@@ -79,7 +79,10 @@ public class MainActivity extends AppCompatActivity {
         if (i == null) return;
         if (i.hasExtra("sba_you")) SBASettings.setMaterialYou(this, i.getBooleanExtra("sba_you", true));
         if (i.hasExtra("sba_accent")) SBASettings.setAccentColor(this, i.getIntExtra("sba_accent", 0));
-        if (i.hasExtra("sba_index")) SBASettings.setDebugIndexUrl(this, i.getStringExtra("sba_index"));
+        if (i.hasExtra("sba_index")) {
+            String url = i.getStringExtra("sba_index");
+            SBASettings.setDebugIndexUrl(this, "official".equals(url) ? "" : url); // "official" goes back to the real index
+        }
         if (i.hasExtra("sba_fake")) dev.segually.sbamodloader.browser.ModHealth.debugFake = i.getBooleanExtra("sba_fake", false);
         if (i.hasExtra("sba_theme")) SBASettings.setThemeMode(this, i.getIntExtra("sba_theme", 0));
     }

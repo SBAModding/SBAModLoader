@@ -162,4 +162,41 @@ public class ModIndexParserTest {
     public void anUnknownSchemaVersionIsRefused() throws Exception {
         ModIndexParser.parse(new JSONObject(sample()).put("schemaVersion", 2).toString());
     }
+
+    @Test
+    public void auditNotesAndContentsAreRead() throws Exception {
+        Entry e = byId(parseEdited(o -> {
+            try {
+                o.getJSONObject("audited").put("notes", new JSONArray().put("Reads only art assets").put("  ").put("Second"));
+                o.put("contains", new JSONArray().put("assets").put("bogus").put("assets"));
+            } catch (JSONException ex) {
+                throw new IllegalStateException(ex);
+            }
+        }), "hive-reborn");
+        assertEquals(java.util.Arrays.asList("Reads only art assets", "Second"), e.latest().audit.notes);
+        assertEquals(java.util.Collections.singletonList("assets"), e.latest().contains);
+    }
+
+    @Test
+    public void tooManyOrTooLongNotesAreCut() throws Exception {
+        Entry e = byId(parseEdited(o -> {
+            try {
+                JSONArray notes = new JSONArray();
+                for (int i = 0; i < 9; i++) notes.put("n" + i);
+                notes.put(0, "x".repeat(300));
+                o.getJSONObject("audited").put("notes", notes);
+            } catch (JSONException ex) {
+                throw new IllegalStateException(ex);
+            }
+        }), "hive-reborn");
+        assertEquals(6, e.latest().audit.notes.size());
+        assertEquals(120, e.latest().audit.notes.get(0).length());
+    }
+
+    @Test
+    public void aReleaseWithoutNotesOrContentsStillParses() throws Exception {
+        Entry e = byId(ModIndexParser.parse(sample()), "hive-reborn");
+        assertTrue(e.latest().audit.notes.isEmpty());
+        assertTrue(e.latest().contains.isEmpty());
+    }
 }

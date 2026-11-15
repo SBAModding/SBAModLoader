@@ -51,6 +51,7 @@ public final class RemoteModRepository implements ModRepository {
             String json = fetch(indexUrl);
             List<Entry> entries = ModIndexParser.parse(json); // only a valid index replaces the saved copy
             Files.write(cache.toPath(), json.getBytes(StandardCharsets.UTF_8));
+            applyStats(entries);
             return entries;
         } catch (IOException | JSONException e) {
             Log.w(TAG, "Could not load the repository, trying the saved copy", e);
@@ -62,6 +63,23 @@ public final class RemoteModRepository implements ModRepository {
             } catch (JSONException ex) {
                 throw new IOException("The saved repository copy is unreadable", ex);
             }
+        }
+    }
+
+    /**
+     * Download counts: {@code stats.json} next to the index, a map of mod id to total downloads. Best effort: without
+     * it (offline, or a repository that has none) the page just shows no count.
+     */
+    private void applyStats(List<Entry> entries) {
+        try {
+            String statsUrl = indexUrl.substring(0, indexUrl.lastIndexOf('/') + 1) + "stats.json";
+            org.json.JSONObject stats = new org.json.JSONObject(fetch(statsUrl));
+            for (Entry e : entries) {
+                long n = stats.optLong(e.id, 0);
+                if (n > 0) e.downloads = n;
+            }
+        } catch (IOException | JSONException | RuntimeException ignored) {
+            // No counts today.
         }
     }
 
