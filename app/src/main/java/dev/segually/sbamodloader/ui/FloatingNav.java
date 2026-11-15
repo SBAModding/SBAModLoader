@@ -26,6 +26,7 @@ public final class FloatingNav {
     private final int[] labels;
     private final Listener listener;
     private int selected = -1;
+    private boolean showAllLabels;
 
     public FloatingNav(LinearLayout row, int[] icons, int[] labels, Listener listener) {
         this.context = row.getContext();
@@ -57,6 +58,17 @@ public final class FloatingNav {
         }
     }
 
+    /** On a wide screen every button shows its label; otherwise only the chosen one does. */
+    public void setShowAllLabels(boolean all) {
+        if (all == showAllLabels) return;
+        showAllLabels = all;
+        if (selected >= 0) {
+            int keep = selected;
+            selected = -1;
+            select(keep, false);
+        }
+    }
+
     public int selectedIndex() {
         return selected;
     }
@@ -80,12 +92,13 @@ public final class FloatingNav {
         for (int i = 0; i < buttons.length; i++) {
             MaterialButton b = buttons[i];
             boolean on = i == index;
-            b.setText(on ? context.getString(labels[i]) : "");
-            b.setIconPadding(on ? dp(8) : 0);
+            boolean label = on || showAllLabels;
+            b.setText(label ? context.getString(labels[i]) : "");
+            b.setIconPadding(label ? dp(8) : 0);
             b.setBackgroundTintList(ColorStateList.valueOf(on ? selectedBg : 0x00000000));
             b.setTextColor(on ? onSelected : onSurface);
             b.setIconTint(ColorStateList.valueOf(on ? onSelected : onSurface));
-            b.setPadding(dp(on ? 20 : 16), 0, dp(on ? 20 : 16), 0);
+            b.setPadding(dp(label ? 20 : 16), 0, dp(label ? 20 : 16), 0);
         }
         if (notify) listener.onSelected(index);
     }

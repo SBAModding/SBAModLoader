@@ -11,7 +11,7 @@ import dev.segually.sbamodloader.SBASettings;
 
 /**
  * Whether the app is running on a desktop (an Android PC, an emulator such as Waydroid or BlissOS, a Chromebook, a
- * tablet with a desk setup) and so should use the desktop layout: a navigation rail at the side and wide, two-pane pages.
+ * tablet with a desk setup) and so should use the desktop layout: the same dock with every label shown, and wide, two-pane pages.
  */
 public final class LayoutMode {
     /** What MainActivity decided last, so pages can pad for the right navigation without asking the device again. */

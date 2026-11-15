@@ -335,7 +335,7 @@
     <string name="mod_settings_note">Changes apply the next time the game starts.</string>
     <string name="mod_settings_reset">Reset to defaults</string>
     <string name="appearance_layout">Layout</string>
-    <string name="appearance_layout_desc">Phone layout, or the desktop layout with a side rail and wide pages.</string>
+    <string name="appearance_layout_desc">Phone layout, or the desktop layout with wide, two-pane pages and every dock label shown.</string>
     <string name="appearance_layout_auto">Automatic</string>
     <string name="appearance_layout_phone">Phone</string>
     <string name="appearance_layout_desktop">Desktop</string>

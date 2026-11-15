@@ -6,20 +6,10 @@
     android:layout_height="match_parent"
     android:background="?android:attr/colorBackground">
 
-    <!-- On a desktop the pages sit to the right of a navigation rail; on a phone the rail is gone. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal">
-
-        <com.google.android.material.navigationrail.NavigationRailView
-            android:id="@+id/nav_rail"
-            style="@style/Widget.Material3Expressive.NavigationRailView"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:visibility="gone"
-            app:labelVisibilityMode="labeled"
-            app:menu="@menu/nav_main" />
 
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/page_container"

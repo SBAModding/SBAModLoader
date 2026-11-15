@@ -18,7 +18,6 @@ public class MainActivity extends AppCompatActivity {
     private int page = 0;
     private android.view.View nav;
     private FloatingNav navigation;
-    private com.google.android.material.navigationrail.NavigationRailView rail;
     private boolean desktop;
     /** Set by {@link #openBrowse}: the store page the Browse tab should open on when it is created. */
     private String pendingBrowseMod;
@@ -46,23 +45,6 @@ public class MainActivity extends AppCompatActivity {
                 this::showPage);
         navigation.select(0, false);
 
-        rail = findViewById(R.id.nav_rail);
-        rail.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-            int index = id == R.id.nav_browse ? 1 : id == R.id.nav_mods ? 2 : id == R.id.nav_settings ? 3 : 0;
-            if (index != page) {
-                navigation.select(index, false);
-                showPage(index);
-            }
-            return true;
-        });
-        // The rail clears the status bar.
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rail, (v, insets) -> {
-            var bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()
-                    | androidx.core.view.WindowInsetsCompat.Type.displayCutout());
-            v.setPadding(bars.left, bars.top, 0, bars.bottom);
-            return insets;
-        });
         applyLayoutMode();
 
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main_root), (v, insets) -> {
@@ -155,15 +137,12 @@ public class MainActivity extends AppCompatActivity {
         outState.putInt(KEY_PAGE, page);
     }
 
-    /** Phone layout: the floating toolbar at the bottom. Desktop layout: a navigation rail at the side. */
+    /** The dock is the same on every device; on a desktop it has room to show every label, not just the chosen one's. */
     private void applyLayoutMode() {
         boolean now = dev.segually.sbamodloader.ui.LayoutMode.isDesktop(this);
         dev.segually.sbamodloader.ui.LayoutMode.current = now;
         desktop = now;
-        nav.setVisibility(desktop ? android.view.View.GONE : android.view.View.VISIBLE);
-        findViewById(R.id.edge_fade).setVisibility(desktop ? android.view.View.GONE : android.view.View.VISIBLE);
-        rail.setVisibility(desktop ? android.view.View.VISIBLE : android.view.View.GONE);
-        androidx.core.view.ViewCompat.requestApplyInsets(rail);
+        navigation.setShowAllLabels(desktop);
     }
 
     @Override
@@ -188,7 +167,6 @@ public class MainActivity extends AppCompatActivity {
     /** Goes to a page (0 Home, 1 Browse, 2 Mods, 3 Settings) with whichever navigation is showing. */
     private void goTo(int index) {
         navigation.select(index, false);
-        rail.getMenu().getItem(index).setChecked(true);
         showPage(index);
     }
 
@@ -205,7 +183,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void showPage(int index) {
         page = index;
-        if (rail != null && rail.getMenu().size() > index) rail.getMenu().getItem(index).setChecked(true);
         if (navigation != null && navigation.selectedIndex() != index) navigation.select(index, false);
         Fragment f = switch (index) {
             case 1 -> {

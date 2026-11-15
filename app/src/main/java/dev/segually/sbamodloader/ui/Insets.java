@@ -11,8 +11,7 @@ public final class Insets {
 
     /** Extra bottom space a page needs so its last item can scroll clear of the floating dock. */
     public static int navClearance(android.content.Context context) {
-        // On a desktop the navigation is a rail at the side, so nothing floats over the bottom of the page.
-        float dp = LayoutMode.current ? 24 : 96;
+        float dp = 96;
         return Math.round(dp * context.getResources().getDisplayMetrics().density);
     }
 
@@ -34,6 +33,14 @@ public final class Insets {
      * the sides and the bottom are padded.
      */
     public static void padForChrome(View view, int extraBottomPx, int maxContentDp, boolean includeTop) {
+        padForChrome(view, extraBottomPx, maxContentDp, includeTop, null);
+    }
+
+    /**
+     * As above, and {@code appBar} (the page's large title bar) gets the same side space, so the title lines up with the
+     * content when the content is centred on a wide screen.
+     */
+    public static void padForChrome(View view, int extraBottomPx, int maxContentDp, boolean includeTop, View appBar) {
         final int l = view.getPaddingLeft(), t = view.getPaddingTop(), r = view.getPaddingRight(), b = view.getPaddingBottom();
         final int maxPx = Math.round(maxContentDp * view.getResources().getDisplayMetrics().density);
         ViewCompat.setOnApplyWindowInsetsListener(view, (v, insets) -> {
@@ -42,12 +49,11 @@ public final class Insets {
             int right = 0;
             if (maxPx > 0) {
                 int free = Math.max(0, v.getWidth() - bars.left - bars.right - l - r - maxPx);
-                // On a desktop the content hugs the navigation rail, in line with the page title; elsewhere it is centred.
-                if (LayoutMode.current) right = free;
-                else left = right = free / 2;
+                left = right = free / 2;
             }
             // Left and right matter in landscape, where a camera cutout or a side navigation bar can sit there.
             v.setPadding(l + bars.left + left, t + (includeTop ? bars.top : 0), r + bars.right + right, b + bars.bottom + extraBottomPx);
+            if (appBar != null) appBar.setPadding(bars.left + left, 0, bars.right + right, 0);
             return insets;
         });
         if (maxPx > 0) {
