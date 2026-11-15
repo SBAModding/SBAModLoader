@@ -138,6 +138,29 @@ public final class InstallPlanner {
         return plan;
     }
 
+    /**
+     * What it takes to make the installed mods work together: every dependency of an installed mod that is missing, too
+     * old or too new is fixed by a step, and what cannot be fixed is an issue. There is no step for the installed mods
+     * themselves. A plan with a blocking issue cannot be applied.
+     *
+     * @param index       every mod in the repository, by id
+     * @param installed   the version of each mod the browser has installed, by id
+     * @param gameVersion the installed game's version, or null when it is not known
+     */
+    public static Plan planFixes(Map<String, Entry> index, Map<String, String> installed, String gameVersion) {
+        Plan plan = new Plan();
+        Context c = new Context(plan, index, installed, gameVersion);
+        List<String> ids = new ArrayList<>(installed.keySet());
+        java.util.Collections.sort(ids);
+        for (String id : ids) {
+            Entry entry = index.get(id);
+            if (entry == null) continue; // not from this repository: nothing is known about what it needs
+            Version version = entry.version(installed.get(id));
+            if (version != null) c.resolve(entry, version);
+        }
+        return plan;
+    }
+
     private static final class Context {
         final Plan plan;
         final Map<String, Entry> index;

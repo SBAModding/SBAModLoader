@@ -26,11 +26,17 @@ public final class RemoteModRepository implements ModRepository {
     private static final String TAG = "RemoteModRepository";
     private static final int MAX_INDEX_BYTES = 8 << 20;
 
+    private final String indexUrl;
     private final File cache;
     private boolean fromCache;
 
     public RemoteModRepository(Context context) {
-        this.cache = new File(context.getApplicationContext().getFilesDir(), "repository-index.json");
+        String override = dev.segually.sbamodloader.BuildConfig.DEBUG
+                ? dev.segually.sbamodloader.SBASettings.getDebugIndexUrl(context) : "";
+        this.indexUrl = override.isEmpty() ? INDEX_URL : override;
+        // A different index never shares the saved copy of the official one.
+        this.cache = new File(context.getApplicationContext().getFilesDir(),
+                override.isEmpty() ? "repository-index.json" : "repository-index-debug.json");
     }
 
     /** True when the last {@link #load()} could not reach the repository and used the saved copy. */
@@ -42,7 +48,7 @@ public final class RemoteModRepository implements ModRepository {
     public List<Entry> load() throws IOException {
         fromCache = false;
         try {
-            String json = fetch(INDEX_URL);
+            String json = fetch(indexUrl);
             List<Entry> entries = ModIndexParser.parse(json); // only a valid index replaces the saved copy
             Files.write(cache.toPath(), json.getBytes(StandardCharsets.UTF_8));
             return entries;

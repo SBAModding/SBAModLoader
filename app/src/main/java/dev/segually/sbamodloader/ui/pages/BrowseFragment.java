@@ -745,10 +745,7 @@ public class BrowseFragment extends Fragment {
     }
 
     private String boundsText(Dependency d) {
-        if (d.min != null && d.max != null) return getString(R.string.bound_range, d.min, d.max);
-        if (d.min != null) return getString(R.string.bound_min, d.min);
-        if (d.max != null) return getString(R.string.bound_max, d.max);
-        return getString(R.string.bound_any);
+        return dev.segually.sbamodloader.browser.PlanText.bounds(requireContext(), d);
     }
 
     private String modName(String id) {
@@ -761,27 +758,7 @@ public class BrowseFragment extends Fragment {
     }
 
     private String issueText(InstallPlanner.Issue i) {
-        String game = installedGameVersion();
-        String needs = i.requirement == null ? "" : boundsText(i.requirement);
-        switch (i.kind) {
-            case GAME_MISMATCH:
-                return getString(R.string.plan_game_mismatch, i.mod, i.version, i.other,
-                        game != null ? game : getString(R.string.plan_game_unknown));
-            case MOD_OUTDATED:
-                return getString(R.string.plan_outdated, i.mod, i.version, i.other);
-            case DEP_OUTDATED:
-                return getString(R.string.plan_dep_outdated, i.dependant, i.mod, needs, i.version);
-            case DEP_NEEDS_OLDER:
-                return getString(R.string.plan_dep_needs_older, i.dependant, i.mod, needs, i.version);
-            case DEP_GAME_MISMATCH:
-                return getString(R.string.plan_dep_game_mismatch, i.dependant, i.mod, needs, i.version, i.other);
-            case DEP_MISSING:
-                return getString(R.string.plan_dep_missing, i.dependant, i.mod);
-            case DEP_NO_VERSION:
-                return getString(R.string.plan_dep_no_version, i.dependant, i.mod, needs);
-            default:
-                return getString(R.string.plan_dep_conflict, i.dependant, i.mod, needs, i.version);
-        }
+        return dev.segually.sbamodloader.browser.PlanText.issue(requireContext(), i, installedGameVersion());
     }
 
     /** What will be downloaded and what to watch out for, before anything is. A blocked plan can only be closed. */

@@ -135,6 +135,15 @@ public final class SBASettings {
         prefs(context).edit().putInt(KEY_ACCENT_COLOR, argb).apply();
     }
 
+    /** Debug builds only: read the mod index from this URL instead of the official one ("" for the official one). */
+    public static String getDebugIndexUrl(Context context) {
+        return prefs(context).getString("debug_index_url", "");
+    }
+
+    public static void setDebugIndexUrl(Context context, String url) {
+        prefs(context).edit().putString("debug_index_url", url).apply();
+    }
+
     public static boolean getDeveloperFeatures(Context context) {
         return prefs(context).getBoolean(KEY_DEVELOPER_FEATURES, false);
     }

@@ -88,6 +88,26 @@ public class DashboardFragment extends Fragment {
     public void onResume() {
         super.onResume();
         syncPatches();
+        checkMods();
+    }
+
+    /** Shows a card when installed mods have updates. */
+    private void checkMods() {
+        android.content.Context app = requireContext().getApplicationContext();
+        new Thread(() -> {
+            dev.segually.sbamodloader.browser.ModHealth h = dev.segually.sbamodloader.browser.ModHealth.check(app, true);
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> {
+                View root = getView();
+                if (root == null) return;
+                View card = root.findViewById(R.id.card_mod_updates);
+                int n = h.updates.size();
+                card.setVisibility(n == 0 ? View.GONE : View.VISIBLE);
+                ((TextView) root.findViewById(R.id.mod_updates_text)).setText(n == 1
+                        ? getString(R.string.dashboard_mod_updates_one) : getString(R.string.dashboard_mod_updates, n));
+                card.setOnClickListener(x -> ((dev.segually.sbamodloader.MainActivity) requireActivity()).openMods());
+            });
+        }, "dashboard-mods").start();
     }
 
     private String installedGameVersion() {

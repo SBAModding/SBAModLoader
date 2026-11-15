@@ -202,4 +202,68 @@ public class InstallPlannerTest {
         assertEquals("1.0", p.steps.get(0).replaces);
         assertNull(plan(m, "2.0", index(m), installed(), "13.0.8").steps.get(0).replaces);
     }
+
+    // ---- fixing what is installed ---------------------------------------------------------------
+
+    @Test
+    public void installedModsThatAgreeNeedNoFixes() {
+        Entry y = mod("y", release("1.0", "13.0.8"));
+        Entry x = mod("x", release("1.0", "13.0.8", dep("y", "1.0", null)));
+        Plan p = InstallPlanner.planFixes(index(x, y), installed("x", "1.0", "y", "1.0"), "13.0.8");
+        assertEquals(emptyList(), steps(p));
+        assertEquals(emptyList(), kinds(p));
+    }
+
+    @Test
+    public void anOutdatedDependencyIsUpdated() {
+        Entry y = mod("y", release("1.2.7", "13.0.8"), release("1.0", "13.0.8"));
+        Entry x = mod("x", release("1.0", "13.0.8", dep("y", "1.2.7", null)));
+        Plan p = InstallPlanner.planFixes(index(x, y), installed("x", "1.0", "y", "1.0"), "13.0.8");
+        assertEquals(asList("y@1.2.7"), steps(p));
+        assertEquals(asList(Kind.DEP_OUTDATED), kinds(p));
+        assertFalse(p.blocked());
+    }
+
+    @Test
+    public void aDependencyThatIsTooNewIsReplacedByAnOlderOne() {
+        Entry y = mod("y", release("2.0", "13.0.8"), release("1.1", "13.0.8"));
+        Entry x = mod("x", release("1.0", "13.0.8", dep("y", null, "1.1")));
+        Plan p = InstallPlanner.planFixes(index(x, y), installed("x", "1.0", "y", "2.0"), "13.0.8");
+        assertEquals(asList("y@1.1"), steps(p));
+        assertEquals(asList(Kind.DEP_NEEDS_OLDER), kinds(p));
+    }
+
+    @Test
+    public void aMissingDependencyIsInstalled() {
+        Entry y = mod("y", release("1.0", "13.0.8"));
+        Entry x = mod("x", release("1.0", "13.0.8", dep("y", "1.0", null)));
+        Plan p = InstallPlanner.planFixes(index(x, y), installed("x", "1.0"), "13.0.8");
+        assertEquals(asList("y@1.0"), steps(p));
+        assertFalse(p.blocked());
+    }
+
+    @Test
+    public void aDependencyThatIsNotInTheStoreCannotBeFixed() {
+        Entry x = mod("x", release("1.0", "13.0.8", dep("gone", "1.0", null)));
+        Plan p = InstallPlanner.planFixes(index(x), installed("x", "1.0"), "13.0.8");
+        assertEquals(asList(Kind.DEP_MISSING), kinds(p));
+        assertTrue(p.blocked());
+    }
+
+    @Test
+    public void twoModsThatWantDifferentVersionsConflict() {
+        Entry y = mod("y", release("2.0", "13.0.8"), release("1.0", "13.0.8"));
+        Entry a = mod("a", release("1.0", "13.0.8", dep("y", "2.0", null)));
+        Entry b = mod("b", release("1.0", "13.0.8", dep("y", null, "1.0")));
+        Plan p = InstallPlanner.planFixes(index(a, b, y), installed("a", "1.0", "b", "1.0", "y", "1.5"), "13.0.8");
+        assertTrue(kinds(p).contains(Kind.DEP_CONFLICT));
+        assertTrue(p.blocked());
+    }
+
+    @Test
+    public void modsFromElsewhereAreLeftAlone() {
+        Plan p = InstallPlanner.planFixes(index(), installed("unknown", "1.0"), "13.0.8");
+        assertEquals(emptyList(), steps(p));
+        assertEquals(emptyList(), kinds(p));
+    }
 }

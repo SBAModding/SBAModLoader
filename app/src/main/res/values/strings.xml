@@ -273,4 +273,23 @@
     <string name="hero_game_version">Game version %1$s</string>
     <string name="detail_version_menu">Choose a version</string>
     <string name="mods_actions">Mod actions</string>
+    <string name="updates_mods_title">Mod updates available</string>
+    <string name="updates_mods_body_one">1 mod has a newer version.</string>
+    <string name="updates_mods_body">%1$d mods have newer versions.</string>
+    <string name="updates_mods_all">Update all</string>
+    <string name="updates_mods_working">Updating %1$s (%2$d of %3$d)</string>
+    <string name="updates_mods_done">Mods are up to date.</string>
+    <string name="updates_mods_failed">Could not update %1$s: %2$s</string>
+    <string name="updates_chip">Update to %1$s</string>
+    <string name="problems_title">Some mods do not fit together</string>
+    <string name="problems_body_one">1 problem with the versions your mods need.</string>
+    <string name="problems_body">%1$d problems with the versions your mods need.</string>
+    <string name="problems_review">Review</string>
+    <string name="problems_fix">Fix automatically</string>
+    <string name="problems_fix_none">These cannot be fixed automatically: a mod they need is not in the store, or two mods need different versions of the same one.</string>
+    <string name="problems_fix_hint">Fixing downloads or replaces: %1$s</string>
+    <string name="problems_fixed">Fixed.</string>
+    <string name="problems_close">Close</string>
+    <string name="dashboard_mod_updates_one">1 mod has an update</string>
+    <string name="dashboard_mod_updates">%1$d mods have updates</string>
 </resources>

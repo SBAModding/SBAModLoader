@@ -79,6 +79,8 @@ public class MainActivity extends AppCompatActivity {
         if (i == null) return;
         if (i.hasExtra("sba_you")) SBASettings.setMaterialYou(this, i.getBooleanExtra("sba_you", true));
         if (i.hasExtra("sba_accent")) SBASettings.setAccentColor(this, i.getIntExtra("sba_accent", 0));
+        if (i.hasExtra("sba_index")) SBASettings.setDebugIndexUrl(this, i.getStringExtra("sba_index"));
+        if (i.hasExtra("sba_fake")) dev.segually.sbamodloader.browser.ModHealth.debugFake = i.getBooleanExtra("sba_fake", false);
         if (i.hasExtra("sba_theme")) SBASettings.setThemeMode(this, i.getIntExtra("sba_theme", 0));
     }
 
@@ -108,6 +110,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putInt(KEY_PAGE, page);
+    }
+
+    /** Switches to the Mods tab. */
+    public void openMods() {
+        navigation.select(2, true);
     }
 
     /** Switches to the Browse tab, on the store page of {@code modId} when it is not null. */

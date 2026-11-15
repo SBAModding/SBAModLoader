@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,7 +33,12 @@ import java.util.List;
 import dev.segually.sbamodloader.MainActivity;
 import dev.segually.sbamodloader.R;
 import dev.segually.sbamodloader.browser.BrowserModels;
+import dev.segually.sbamodloader.browser.InstallPlanner;
 import dev.segually.sbamodloader.browser.InstalledMods;
+import dev.segually.sbamodloader.browser.ModHealth;
+import dev.segually.sbamodloader.browser.ModInstaller;
+import dev.segually.sbamodloader.browser.ModUpdates;
+import dev.segually.sbamodloader.browser.PlanText;
 import dev.segually.sbamodloader.browser.RemoteModRepository;
 import dev.segually.sbamodloader.tools.ModNames;
 import dev.segually.sbamodloader.SBASettings;
@@ -57,6 +63,9 @@ public class ModsFragment extends Fragment {
     /** Mods that came from the store, by id: their names and authors come from the store's copy of the index. */
     private final Map<String, BrowserModels.Entry> storeEntries = new HashMap<>();
     private boolean developer;
+    private ModHealth health;
+    private final Map<String, ModUpdates.Update> updatesById = new HashMap<>();
+    private boolean updating;
     private dev.segually.sbamodloader.ui.FabMenu fabMenu;
     private com.google.android.material.button.MaterialButton addModItem;
 
@@ -149,6 +158,7 @@ public class ModsFragment extends Fragment {
         addModItem.setVisibility(developer ? View.VISIBLE : View.GONE);
         reload();
         loadStoreNames();
+        checkHealth(true);
         if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_fab", false)) {
             requireView().postDelayed(() -> fabMenu.open(), 400); // debug builds: open the menu, for layout checks
         }
@@ -166,6 +176,183 @@ public class ModsFragment extends Fragment {
                 if (list != null) list.getAdapter().notifyDataSetChanged();
             });
         }, "mods-store-names").start();
+    }
+
+    // ---- updates and problems -----------------------------------------------------------------
+
+    /** Looks for updates and for mods that do not fit together. Reads the saved store first, then asks the network. */
+    private void checkHealth(boolean network) {
+        android.content.Context app = requireContext().getApplicationContext();
+        new Thread(() -> {
+            ModHealth quick = ModHealth.check(app, false);
+            post(() -> applyHealth(quick));
+            if (network) {
+                ModHealth fresh = ModHealth.check(app, true);
+                post(() -> applyHealth(fresh));
+            }
+        }, "mods-health").start();
+    }
+
+    private void post(Runnable r) {
+        if (isAdded()) requireActivity().runOnUiThread(() -> {
+            if (isAdded() && getView() != null) r.run();
+        });
+    }
+
+    private void applyHealth(ModHealth h) {
+        health = h;
+        updatesById.clear();
+        for (ModUpdates.Update u : h.updates) updatesById.put(u.entry.id, u);
+        View root = requireView();
+        View updatesCard = root.findViewById(R.id.card_updates);
+        updatesCard.setVisibility(h.updates.isEmpty() ? View.GONE : View.VISIBLE);
+        ((TextView) root.findViewById(R.id.updates_body)).setText(h.updates.size() == 1
+                ? getString(R.string.updates_mods_body_one) : getString(R.string.updates_mods_body, h.updates.size()));
+        root.findViewById(R.id.btn_update_all).setEnabled(!updating);
+        root.findViewById(R.id.btn_update_all).setOnClickListener(x -> updateAll());
+        View problemsCard = root.findViewById(R.id.card_problems);
+        problemsCard.setVisibility(h.hasProblems() ? View.VISIBLE : View.GONE);
+        ((TextView) root.findViewById(R.id.problems_body)).setText(h.fixes.issues.size() == 1
+                ? getString(R.string.problems_body_one) : getString(R.string.problems_body, h.fixes.issues.size()));
+        root.findViewById(R.id.btn_problems).setOnClickListener(x -> showProblems());
+        if (list != null && list.getAdapter() != null) list.getAdapter().notifyDataSetChanged();
+        if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_problems", false)) {
+            requireActivity().getIntent().removeExtra("sba_problems");
+            requireView().post(this::showProblems); // debug builds: open the list, for layout checks
+        }
+    }
+
+    /** Updates every mod that has an update, one after the other, with a progress bar in the updates card. */
+    private void updateAll() {
+        if (updating || health == null || health.updates.isEmpty()) return;
+        updating = true;
+        View root = requireView();
+        com.google.android.material.progressindicator.LinearProgressIndicator bar = root.findViewById(R.id.updates_progress);
+        bar.setVisibility(View.VISIBLE);
+        bar.setIndeterminate(true);
+        root.findViewById(R.id.btn_update_all).setEnabled(false);
+        TextView body = root.findViewById(R.id.updates_body);
+        final android.content.Context app = requireContext().getApplicationContext();
+        final List<ModUpdates.Update> todo = new ArrayList<>(health.updates);
+        final Map<String, BrowserModels.Entry> index = new HashMap<>(health.index);
+        final String game = health.gameVersion;
+        new Thread(() -> {
+            String error = null;
+            for (int i = 0; i < todo.size(); i++) {
+                ModUpdates.Update u = todo.get(i);
+                final int number = i + 1;
+                post(() -> body.setText(getString(R.string.updates_mods_working, u.entry.name, number, todo.size())));
+                try {
+                    InstallPlanner.Plan plan = InstallPlanner.plan(u.entry, u.target, index,
+                            ModInstaller.installedVersions(app, index.values()), game);
+                    ModInstaller.install(app, plan, (mod, done, total) -> {
+                        if (total > 0) post(() -> {
+                            bar.setIndeterminate(false);
+                            bar.setProgressCompat((int) (done * 100 / total), true);
+                        });
+                    });
+                } catch (Exception e) {
+                    android.util.Log.e("ModsFragment", "Update of " + u.entry.id + " failed", e);
+                    error = getStringSafe(app, u.entry.name, e);
+                    break;
+                }
+            }
+            final String err = error;
+            post(() -> {
+                updating = false;
+                bar.setVisibility(View.GONE);
+                if (err != null) Toast.makeText(requireContext(), err, Toast.LENGTH_LONG).show();
+                reload();
+                checkHealth(true);
+            });
+        }, "mods-update-all").start();
+    }
+
+    private static String getStringSafe(android.content.Context app, String name, Exception e) {
+        return app.getString(R.string.updates_mods_failed, name, e.getMessage() != null ? e.getMessage() : e.toString());
+    }
+
+    /** The list of problems, with a button that fixes them when the store has everything that is needed. */
+    private void showProblems() {
+        if (health == null) return;
+        final ModHealth h = health;
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(requireContext());
+        LinearLayout column = new LinearLayout(requireContext());
+        column.setOrientation(LinearLayout.VERTICAL);
+        int pad = Math.round(24 * getResources().getDisplayMetrics().density);
+        column.setPadding(pad, pad, pad, pad);
+
+        TextView title = new TextView(requireContext());
+        title.setText(R.string.problems_title);
+        title.setTextAppearance(R.style.TextAppearance_SBA_HeadlineSmallEmphasized);
+        column.addView(title);
+
+        for (InstallPlanner.Issue issue : h.fixes.issues) {
+            TextView row = new TextView(requireContext());
+            row.setText(PlanText.issue(requireContext(), issue, h.gameVersion));
+            row.setTextAppearance(R.style.TextAppearance_SBA_BodyLarge);
+            int p = Math.round(16 * getResources().getDisplayMetrics().density);
+            row.setPadding(p, p, p, p);
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setCornerRadius(20 * getResources().getDisplayMetrics().density);
+            bg.setColor(com.google.android.material.color.MaterialColors.getColor(column,
+                    com.google.android.material.R.attr.colorSurfaceContainerHigh));
+            row.setBackground(bg);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.topMargin = Math.round(10 * getResources().getDisplayMetrics().density);
+            column.addView(row, lp);
+        }
+
+        TextView hint = new TextView(requireContext());
+        hint.setTextAppearance(R.style.TextAppearance_SBA_BodyMedium);
+        boolean canFix = !h.fixes.blocked() && !h.fixes.steps.isEmpty();
+        if (h.fixes.blocked()) {
+            hint.setText(R.string.problems_fix_none);
+        } else {
+            List<String> names = new ArrayList<>();
+            for (InstallPlanner.Step step : h.fixes.steps) names.add(step.entry.name + " " + step.version.version);
+            hint.setText(getString(R.string.problems_fix_hint, String.join(", ", names)));
+        }
+        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        hlp.topMargin = Math.round(16 * getResources().getDisplayMetrics().density);
+        column.addView(hint, hlp);
+
+        com.google.android.material.button.MaterialButton fix = new com.google.android.material.button.MaterialButton(requireContext());
+        fix.setText(R.string.problems_fix);
+        fix.setEnabled(canFix);
+        fix.setIconResource(R.drawable.ic_check);
+        fix.setIconGravity(com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START);
+        fix.setTextAppearance(R.style.TextAppearance_SBA_TitleMediumEmphasized);
+        fix.setTextColor(com.google.android.material.color.MaterialColors.getColor(column,
+                com.google.android.material.R.attr.colorOnPrimary));
+        LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                Math.round(64 * getResources().getDisplayMetrics().density));
+        flp.topMargin = Math.round(16 * getResources().getDisplayMetrics().density);
+        column.addView(fix, flp);
+        fix.setOnClickListener(x -> {
+            fix.setEnabled(false);
+            final android.content.Context app = requireContext().getApplicationContext();
+            new Thread(() -> {
+                String error = null;
+                try {
+                    ModInstaller.install(app, h.fixes, (mod, done, total) -> { });
+                } catch (Exception e) {
+                    error = e.getMessage() != null ? e.getMessage() : e.toString();
+                }
+                final String err = error;
+                post(() -> {
+                    sheet.dismiss();
+                    Toast.makeText(requireContext(), err == null ? getString(R.string.problems_fixed) : err, Toast.LENGTH_LONG).show();
+                    reload();
+                    checkHealth(true);
+                });
+            }, "mods-fix").start();
+        });
+        sheet.setContentView(column);
+        sheet.show();
     }
 
     private File pluginsDir() {
@@ -242,9 +429,24 @@ public class ModsFragment extends Fragment {
                 .setTitle(R.string.mods_remove_title)
                 .setMessage(titleOf(f))
                 .setPositiveButton(R.string.mods_remove, (d, w) -> {
+                    // A store mod is forgotten as well, with every file it put in place; otherwise the store would
+                    // keep saying it is installed.
+                    InstalledMods installed = new InstalledMods(requireContext());
+                    String storeId = installed.idForFile(f);
+                    InstalledMods.Record record = storeId == null ? null : installed.get(storeId);
+                    if (record != null) {
+                        for (File part : record.files) {
+                            //noinspection ResultOfMethodCallIgnored
+                            new File(part.getParentFile(), ModPacks.baseName(part)).delete();
+                            //noinspection ResultOfMethodCallIgnored
+                            new File(part.getParentFile(), ModPacks.baseName(part) + DISABLED).delete();
+                        }
+                        installed.remove(storeId);
+                    }
                     //noinspection ResultOfMethodCallIgnored
                     f.delete();
                     reload();
+                    checkHealth(false);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -368,6 +570,11 @@ public class ModsFragment extends Fragment {
                 icons.add(R.drawable.ic_code);
             }
             for (int i = 0; i < labels.size(); i++) addChip(h.chips, labels.get(i), icons.get(i));
+            String storeId = new InstalledMods(requireContext()).idForFile(f);
+            ModUpdates.Update update = storeId == null ? null : updatesById.get(storeId);
+            if (update != null) {
+                addChip(h.chips, getString(R.string.updates_chip, update.target.version), R.drawable.ic_download);
+            }
             if (!base.endsWith(ModPacks.PACK_EXTENSION) && !base.endsWith(".so")
                     && !SBASettings.getFusionEnabled(requireContext())) {
                 addChip(h.chips, R.string.mods_needs_fusion, R.drawable.ic_warning);
@@ -375,6 +582,10 @@ public class ModsFragment extends Fragment {
         }
 
         private void addChip(ViewGroup into, int label, int icon) {
+            addChip(into, getString(label), icon);
+        }
+
+        private void addChip(ViewGroup into, String label, int icon) {
             TextView chip = (TextView) LayoutInflater.from(into.getContext()).inflate(R.layout.view_chip, into, false);
             chip.setText(label);
             android.graphics.drawable.Drawable d = androidx.appcompat.content.res.AppCompatResources.getDrawable(into.getContext(), icon);
