@@ -31,8 +31,10 @@ import dev.segually.sbamodloader.TargetGame;
  *       ({@code .so} files at its root), an {@code overlay/} folder whose files are laid over the game's
  *       APK ({@code overlay/assets/aa/Android/x.bundle} adds or replaces {@code assets/aa/Android/x.bundle}), and
  *       libraries for the game's Java code in {@code lib/arm64-v8a/}. All parts are optional.
- *       Dex files in the overlay with a number higher than the game's ({@code overlay/classes5.dex}) are
- *       picked up by the game's class loader like the rest of the APK.</li>
+ *       Dex files at the root of the overlay ({@code overlay/classes.dex}, {@code overlay/classes2.dex}...) are
+ *       renumbered when the mods are merged: they are put after the game's own dex files, in load order, keeping
+ *       each pack's own order, so packs never replace the game's code or each other's. They are then picked up by
+ *       the game's class loader like the rest of the APK.</li>
  *   <li>An optional {@code sbapack.json} at the root of a pack can name an {@code "activity"}: a class from the
  *       pack's dex files that replaces the game's launch activity (it should extend that activity).</li>
  * </ul>
@@ -178,6 +180,34 @@ public final class ModPacks {
         return parts;
     }
 
+    /**
+     * The number in a dex file name at the root: 1 for {@code classes.dex}, 5 for {@code classes5.dex}. -1 when the
+     * name is not a root dex file.
+     */
+    static int dexNumber(String name) {
+        if (!name.startsWith("classes") || !name.endsWith(".dex")) return -1;
+        String digits = name.substring("classes".length(), name.length() - ".dex".length());
+        if (digits.isEmpty()) return 1;
+        if (digits.length() > 4 || !digits.chars().allMatch(Character::isDigit) || digits.charAt(0) == '0') return -1;
+        int n = Integer.parseInt(digits);
+        return n >= 2 ? n : -1;
+    }
+
+    static String dexName(int number) {
+        return number <= 1 ? "classes.dex" : "classes" + number + ".dex";
+    }
+
+    /** The highest dex number among the entries of the game's APK, so packs are numbered after it. */
+    private static int highestDex(File apk) throws IOException {
+        int highest = 1;
+        try (ZipFile zip = new ZipFile(apk)) {
+            for (Enumeration<? extends ZipEntry> e = zip.entries(); e.hasMoreElements(); ) {
+                highest = Math.max(highest, dexNumber(e.nextElement().getName()));
+            }
+        }
+        return highest;
+    }
+
     private static boolean isRootNative(String entryName) {
         return !entryName.contains("/") && entryName.endsWith(".so");
     }
@@ -238,6 +268,10 @@ public final class ModPacks {
             if (patch != null && patch.overlayDir != null) {
                 collectDirectory(patch.overlayDir, "", overlay, signature, "patch");
             }
+            // Dex files of packs are numbered after the game's own (and the patch's), in load order, so two packs
+            // that both ship a classes5.dex, or one that numbers from 1, can never replace each other's code or the game's.
+            int nextDex = highestDex(baseApk) + 1;
+            for (AssetOverlayBuilder.Entry e : overlay) nextDex = Math.max(nextDex, dexNumber(e.name()) + 1);
 
             int index = 0;
             for (File mod : orderedMods(context)) {
@@ -253,6 +287,7 @@ public final class ModPacks {
                     signature.append(name).append('|').append(mod.length()).append('|').append(mod.lastModified()).append('\n');
                     ZipFile zip = new ZipFile(mod);
                     open.add(zip);
+                    java.util.TreeMap<Integer, ZipEntry> dexFiles = new java.util.TreeMap<>();
                     for (Enumeration<? extends ZipEntry> e = zip.entries(); e.hasMoreElements(); ) {
                         ZipEntry entry = e.nextElement();
                         String entryName = entry.getName();
@@ -279,9 +314,17 @@ public final class ModPacks {
                             }
                             natives.add(out.getAbsolutePath());
                             Log.i(TAG, "Native mod from " + name + ": " + entryName);
+                        } else if (entryName.startsWith("overlay/") && dexNumber(entryName.substring("overlay/".length())) > 0) {
+                            dexFiles.put(dexNumber(entryName.substring("overlay/".length())), entry);
                         } else if (entryName.startsWith("overlay/") && entryName.length() > "overlay/".length()) {
                             overlay.add(new ZipOverlayEntry(zip, entry, entryName.substring("overlay/".length())));
                         }
+                    }
+                    for (java.util.Map.Entry<Integer, ZipEntry> dex : dexFiles.entrySet()) {
+                        String numbered = dexName(nextDex++);
+                        overlay.add(new ZipOverlayEntry(zip, dex.getValue(), numbered));
+                        Log.i(TAG, "Java code from " + name + ": " + dex.getValue().getName().substring("overlay/".length())
+                                + " -> " + numbered);
                     }
                 }
                 } catch (IOException | RuntimeException e) {
