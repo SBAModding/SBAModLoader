@@ -3,6 +3,8 @@ name: Android CI
 on:
   push:
     branches: [ "main" ]
+    # A change to the compatibility results alone does not need a build.
+    paths-ignore: [ "compatibility/**", "COMPATIBILITY.md" ]
     tags: [ "*" ]
   workflow_dispatch:
 

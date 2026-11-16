@@ -1,0 +1,62 @@
+name: Compatibility
+
+# compatibility/results.json is the data; COMPATIBILITY.md is generated from it.
+#   pull request: the data is checked (problems are marked on the file) and COMPATIBILITY.md must not be edited by hand
+#   push to main: the page is rebuilt and committed when it changed
+
+on:
+  pull_request:
+    paths:
+      - "compatibility/**"
+      - "COMPATIBILITY.md"
+  push:
+    branches: [main]
+    paths:
+      - "compatibility/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: compatibility
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check results
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: The data is valid
+        run: python3 compatibility/build.py --check
+      - name: The generated page was not edited by hand
+        run: |
+          if [ -n "$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- COMPATIBILITY.md)" ]; then
+            echo "::error file=COMPATIBILITY.md::COMPATIBILITY.md is generated from compatibility/results.json. Remove it from this pull request; it is rebuilt after the merge."
+            exit 1
+          fi
+
+  rebuild:
+    name: Rebuild the page
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 compatibility/build.py
+      - name: Commit when it changed
+        run: |
+          if [ -n "$(git status --porcelain COMPATIBILITY.md)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add COMPATIBILITY.md
+            git commit -m "Rebuild COMPATIBILITY.md"
+            git pull --rebase
+            git push
+            echo "### COMPATIBILITY.md rebuilt and committed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### COMPATIBILITY.md already up to date" >> "$GITHUB_STEP_SUMMARY"
+          fi

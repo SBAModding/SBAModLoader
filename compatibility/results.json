@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "results": [
+    {
+      "id": "android-16-aosp",
+      "category": "aosp",
+      "android": "16",
+      "device": "Close to AOSP",
+      "loader": "0.0.4.1",
+      "game": "13.0.8",
+      "result": "works"
+    },
+    {
+      "id": "android-17-aosp",
+      "category": "aosp",
+      "android": "17",
+      "device": "Close to AOSP",
+      "loader": "0.0.4.1",
+      "game": "13.0.8",
+      "result": "works"
+    },
+    {
+      "id": "android-13-redmi",
+      "category": "manufacturer-skin",
+      "android": "13",
+      "device": "Redmi",
+      "loader": "0.0.4.1",
+      "game": "13.0.8",
+      "result": "works"
+    },
+    {
+      "id": "android-14-itel",
+      "category": "manufacturer-skin",
+      "android": "14",
+      "device": "itel",
+      "loader": "0.0.4.1",
+      "game": "13.0.8",
+      "result": "works"
+    },
+    {
+      "id": "android-13-emulator-houdini",
+      "category": "emulator",
+      "android": "13",
+      "bridge": "libhoudini",
+      "loader": "0.0.4.1",
+      "game": "13.0.8",
+      "result": "works"
+    },
+    {
+      "id": "android-13-emulator-ndk-translation",
+      "category": "emulator",
+      "android": "13",
+      "bridge": "libndk_translation",
+      "loader": "0.0.4.1",
+      "game": "13.0.8",
+      "result": "works"
+    },
+    {
+      "id": "android-11-emulator-houdini",
+      "category": "emulator",
+      "android": "11",
+      "bridge": "libhoudini",
+      "loader": "0.0.4.1",
+      "game": "13.0.8",
+      "result": "works",
+      "notes": "Emulators of this kind, such as LDPlayer."
+    },
+    {
+      "id": "bluestacks-0.0.4.1",
+      "category": "bluestacks",
+      "android": "13",
+      "device": "BlueStacks",
+      "bridge": "libhoudini",
+      "loader": "0.0.4.1",
+      "game": "13.0.8",
+      "result": "crashes",
+      "notes": "The first launch crashed in SystemNative_ReadDirR. The libhoudini guard was not installed, because the loader did not recognise BlueStacks as a libhoudini device."
+    },
+    {
+      "id": "bluestacks-0.0.4.2a",
+      "category": "bluestacks",
+      "android": "13",
+      "device": "BlueStacks",
+      "bridge": "libhoudini",
+      "loader": "0.0.4.2a",
+      "game": "13.0.8",
+      "result": "works",
+      "notes": "The guard is installed on BlueStacks; the crash is gone."
+    }
+  ]
+}

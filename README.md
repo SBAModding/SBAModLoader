@@ -14,7 +14,8 @@ change it without modifying the installed game.
 
 ## Requirements
 
-- Android 7.0 or newer on an arm64 device. Tested on Android 13 and 16.
+- Android 7.0 or newer on an arm64 device (or an emulator that translates arm64). What has been tried, on which
+  Android versions, devices and emulators, is in [COMPATIBILITY.md](COMPATIBILITY.md).
 - Super Bear Adventure (`com.Earthkwak.Platformer`) installed from your own copy. The loader does not include the
   game. Version 13.0.8 has a patch today.
 - An internet connection the first time, for the patch and for mods.
