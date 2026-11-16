@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <cstring>
 #include <sys/system_properties.h>
+#include <sys/utsname.h>
+#include <cstdio>
 
 #define TAG "SBAHoudini"
 
@@ -73,16 +75,47 @@ static int32_t read_dir_r_hook(void *handle, uint8_t *buffer, int32_t buffer_siz
     return original_read_dir_r(handle, buffer, buffer_size, output_entry);
 }
 
-bool houdini_is_active()
+// Some emulators (BlueStacks, for one) load libhoudini without naming it in ro.dalvik.vm.native.bridge,
+// so the property alone is not reliable. Any of these means the arm64 code runs through a translator:
+// the property names houdini, libhoudini is mapped into this process, or the kernel is x86 while this
+// library is arm64. The wrapper only acts on an invalid handle, so a false positive costs nothing.
+static const char *houdini_reason()
 {
     char bridge[PROP_VALUE_MAX] = {};
-    if (__system_property_get("ro.dalvik.vm.native.bridge", bridge) <= 0) return false;
-    return strstr(bridge, "houdini") != nullptr;
+    if (__system_property_get("ro.dalvik.vm.native.bridge", bridge) > 0 && strstr(bridge, "houdini"))
+        return "ro.dalvik.vm.native.bridge";
+
+    if (FILE *maps = fopen("/proc/self/maps", "re"))
+    {
+        char line[512];
+        bool found = false;
+        while (!found && fgets(line, sizeof(line), maps)) found = strstr(line, "libhoudini") != nullptr;
+        fclose(maps);
+        if (found) return "libhoudini is mapped";
+    }
+
+    struct utsname host{};
+    if (uname(&host) == 0 && (strcmp(host.machine, "x86_64") == 0 || strcmp(host.machine, "i686") == 0 ||
+                              strcmp(host.machine, "i386") == 0))
+        return "arm64 code on an x86 kernel";
+
+    return nullptr;
+}
+
+bool houdini_is_active()
+{
+    return houdini_reason() != nullptr;
 }
 
 void houdini_install_fixes(void *il2cpp_handle)
 {
-    if (!houdini_is_active()) return;
+    const char *reason = houdini_reason();
+    if (!reason)
+    {
+        log(LogLevel::INFO, TAG, "No arm64 translator detected; SystemNative_ReadDirR is not guarded");
+        return;
+    }
+    log_format(LogLevel::INFO, TAG, "Translator detected ({}); guarding SystemNative_ReadDirR", reason);
 
     // REQUIRED FOR LIBHOUDINI: see the explanation at the top of this file.
     auto *target = il2cpp_handle ? dlsym(il2cpp_handle, "SystemNative_ReadDirR") : nullptr;
