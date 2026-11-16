@@ -8,6 +8,7 @@
       "device": "Close to AOSP",
       "loader": "0.0.4.1",
       "game": "13.0.8",
+      "fusion": "verified",
       "result": "works"
     },
     {
@@ -17,6 +18,7 @@
       "device": "Close to AOSP",
       "loader": "0.0.4.1",
       "game": "13.0.8",
+      "fusion": "verified",
       "result": "works"
     },
     {
@@ -26,6 +28,7 @@
       "device": "Redmi",
       "loader": "0.0.4.1",
       "game": "13.0.8",
+      "fusion": "not-verified",
       "result": "works"
     },
     {
@@ -35,6 +38,7 @@
       "device": "itel",
       "loader": "0.0.4.1",
       "game": "13.0.8",
+      "fusion": "not-verified",
       "result": "works"
     },
     {
@@ -44,6 +48,7 @@
       "bridge": "libhoudini",
       "loader": "0.0.4.1",
       "game": "13.0.8",
+      "fusion": "verified",
       "result": "works"
     },
     {
@@ -53,6 +58,7 @@
       "bridge": "libndk_translation",
       "loader": "0.0.4.1",
       "game": "13.0.8",
+      "fusion": "verified",
       "result": "works"
     },
     {
@@ -62,6 +68,7 @@
       "bridge": "libhoudini",
       "loader": "0.0.4.1",
       "game": "13.0.8",
+      "fusion": "verified",
       "result": "works",
       "notes": "Emulators of this kind, such as LDPlayer."
     },
@@ -73,6 +80,7 @@
       "bridge": "libhoudini",
       "loader": "0.0.4.1",
       "game": "13.0.8",
+      "fusion": "not-verified",
       "result": "crashes",
       "notes": "The first launch crashed in SystemNative_ReadDirR. The libhoudini guard was not installed, because the loader did not recognise BlueStacks as a libhoudini device."
     },
@@ -84,6 +92,7 @@
       "bridge": "libhoudini",
       "loader": "0.0.4.2a",
       "game": "13.0.8",
+      "fusion": "not-verified",
       "result": "works",
       "notes": "The guard is installed on BlueStacks; the crash is gone."
     }

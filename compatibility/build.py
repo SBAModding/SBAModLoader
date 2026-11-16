@@ -25,11 +25,22 @@ CATEGORIES = {
 }
 BRIDGES = {"none": "none (native arm64)", "libhoudini": "libhoudini", "libndk_translation": "libndk_translation"}
 RESULTS = {"works": "Works", "partial": "Partly works", "crashes": "Crashes"}
+# Fusion runs plugin (BepInEx) mods. It needs a lot of memory, so it is reported separately from the basic result.
+FUSION = {"verified": "Verified", "not-verified": "Not verified yet"}
+# Shown under a category's description: loader versions that cannot work there.
+CATEGORY_NOTES = {
+    "emulator": "**Emulators that use libhoudini need loader 0.0.3 or newer.** That version added the detection of "
+                "libhoudini and the guard against its first-launch crash; older versions crash on the first launch. "
+                "Emulators that use libndk_translation are not affected.",
+    "bluestacks": "**BlueStacks needs loader 0.0.4.2a or newer.** Older versions do not work on it: BlueStacks loads "
+                  "libhoudini without declaring it, so versions before 0.0.4.2a did not detect it and crashed on the "
+                  "first launch.",
+}
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{1,63}$")
 VERSION_RE = re.compile(r"^[0-9]+(\.[0-9]+)*[a-z]?$")
 ANDROID_RE = re.compile(r"^[0-9]{1,2}(\.[0-9])?$")
-ALLOWED = {"id", "category", "android", "device", "bridge", "loader", "game", "result", "notes"}
-REQUIRED = ["id", "category", "android", "loader", "game", "result"]
+ALLOWED = {"id", "category", "android", "device", "bridge", "loader", "game", "fusion", "result", "notes"}
+REQUIRED = ["id", "category", "android", "loader", "game", "fusion", "result"]
 MAX_NOTES = 300
 
 problems = []
@@ -72,6 +83,8 @@ def check(results):
         for k in ("loader", "game"):
             if isinstance(r.get(k), str) and not VERSION_RE.match(r[k]):
                 err(where, f"{k} must be a version such as 0.0.4.2a")
+        if r.get("fusion") not in FUSION:
+            err(where, f"fusion must be one of {sorted(FUSION)}")
         if r.get("result") not in RESULTS:
             err(where, f"result must be one of {sorted(RESULTS)}")
         if cat in ("emulator", "bluestacks"):
@@ -105,13 +118,15 @@ def render(results):
                                  [-x for x in version_key(r["loader"])[0]]))
         emulated = cat in ("emulator", "bluestacks")
         lines += [f"## {title}", "", blurb, ""]
-        head = ["Android", "Device"] + (["Native bridge"] if emulated else []) + ["Loader", "Game", "Result", "Notes"]
+        if cat in CATEGORY_NOTES:
+            lines += [f"> {CATEGORY_NOTES[cat]}", ""]
+        head = ["Android", "Device"] + (["Native bridge"] if emulated else []) + ["Loader", "Game", "Result", "Fusion", "Notes"]
         lines += ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
         for r in rows:
             row = [r["android"], r.get("device", "")]
             if emulated:
                 row.append(BRIDGES[r["bridge"]])
-            row += [r["loader"], r["game"], RESULTS[r["result"]], r.get("notes", "")]
+            row += [r["loader"], r["game"], RESULTS[r["result"]], FUSION[r["fusion"]], r.get("notes", "")]
             lines.append("| " + " | ".join(cell(c) for c in row) + " |")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
