@@ -145,6 +145,12 @@ public class MainActivity extends AppCompatActivity {
         }
         // Pretend the last game version seen was another one, to see the game update flow (--es sba_lastgame 13.0.7:1).
         if (i.hasExtra("sba_lastgame")) dev.segually.sbamodloader.browser.GameUpdate.debugSetLast(this, i.getStringExtra("sba_lastgame"));
+        // What the dialog's "Turn them back on" does (--es sba_keepon gu-a,gu-b).
+        if (i.hasExtra("sba_keepon")) {
+            final java.util.List<String> ids = java.util.Arrays.asList(i.getStringExtra("sba_keepon").split(","));
+            final android.content.Context app = getApplicationContext();
+            new Thread(() -> dev.segually.sbamodloader.browser.GameUpdate.keepOn(app, ids), "debug-keepon").start();
+        }
         if (i.hasExtra("sba_fake")) dev.segually.sbamodloader.browser.ModHealth.debugFake = i.getBooleanExtra("sba_fake", false);
         if (i.hasExtra("sba_addrepo")) {
             // Debug builds: add a repository by address, as the Settings dialog would (--es sba_addrepo http://127.0.0.1:8765/other/index.json).
