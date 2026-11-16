@@ -339,4 +339,16 @@
     <string name="appearance_layout_auto">Automatic</string>
     <string name="appearance_layout_phone">Phone</string>
     <string name="appearance_layout_desktop">Desktop</string>
+
+    <!-- The game was updated -->
+    <string name="game_update_title">The game was updated</string>
+    <string name="game_update_title_back">Mods are back on</string>
+    <string name="game_update_intro">The game went from %1$s to %2$s.</string>
+    <string name="game_update_data">The loader will copy the game\'s data again and fetch the matching assemblies the next time you launch it, so that launch can take longer.</string>
+    <string name="game_update_updated">Updated for the new version: %1$s</string>
+    <string name="game_update_disabled">Turned off, because they were made for an older version and the store has nothing newer yet: %1$s</string>
+    <string name="game_update_failed">Turned off, because their update could not be installed: %1$s</string>
+    <string name="game_update_reenabled">Turned back on, they work with this version: %1$s</string>
+    <string name="game_update_unchecked">Added by hand, so they could not be checked: %1$s</string>
+    <string name="game_update_keep_on">Turn them back on</string>
 </resources>

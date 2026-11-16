@@ -76,6 +76,63 @@ public class MainActivity extends AppCompatActivity {
         if (savedInstanceState == null) checkForUpdate();
     }
 
+    private final java.util.concurrent.atomic.AtomicBoolean checkingGame = new java.util.concurrent.atomic.AtomicBoolean();
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkGameUpdate();
+    }
+
+    /**
+     * When the game was updated (or mods were switched off for the old version and now fit), deals with the mods and
+     * tells the player once. Needs the network only when something changed.
+     */
+    private void checkGameUpdate() {
+        if (!checkingGame.compareAndSet(false, true)) return;
+        android.content.Context app = getApplicationContext();
+        new Thread(() -> {
+            try {
+                dev.segually.sbamodloader.browser.GameUpdate.reconcile(app);
+            } catch (RuntimeException e) {
+                android.util.Log.w("MainActivity", "The game update check failed", e);
+            } finally {
+                checkingGame.set(false);
+            }
+            var report = dev.segually.sbamodloader.browser.GameUpdate.takePending(app);
+            if (report != null) runOnUiThread(() -> showGameUpdate(report));
+        }, "game-update").start();
+    }
+
+    private void showGameUpdate(dev.segually.sbamodloader.browser.GameUpdate.Report r) {
+        if (isFinishing() || isDestroyed()) return;
+        StringBuilder text = new StringBuilder();
+        if (r.gameChanged) {
+            text.append(getString(R.string.game_update_intro, r.from, r.to)).append("\n\n");
+            text.append(getString(R.string.game_update_data)).append("\n\n");
+        }
+        appendList(text, R.string.game_update_updated, r.updated);
+        appendList(text, R.string.game_update_disabled, r.disabled);
+        appendList(text, R.string.game_update_failed, r.failed);
+        appendList(text, R.string.game_update_reenabled, r.reenabled);
+        appendList(text, R.string.game_update_unchecked, r.unchecked);
+        var dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(r.gameChanged ? R.string.game_update_title : R.string.game_update_title_back)
+                .setMessage(text.toString().trim())
+                .setPositiveButton(android.R.string.ok, null);
+        if (!r.disabledIds.isEmpty()) {
+            android.content.Context app = getApplicationContext();
+            dialog.setNeutralButton(R.string.game_update_keep_on, (d, w) -> new Thread(() ->
+                    dev.segually.sbamodloader.browser.GameUpdate.keepOn(app, r.disabledIds), "game-update-keep").start());
+        }
+        dialog.show();
+    }
+
+    private void appendList(StringBuilder into, int format, java.util.List<String> names) {
+        if (names.isEmpty()) return;
+        into.append(getString(format, String.join(", ", names))).append("\n\n");
+    }
+
     /** Debug builds can set the appearance from the launch intent, for layout checks (--ez sba_you false --ei sba_accent 0xFFE65100). */
     private void debugAppearance() {
         android.content.Intent i = getIntent();
@@ -86,6 +143,8 @@ public class MainActivity extends AppCompatActivity {
             String url = i.getStringExtra("sba_index");
             SBASettings.setDebugIndexUrl(this, "official".equals(url) ? "" : url); // "official" goes back to the real index
         }
+        // Pretend the last game version seen was another one, to see the game update flow (--es sba_lastgame 13.0.7:1).
+        if (i.hasExtra("sba_lastgame")) dev.segually.sbamodloader.browser.GameUpdate.debugSetLast(this, i.getStringExtra("sba_lastgame"));
         if (i.hasExtra("sba_fake")) dev.segually.sbamodloader.browser.ModHealth.debugFake = i.getBooleanExtra("sba_fake", false);
         if (i.hasExtra("sba_addrepo")) {
             // Debug builds: add a repository by address, as the Settings dialog would (--es sba_addrepo http://127.0.0.1:8765/other/index.json).

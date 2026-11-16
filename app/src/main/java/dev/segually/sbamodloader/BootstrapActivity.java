@@ -516,22 +516,41 @@ public class BootstrapActivity extends AppCompatActivity {
 
         setPhaseStatus(phase(R.string.bootstrap_status_copy_assets, R.string.bootstrap_simple_copy_assets));
         File Assets = new File(dataOnSdCard, "Assets");
-        // The copy comes from the overlay APK when there is one, so redo it whenever the overlay changes.
+        // The copy comes from the overlay APK when there is one, so redo it whenever the overlay changes. It also
+        // belongs to one game version: after a game update it is copied again, and the things made from the old
+        // version (interop assemblies, a metadata override) are dropped. The marker reads "<overlay>|<game>"; one
+        // written by an older loader has no game part and is taken as current.
         File overlayMarker = new File(Assets, ".sba_overlay");
         String overlayId = mods.overlayApk == null ? "none" : mods.overlayApk.getParentFile().getName();
+        String gameKey = dev.segually.sbamodloader.browser.GameUpdate.gameKey(appContext);
         String copiedFor = "";
         try {
             if (overlayMarker.isFile()) copiedFor = new String(java.nio.file.Files.readAllBytes(overlayMarker.toPath()));
         } catch (IOException ignored) {
         }
-        if (!copiedFor.equals(overlayId) && Assets.exists()) {
-            Log.i(TAG, "Asset overlays changed, copying the game's data again");
+        String copiedOverlay = copiedFor;
+        String copiedGame = null;
+        int bar = copiedFor.indexOf('|');
+        if (bar >= 0) {
+            copiedOverlay = copiedFor.substring(0, bar);
+            copiedGame = copiedFor.substring(bar + 1);
+        }
+        boolean gameUpdated = copiedGame != null && !gameKey.isEmpty() && !copiedGame.equals(gameKey);
+        if (Assets.exists() && (!copiedOverlay.equals(overlayId) || gameUpdated)) {
+            Log.i(TAG, gameUpdated ? "The game was updated (" + copiedGame + " -> " + gameKey + "), copying its data again"
+                    : "Asset overlays changed, copying the game's data again");
             Utilities.deleteRecursive(Assets);
+        }
+        if (gameUpdated) {
+            InteropDownloader.forgetForNewGame(appContext, bepInExDir);
+            File override = GlobalMetadata.getOverrideFile(targetPackage);
+            if (override.isFile() && !override.delete()) Log.w(TAG, "Could not remove the old global-metadata override");
+            else Log.i(TAG, "Removed the global-metadata override made for the old game version");
         }
         boolean copied = Utilities.copyAssets(gameContext.getApplicationInfo(), Assets);
         try {
             Assets.mkdirs();
-            java.nio.file.Files.write(overlayMarker.toPath(), overlayId.getBytes());
+            java.nio.file.Files.write(overlayMarker.toPath(), (overlayId + "|" + gameKey).getBytes());
         } catch (IOException e) {
             Log.w(TAG, "Could not record the overlay state", e);
         }

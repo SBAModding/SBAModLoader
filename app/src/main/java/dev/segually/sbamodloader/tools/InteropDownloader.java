@@ -82,6 +82,18 @@ public final class InteropDownloader {
         }
     }
 
+    /**
+     * The game was updated: the assemblies on disk (downloaded or generated) belong to the old version. Removes them,
+     * so that {@link #prepare} downloads the set for the new version, or BepInEx generates one, and forgets the
+     * launch history of the old set.
+     */
+    public static void forgetForNewGame(Context context, File bepInExDir) {
+        Utilities.deleteRecursive(new File(bepInExDir, "interop"));
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("downloadedHash", "")
+                .putInt("failures", 0).putBoolean("pending", false).commit();
+        note(context, "the game was updated; the assemblies of the old version were removed");
+    }
+
     private static void prepareChecked(Context context, File bepInExDir, File codeCacheDir, File metadataFile,
                                        String gameVersion, String unityVersion, Progress progress) throws Exception {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
