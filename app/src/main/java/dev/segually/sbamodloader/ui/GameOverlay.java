@@ -4,28 +4,25 @@ import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.res.ColorStateList;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.KeyEvent;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.FrameLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 
-import com.google.android.material.color.MaterialColors;
-import com.google.android.material.materialswitch.MaterialSwitch;
-import com.google.android.material.shape.MaterialShapeDrawable;
-import com.google.android.material.shape.ShapeAppearanceModel;
+import dev.segually.sbamodloader.ui.compose.GameOverlayHost;
+import dev.segually.sbamodloader.ui.compose.LogcatSource;
+import dev.segually.sbamodloader.ui.compose.OverlayActions;
+import dev.segually.sbamodloader.ui.compose.OverlayOwner;
+import dev.segually.sbamodloader.ui.compose.OverlayState;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -48,16 +45,35 @@ public final class GameOverlay {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final FrameLayout host;
 
-    private View menuRoot;
-    private View panel;
-    private MaterialSwitch freezeSwitch;
-    private TextView logcatText;
-    private TextView frozenChip;
-    private LogcatPanel logcat;
+    private final androidx.compose.runtime.MutableState<OverlayState> uiState =
+            androidx.compose.runtime.SnapshotStateKt.mutableStateOf(new OverlayState(), androidx.compose.runtime.SnapshotStateKt.structuralEqualityPolicy());
+    private final OverlayOwner owner = new OverlayOwner();
+    private final GameOverlayHost.Session session = new GameOverlayHost.Session();
+    private final LogcatSource logSource = new LogcatSource(lines -> {
+        uiState.setValue(copy(uiState.getValue(), null, null, null, null, lines));
+        return kotlin.Unit.INSTANCE;
+    });
     private boolean frozen;
     private boolean menuOpen;
+    private boolean logcatOpen;
     private Object backCallback;
     private Window.Callback originalWindowCallback;
+
+    /** The overlay's actions, called from its Compose menu. */
+    private final OverlayActions actions = new OverlayActions() {
+        @Override public void closeMenu() { GameOverlay.this.closeMenu(); }
+        @Override public void toggleFreeze() { setFrozen(!frozen); closeMenu(); }
+        @Override public void toggleLogcat() { GameOverlay.this.toggleLogcat(); closeMenu(); }
+        @Override public void exitToDashboard() { GameOverlay.this.exitToDashboard(); }
+        @Override public void clearLog() { logSource.clear(); }
+        @Override public void hideLog() { setLogcat(false); }
+    };
+
+    private static OverlayState copy(OverlayState s, Boolean menu, Boolean frozen, Boolean developer, Boolean logcat, java.util.List<String> lines) {
+        return new OverlayState(menu != null ? menu : s.getMenuOpen(), frozen != null ? frozen : s.getFrozen(),
+                developer != null ? developer : s.getDeveloper(), logcat != null ? logcat : s.getLogcatOpen(),
+                lines != null ? lines : s.getLogLines());
+    }
 
     private GameOverlay(Activity activity, Context sbaBase) {
         this.activity = activity;
@@ -69,60 +85,26 @@ public final class GameOverlay {
         GameOverlay overlay = new GameOverlay(activity, sbaBase);
         overlay.build();
         overlay.installBackHandling();
+        if (BuildConfig.DEBUG) overlay.debugOpen();
         return overlay;
     }
 
     private void build() {
         ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
         decor.addView(host, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        uiState.setValue(copy(uiState.getValue(), null, null,
+                dev.segually.sbamodloader.SBASettings.getDeveloperFeatures(ui), null, null));
+        GameOverlayHost.attach(host, owner, session, uiState, actions);
+    }
 
-        menuRoot = LayoutInflater.from(ui).inflate(R.layout.overlay_game_menu, host, false);
-        host.addView(menuRoot);
-        panel = menuRoot.findViewById(R.id.menu_panel);
-        freezeSwitch = menuRoot.findViewById(R.id.menu_freeze_switch);
-        logcatText = menuRoot.findViewById(R.id.menu_logcat_text);
-
-        // Same glass treatment as the dashboard's navigation bar.
-        int container = MaterialColors.getColor(panel, com.google.android.material.R.attr.colorSurfaceContainer);
-        int onSurface = MaterialColors.getColor(panel, com.google.android.material.R.attr.colorOnSurface);
-        float density = ui.getResources().getDisplayMetrics().density;
-        MaterialShapeDrawable bg = new MaterialShapeDrawable(ShapeAppearanceModel.builder()
-                .setAllCornerSizes(28 * density).build());
-        bg.setFillColor(ColorStateList.valueOf((container & 0x00FFFFFF) | (0xE6 << 24)));
-        bg.setStroke(density, (onSurface & 0x00FFFFFF) | (0x2E << 24));
-        panel.setBackground(bg);
-
-        menuRoot.findViewById(R.id.menu_scrim).setOnClickListener(v -> closeMenu());
-        menuRoot.findViewById(R.id.menu_freeze).setOnClickListener(v -> {
-            setFrozen(!frozen);
-            closeMenu();
-        });
-        // The log overlay is a developer tool.
-        menuRoot.findViewById(R.id.menu_logcat).setVisibility(
-                dev.segually.sbamodloader.SBASettings.getDeveloperFeatures(ui) ? View.VISIBLE : View.GONE);
-        menuRoot.findViewById(R.id.menu_logcat).setOnClickListener(v -> {
-            toggleLogcat();
-            closeMenu();
-        });
-        menuRoot.findViewById(R.id.menu_exit).setOnClickListener(v -> exitToDashboard());
-
-        frozenChip = new TextView(ui);
-        frozenChip.setText(R.string.game_frozen);
-        frozenChip.setTextColor(MaterialColors.getColor(panel, com.google.android.material.R.attr.colorOnSurface));
-        frozenChip.setTextSize(13);
-        frozenChip.setTypeface(Theming.font(ui, true));
-        frozenChip.setPadding(Math.round(14 * density), Math.round(6 * density), Math.round(14 * density), Math.round(6 * density));
-        MaterialShapeDrawable chipBg = new MaterialShapeDrawable(ShapeAppearanceModel.builder()
-                .setAllCornerSizes(ShapeAppearanceModel.PILL).build());
-        chipBg.setFillColor(ColorStateList.valueOf((container & 0x00FFFFFF) | (0xD9 << 24)));
-        frozenChip.setBackground(chipBg);
-        frozenChip.setVisibility(View.GONE);
-        FrameLayout.LayoutParams chipLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        chipLp.topMargin = Math.round(12 * density);
-        host.addView(frozenChip, chipLp);
-        // The menu sits above the chip.
-        menuRoot.bringToFront();
+    /** Debug builds: a marker file in the app's files folder opens the menu (and the log) a few seconds in, for layout checks. */
+    private void debugOpen() {
+        handler.postDelayed(() -> {
+            java.io.File marker = new java.io.File("/sdcard/Android/data/" + BuildConfig.APPLICATION_ID + "/files/sba_overlay");
+            if (!marker.exists()) return;
+            if (marker.length() > 5) toggleLogcat();
+            openMenu();
+        }, 6000);
     }
 
     // ---- back handling -------------------------------------------------------------------------
@@ -178,37 +160,25 @@ public final class GameOverlay {
     private void openMenu() {
         if (menuOpen) return;
         menuOpen = true;
-        freezeSwitch.setChecked(frozen);
-        logcatText.setText(logcat != null && logcat.isShown2() ? R.string.game_menu_logcat_close : R.string.game_menu_logcat_open);
-        menuRoot.setVisibility(View.VISIBLE);
-        menuRoot.bringToFront();
-        View scrim = menuRoot.findViewById(R.id.menu_scrim);
-        scrim.setAlpha(0f);
-        scrim.animate().alpha(1f).setDuration(160).start();
-        panel.post(() -> {
-            panel.setTranslationX(-(panel.getWidth() + 48));
-            panel.animate().translationX(0f).setDuration(200).start();
-        });
+        uiState.setValue(copy(uiState.getValue(), true, null, null, null, null));
     }
 
     private void closeMenu() {
         if (!menuOpen) return;
         menuOpen = false;
-        View scrim = menuRoot.findViewById(R.id.menu_scrim);
-        scrim.animate().alpha(0f).setDuration(140).start();
-        panel.animate().translationX(-(panel.getWidth() + 48)).setDuration(160)
-                .withEndAction(() -> {
-                    if (!menuOpen) menuRoot.setVisibility(View.GONE);
-                }).start();
+        uiState.setValue(copy(uiState.getValue(), false, null, null, null, null));
     }
 
     // ---- actions -------------------------------------------------------------------------------
 
     private void toggleLogcat() {
-        if (logcat == null) logcat = new LogcatPanel(ui);
-        if (logcat.isShown2()) logcat.hide();
-        else logcat.show(host);
-        menuRoot.bringToFront();
+        setLogcat(!logcatOpen);
+    }
+
+    private void setLogcat(boolean open) {
+        logcatOpen = open;
+        if (open) logSource.start(); else logSource.stop();
+        uiState.setValue(copy(uiState.getValue(), null, null, null, open, null));
     }
 
     private Object unityPlayer() {
@@ -260,7 +230,7 @@ public final class GameOverlay {
             return;
         }
         frozen = freeze;
-        frozenChip.setVisibility(freeze ? View.VISIBLE : View.GONE);
+        uiState.setValue(copy(uiState.getValue(), null, freeze, null, null, null));
     }
 
     /** Unity resumes itself when the activity does; keep it frozen if that is what the user asked for. */
@@ -286,7 +256,9 @@ public final class GameOverlay {
     }
 
     public void destroy() {
-        if (logcat != null) logcat.hide();
+        logSource.stop();
+        session.close();
+        owner.destroy();
         if (Build.VERSION.SDK_INT >= 33 && backCallback != null) {
             try {
                 activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback((OnBackInvokedCallback) backCallback);
