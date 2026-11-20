@@ -250,7 +250,7 @@ public class MainActivity extends AppCompatActivity {
         boolean was = desktop;
         applyLayoutMode();
         // Pages are built for one layout; a change (a window resized into or out of desktop size) rebuilds the current one.
-        if (was != desktop) showPage(page);
+        if (was != desktop) rebuildPages();
     }
 
     /** Esc goes back, like on a desktop. */
@@ -300,30 +300,66 @@ public class MainActivity extends AppCompatActivity {
         if (now.getSelected() != index) navState.setValue(new NavState(index, now.getShowAllLabels(), now.getBottomInset()));
     }
 
+    private static final String[] PAGE_TAGS = {"page0", "page1", "page2", "page3"};
+
+    /**
+     * Shows a page. Pages stay alive once opened and are only hidden, so coming back to one is instant (rebuilding a
+     * Compose page on every switch was slow and flashed), and each keeps where it was. A hidden page is paused and
+     * resumed again when it is shown, so it refreshes as before.
+     */
     private void showPage(int index) {
         page = index;
         selectNav(index);
-        Fragment f = switch (index) {
-            case 1 -> {
-                BrowseFragment browse = new BrowseFragment();
-                if (pendingBrowseMod != null) {
-                    Bundle args = new Bundle();
-                    args.putString(BrowseFragment.ARG_MOD_ID, pendingBrowseMod);
-                    args.putBoolean("debug_click", BuildConfig.DEBUG && getIntent().getBooleanExtra("sba_click", false));
-                    browse.setArguments(args);
-                    pendingBrowseMod = null;
-                }
-                yield browse;
+        androidx.fragment.app.FragmentManager fm = getSupportFragmentManager();
+        // A page added a moment ago (the first one, then a debug jump to another) must be findable to be hidden.
+        fm.executePendingTransactions();
+        androidx.fragment.app.FragmentTransaction t = fm.beginTransaction().setReorderingAllowed(true);
+        for (int i = 0; i < PAGE_TAGS.length; i++) {
+            Fragment other = fm.findFragmentByTag(PAGE_TAGS[i]);
+            if (other != null && i != index) {
+                t.hide(other);
+                t.setMaxLifecycle(other, androidx.lifecycle.Lifecycle.State.STARTED);
             }
-            case 2 -> new ModsFragment();
-            case 3 -> new SettingsFragment();
-            default -> new DashboardFragment();
-        };
-        // Pages fade through each other (the old one fades out, then the new one fades and scales in).
-        f.setEnterTransition(new com.google.android.material.transition.MaterialFadeThrough());
-        f.setExitTransition(new com.google.android.material.transition.MaterialFadeThrough());
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.page_container, f)
-                .commit();
+        }
+        Fragment target = fm.findFragmentByTag(PAGE_TAGS[index]);
+        if (target == null) {
+            target = switch (index) {
+                case 1 -> {
+                    BrowseFragment browse = new BrowseFragment();
+                    if (pendingBrowseMod != null) {
+                        Bundle args = new Bundle();
+                        args.putString(BrowseFragment.ARG_MOD_ID, pendingBrowseMod);
+                        browse.setArguments(args);
+                        pendingBrowseMod = null;
+                    }
+                    yield browse;
+                }
+                case 2 -> new ModsFragment();
+                case 3 -> new SettingsFragment();
+                default -> new DashboardFragment();
+            };
+            t.add(R.id.page_container, target, PAGE_TAGS[index]);
+        } else {
+            if (index == 1 && pendingBrowseMod != null) {
+                ((BrowseFragment) target).openMod(pendingBrowseMod);
+                pendingBrowseMod = null;
+            }
+            t.show(target);
+        }
+        t.setMaxLifecycle(target, androidx.lifecycle.Lifecycle.State.RESUMED);
+        // A plain fade: the fade-through's scale drew the page as a scaled bitmap, which looked blurry for a moment.
+        target.setEnterTransition(new com.google.android.material.transition.MaterialFade());
+        t.commit();
+    }
+
+    /** Pages are built for one layout; when it changes (the window was resized into or out of desktop size) they are rebuilt. */
+    private void rebuildPages() {
+        androidx.fragment.app.FragmentTransaction t = getSupportFragmentManager().beginTransaction();
+        for (String tag : PAGE_TAGS) {
+            Fragment f = getSupportFragmentManager().findFragmentByTag(tag);
+            if (f != null) t.remove(f);
+        }
+        t.commitNow();
+        showPage(page);
     }
 }

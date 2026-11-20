@@ -172,6 +172,20 @@ public class BrowseFragment extends Fragment implements BrowseHeaderActions, Bro
         }, "browse-load").start();
     }
 
+    /** Opens a mod's store page when this tab is shown again; before the list has loaded, once it has. */
+    public void openMod(String id) {
+        for (Entry candidate : all) {
+            if (candidate.id.equals(id)) {
+                select(candidate);
+                return;
+            }
+        }
+        Bundle args = getArguments();
+        if (args == null) args = new Bundle();
+        args.putString(ARG_MOD_ID, id);
+        setArguments(args);
+    }
+
     // ---- BrowseHeaderActions -----------------------------------------------------------------------
 
     @Override
