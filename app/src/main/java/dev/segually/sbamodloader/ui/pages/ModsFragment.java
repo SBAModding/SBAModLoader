@@ -2,9 +2,7 @@ package dev.segually.sbamodloader.ui.pages;
 
 import android.net.Uri;
 import android.os.Bundle;
-import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -16,11 +14,6 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.ItemTouchHelper;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
-import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.io.File;
 import java.io.InputStream;
@@ -47,27 +40,36 @@ import dev.segually.sbamodloader.tools.ModFiles;
 import dev.segually.sbamodloader.tools.ModPacks;
 import dev.segually.sbamodloader.tools.Utilities;
 import dev.segually.sbamodloader.ui.Insets;
+import dev.segually.sbamodloader.ui.compose.ModChip;
+import dev.segually.sbamodloader.ui.compose.ModRow;
+import dev.segually.sbamodloader.ui.compose.ModsActions;
+import dev.segually.sbamodloader.ui.compose.ModsScreenHost;
+import dev.segually.sbamodloader.ui.compose.ModsState;
+import dev.segually.sbamodloader.ui.compose.UpdatesCard;
 
 /**
  * Lists everything that can be added to the game. Native mods and asset packs come first, in load order, and can
  * be dragged to change it (they load, and win asset conflicts, from top to bottom). BepInEx plugins follow.
  * Disabling a mod renames it with a ".disabled" suffix.
  */
-public class ModsFragment extends Fragment {
+public class ModsFragment extends Fragment implements ModsActions {
     private static final String DISABLED = ModPacks.DISABLED;
     private final List<File> mods = new ArrayList<>();
     private int orderableCount;
-    private RecyclerView list;
-    private TextView empty;
-    private ItemTouchHelper touchHelper;
     /** Mods that came from the store, by id: their names and authors come from the store's copy of the index. */
     private final Map<String, BrowserModels.Entry> storeEntries = new HashMap<>();
     private boolean developer;
     private ModHealth health;
     private final Map<String, ModUpdates.Update> updatesById = new HashMap<>();
     private boolean updating;
-    private dev.segually.sbamodloader.ui.FabMenu fabMenu;
-    private com.google.android.material.button.MaterialButton addModItem;
+    /** The text and progress of the updates card while "Update all" runs. */
+    private String updatingText;
+    private Float updatingProgress;
+    private boolean fabOpen;
+    /** Store icons that have been loaded, by mod id. */
+    private final Map<String, android.graphics.Bitmap> icons = new HashMap<>();
+    private final androidx.compose.runtime.MutableState<ModsState> uiState =
+            androidx.compose.runtime.SnapshotStateKt.mutableStateOf(new ModsState(), androidx.compose.runtime.SnapshotStateKt.structuralEqualityPolicy());
 
     private final ActivityResultLauncher<String[]> picker =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::importMod);
@@ -77,71 +79,18 @@ public class ModsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_mods, container, false);
         Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), requireContext().getResources().getConfiguration().screenWidthDp >= 840 ? 1100 : 760, false, v.findViewById(R.id.page_appbar));
-        list = v.findViewById(R.id.mods_list);
-        empty = v.findViewById(R.id.mods_empty);
-        int columns = getResources().getInteger(R.integer.mods_columns);
-        columns = Math.max(1, columns);
-        list.setLayoutManager(columns > 1
-                ? new androidx.recyclerview.widget.GridLayoutManager(requireContext(), columns)
-                : new LinearLayoutManager(requireContext()));
-        if (columns > 1) {
-            final int gap = Math.round(6 * getResources().getDisplayMetrics().density);
-            list.addItemDecoration(new RecyclerView.ItemDecoration() {
-                @Override
-                public void getItemOffsets(@NonNull android.graphics.Rect out, @NonNull View view,
-                                           @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
-                    out.left = gap;
-                    out.right = gap;
-                }
-            });
-        }
-        list.setAdapter(new Adapter());
-        touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT, 0) {
-            @Override
-            public boolean isLongPressDragEnabled() {
-                return false; // dragging starts from the handle
-            }
-
-            @Override
-            public int getMovementFlags(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
-                int all = ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT;
-                return vh.getBindingAdapterPosition() < orderableCount ? makeMovementFlags(all, 0) : 0;
-            }
-
-            @Override
-            public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder from, @NonNull RecyclerView.ViewHolder to) {
-                int a = from.getBindingAdapterPosition();
-                int b = to.getBindingAdapterPosition();
-                if (a < 0 || b < 0 || a >= orderableCount || b >= orderableCount) return false;
-                mods.add(b, mods.remove(a));
-                list.getAdapter().notifyItemMoved(a, b);
-                return true;
-            }
-
-            @Override
-            public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int direction) {
-            }
-
-            @Override
-            public void clearView(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
-                super.clearView(rv, vh);
-                ModPacks.saveOrder(requireContext(), mods.subList(0, orderableCount));
-                list.getAdapter().notifyItemRangeChanged(0, orderableCount); // refresh the position numbers
-            }
-        });
-        touchHelper.attachToRecyclerView(list);
-        // Adding files by hand skips the store's audit and hash check, so the button only exists with developer
-        // features on (see onResume).
-        fabMenu = new dev.segually.sbamodloader.ui.FabMenu(v.findViewById(R.id.fab_main), v.findViewById(R.id.fab_items),
-                v.findViewById(R.id.fab_scrim));
-        addModItem = fabMenu.addItem(R.string.mods_add, R.drawable.ic_add, () -> picker.launch(new String[]{"*/*"}));
-        fabMenu.addItem(R.string.mods_browse, R.drawable.ic_nav_browse, () -> ((MainActivity) requireActivity()).openBrowse(null));
+        androidx.compose.ui.platform.ComposeView content = v.findViewById(R.id.mods_content);
+        content.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
+        androidx.compose.ui.platform.ComposeView fab = v.findViewById(R.id.mods_fab);
+        fab.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
+        ModsScreenHost.setContent(content, uiState, this);
+        ModsScreenHost.setFab(fab, uiState, this);
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
                 new androidx.activity.OnBackPressedCallback(true) {
                     @Override
                     public void handleOnBackPressed() {
-                        if (fabMenu.isOpen()) {
-                            fabMenu.close();
+                        if (fabOpen) {
+                            setFabOpen(false);
                         } else {
                             setEnabled(false);
                             requireActivity().getOnBackPressedDispatcher().onBackPressed();
@@ -155,7 +104,6 @@ public class ModsFragment extends Fragment {
     public void onResume() {
         super.onResume();
         developer = SBASettings.getDeveloperFeatures(requireContext());
-        addModItem.setVisibility(developer ? View.VISIBLE : View.GONE);
         reload();
         loadStoreNames();
         checkHealth(true);
@@ -179,7 +127,7 @@ public class ModsFragment extends Fragment {
             }, 500);
         }
         if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_fab", false)) {
-            requireView().postDelayed(() -> fabMenu.open(), 400); // debug builds: open the menu, for layout checks
+            requireView().postDelayed(() -> setFabOpen(true), 400); // debug builds: open the menu, for layout checks
         }
     }
 
@@ -192,7 +140,7 @@ public class ModsFragment extends Fragment {
             if (isAdded()) requireActivity().runOnUiThread(() -> {
                 storeEntries.clear();
                 storeEntries.putAll(loaded);
-                if (list != null) list.getAdapter().notifyDataSetChanged();
+                refresh();
             });
         }, "mods-store-names").start();
     }
@@ -222,23 +170,11 @@ public class ModsFragment extends Fragment {
         health = h;
         updatesById.clear();
         for (ModUpdates.Update u : h.updates) updatesById.put(u.entry.id, u);
-        View root = requireView();
-        View updatesCard = root.findViewById(R.id.card_updates);
-        updatesCard.setVisibility(h.updates.isEmpty() ? View.GONE : View.VISIBLE);
-        ((TextView) root.findViewById(R.id.updates_body)).setText(h.updates.size() == 1
-                ? getString(R.string.updates_mods_body_one) : getString(R.string.updates_mods_body, h.updates.size()));
-        root.findViewById(R.id.btn_update_all).setEnabled(!updating);
-        root.findViewById(R.id.btn_update_all).setOnClickListener(x -> updateAll());
-        View problemsCard = root.findViewById(R.id.card_problems);
-        problemsCard.setVisibility(h.hasProblems() ? View.VISIBLE : View.GONE);
-        ((TextView) root.findViewById(R.id.problems_body)).setText(h.fixes.issues.size() == 1
-                ? getString(R.string.problems_body_one) : getString(R.string.problems_body, h.fixes.issues.size()));
-        root.findViewById(R.id.btn_problems).setOnClickListener(x -> showProblems());
-        if (list != null && list.getAdapter() != null) list.getAdapter().notifyDataSetChanged();
+        refresh();
         if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_updateall", false)
                 && !h.updates.isEmpty() && !updating) {
             requireActivity().getIntent().removeExtra("sba_updateall");
-            requireView().post(this::updateAll); // debug builds: press Update all
+            requireView().post(this::runUpdateAll); // debug builds: press Update all
         }
         if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_fix", false)
                 && h.hasProblems() && !h.fixes.blocked()) {
@@ -261,15 +197,12 @@ public class ModsFragment extends Fragment {
     }
 
     /** Updates every mod that has an update, one after the other, with a progress bar in the updates card. */
-    private void updateAll() {
+    private void runUpdateAll() {
         if (updating || health == null || health.updates.isEmpty()) return;
         updating = true;
-        View root = requireView();
-        com.google.android.material.progressindicator.LinearProgressIndicator bar = root.findViewById(R.id.updates_progress);
-        bar.setVisibility(View.VISIBLE);
-        bar.setIndeterminate(true);
-        root.findViewById(R.id.btn_update_all).setEnabled(false);
-        TextView body = root.findViewById(R.id.updates_body);
+        updatingProgress = null;
+        updatingText = null;
+        refresh();
         final android.content.Context app = requireContext().getApplicationContext();
         final List<ModUpdates.Update> todo = new ArrayList<>(health.updates);
         final Map<String, BrowserModels.Entry> index = new HashMap<>(health.index);
@@ -279,15 +212,12 @@ public class ModsFragment extends Fragment {
             for (int i = 0; i < todo.size(); i++) {
                 ModUpdates.Update u = todo.get(i);
                 final int number = i + 1;
-                post(() -> body.setText(getString(R.string.updates_mods_working, u.entry.name, number, todo.size())));
+                post(() -> { updatingText = getString(R.string.updates_mods_working, u.entry.name, number, todo.size()); refresh(); });
                 try {
                     InstallPlanner.Plan plan = InstallPlanner.plan(u.entry, u.target, index,
                             ModInstaller.installedVersions(app, index.values()), game);
                     ModInstaller.install(app, plan, (mod, done, total) -> {
-                        if (total > 0) post(() -> {
-                            bar.setIndeterminate(false);
-                            bar.setProgressCompat((int) (done * 100 / total), true);
-                        });
+                        if (total > 0) post(() -> { updatingProgress = (float) done / total; refresh(); });
                     });
                 } catch (Exception e) {
                     android.util.Log.e("ModsFragment", "Update of " + u.entry.id + " failed", e);
@@ -298,7 +228,8 @@ public class ModsFragment extends Fragment {
             final String err = error;
             post(() -> {
                 updating = false;
-                bar.setVisibility(View.GONE);
+                updatingText = null;
+                updatingProgress = null;
                 if (err != null) Toast.makeText(requireContext(), err, Toast.LENGTH_LONG).show();
                 reload();
                 checkHealth(true);
@@ -411,8 +342,7 @@ public class ModsFragment extends Fragment {
         }
         plugins.sort(Comparator.comparing(f -> f.getName().toLowerCase()));
         mods.addAll(plugins);
-        empty.setVisibility(mods.isEmpty() ? View.VISIBLE : View.GONE);
-        list.getAdapter().notifyDataSetChanged();
+        refresh();
     }
 
     private String displayName(Uri uri) {
@@ -529,192 +459,177 @@ public class ModsFragment extends Fragment {
         return details(f).title;
     }
 
-    private class Adapter extends RecyclerView.Adapter<Adapter.Holder> {
-        @NonNull
-        @Override
-        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
-            return new Holder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_mod, parent, false));
-        }
+    // ---- what the page shows -------------------------------------------------------------------
 
-        @SuppressLint("ClickableViewAccessibility")
-        @Override
-        public void onBindViewHolder(@NonNull Holder h, int position) {
+    /** Rebuilds what the Compose page shows from the file list, the store and the health check. */
+    private void refresh() {
+        if (!isAdded()) return;
+        List<ModRow> rows = new ArrayList<>();
+        for (int position = 0; position < mods.size(); position++) {
             File f = mods.get(position);
-            boolean enabled = !f.getName().endsWith(DISABLED);
             boolean orderable = position < orderableCount;
             Details d = details(f);
-            dev.segually.sbamodloader.ui.Motion.pressable(h.itemView);
-            h.name.setText(d.title);
-            h.kind.setText(describe(d, orderable ? position + 1 : 0));
-            bindChips(h, f);
-            bindIcon(h, d);
-            h.badge.setVisibility(d.storeId != null ? View.VISIBLE : View.GONE);
             BrowserModels.Entry fromStore = d.storeId == null ? null : storeEntries.get(d.storeId);
-            // A mod from another repository is not checked by the team, and the badge says so.
-            ((android.widget.ImageView) h.badge).setImageResource(fromStore != null && !fromStore.official()
-                    ? R.drawable.ic_warning : R.drawable.ic_verified);
-            h.itemView.setAlpha(enabled ? 1f : 0.6f);
-            dev.segually.sbamodloader.ui.Motion.appear(h.itemView, position);
-            h.file.setVisibility(developer ? View.VISIBLE : View.GONE);
-            if (developer) h.file.setText(technical(f));
-            // A mod from the store opens its store page when tapped.
-            h.itemView.setClickable(d.storeId != null);
-            h.itemView.setOnClickListener(d.storeId == null ? null
-                    : v -> ((MainActivity) requireActivity()).openBrowse(d.storeId));
-            h.handle.setVisibility(orderable ? View.VISIBLE : View.GONE);
-            h.handle.setOnTouchListener((v, e) -> {
-                if (e.getActionMasked() == MotionEvent.ACTION_DOWN) touchHelper.startDrag(h);
-                return false;
-            });
-            h.toggle.setOnCheckedChangeListener(null);
-            h.toggle.setChecked(enabled);
-            h.remove.setOnClickListener(v -> confirmRemove(mods.get(h.getBindingAdapterPosition())));
-            // A mod that declares settings gets a button for them.
-            final dev.segually.sbamodloader.tools.ModSettings declared = dev.segually.sbamodloader.tools.ModSettingsStore.schemaFor(f);
-            h.settings.setVisibility(declared == null ? View.GONE : View.VISIBLE);
-            h.settings.setOnClickListener(v -> dev.segually.sbamodloader.ui.ModSettingsSheet.show(requireContext(), d.title, declared));
-            h.toggle.setOnCheckedChangeListener((b, on) -> {
-                int pos = h.getBindingAdapterPosition();
-                if (pos < 0) return;
-                File current = mods.get(pos);
-                File target = new File(current.getParentFile(), on ? ModPacks.baseName(current) : ModPacks.baseName(current) + DISABLED);
-                if (current.renameTo(target)) mods.set(pos, target);
-                else b.setChecked(!on);
-            });
-        }
-
-        /** The line under the name: who made it and which version. */
-        private String describe(Details d, int number) {
-            List<String> parts = new ArrayList<>();
-            if (developer && number > 0) parts.add("#" + number);
-            if (d.author != null) parts.add(getString(R.string.mods_by_author, d.author));
-            if (d.version != null) parts.add(getString(R.string.mods_version, d.version));
-            return String.join(" \u00b7 ", parts);
-        }
-
-        /** Small labels for what the mod is made of: native code, Java code, assets, or a plugin. */
-        private void bindChips(Holder h, File f) {
-            h.chips.removeAllViews();
-            String base = ModPacks.baseName(f);
-            List<Integer> labels = new ArrayList<>();
-            List<Integer> icons = new ArrayList<>();
-            if (base.endsWith(ModPacks.PACK_EXTENSION)) {
-                for (String p : ModPacks.describe(f)) {
-                    labels.add("native".equals(p) ? R.string.mods_chip_native
-                            : "java".equals(p) ? R.string.mods_chip_java : R.string.mods_chip_assets);
-                    icons.add("assets".equals(p) ? R.drawable.ic_folder : R.drawable.ic_code);
-                }
-                if (labels.isEmpty()) {
-                    labels.add(R.string.mods_chip_pack);
-                    icons.add(R.drawable.ic_folder);
-                }
-            } else if (base.endsWith(".so")) {
-                labels.add(R.string.mods_chip_native);
-                icons.add(R.drawable.ic_code);
-            } else {
-                labels.add(R.string.mods_chip_plugin);
-                icons.add(R.drawable.ic_code);
-            }
-            for (int i = 0; i < labels.size(); i++) addChip(h.chips, labels.get(i), icons.get(i));
-            String storeId = new InstalledMods(requireContext()).idForFile(f);
-            ModUpdates.Update update = storeId == null ? null : updatesById.get(storeId);
-            if (update != null) {
-                addChip(h.chips, getString(R.string.updates_chip, update.target.version), R.drawable.ic_download);
-            }
-            if (!base.endsWith(ModPacks.PACK_EXTENSION) && !base.endsWith(".so")
-                    && !SBASettings.getFusionEnabled(requireContext())) {
-                addChip(h.chips, R.string.mods_needs_fusion, R.drawable.ic_warning);
-            }
-        }
-
-        private void addChip(ViewGroup into, int label, int icon) {
-            addChip(into, getString(label), icon);
-        }
-
-        private void addChip(ViewGroup into, String label, int icon) {
-            TextView chip = (TextView) LayoutInflater.from(into.getContext()).inflate(R.layout.view_chip, into, false);
-            chip.setText(label);
-            android.graphics.drawable.Drawable d = androidx.appcompat.content.res.AppCompatResources.getDrawable(into.getContext(), icon);
-            if (d != null) {
-                d = d.mutate();
-                int size = Math.round(14 * getResources().getDisplayMetrics().density);
-                d.setBounds(0, 0, size, size);
-                d.setTint(chip.getCurrentTextColor());
-                chip.setCompoundDrawables(d, null, null, null);
-            }
-            into.addView(chip);
-        }
-
-        /** The store's icon when the mod came from the store, otherwise the first letter of its name. */
-        private void bindIcon(Holder h, Details d) {
             String letter = d.title == null || d.title.isEmpty() ? "?" : d.title.substring(0, 1).toUpperCase(java.util.Locale.ROOT);
-            h.avatar.setText(letter);
-            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-            bg.setCornerRadius(12 * getResources().getDisplayMetrics().density);
-            bg.setStroke(Math.round(1.5f * getResources().getDisplayMetrics().density), com.google.android.material.color.MaterialColors.getColor(h.itemView, com.google.android.material.R.attr.colorOutlineVariant));
-            bg.setColor(com.google.android.material.color.MaterialColors.getColor(h.itemView,
-                    com.google.android.material.R.attr.colorPrimaryContainer));
-            h.avatar.setBackground(bg);
-            h.avatar.setTextColor(com.google.android.material.color.MaterialColors.getColor(h.itemView,
-                    com.google.android.material.R.attr.colorOnPrimaryContainer));
-            h.icon.setTag(d.storeId);
-            h.icon.setImageDrawable(null);
-            h.icon.setVisibility(View.GONE);
-            BrowserModels.Entry store = d.storeId == null ? null : storeEntries.get(d.storeId);
-            if (store == null || store.icon == null) return;
-            dev.segually.sbamodloader.browser.ImageLoader.load(requireContext(), store.imageBase, store.icon, 160, bitmap -> {
-                if (!d.storeId.equals(h.icon.getTag())) return; // the row was reused for another mod meanwhile
-                h.icon.setImageBitmap(bitmap);
-                h.icon.setVisibility(View.VISIBLE);
-            });
+            rows.add(new ModRow(f.getAbsolutePath(), d.title, describe(d, orderable ? position + 1 : 0), letter,
+                    d.storeId == null ? null : icons.get(d.storeId),
+                    d.storeId == null ? 0 : fromStore != null && !fromStore.official() ? 2 : 1,
+                    chips(f), !f.getName().endsWith(DISABLED), orderable,
+                    dev.segually.sbamodloader.tools.ModSettingsStore.schemaFor(f) != null,
+                    d.storeId != null, developer ? technical(f) : null));
+            if (d.storeId != null && fromStore != null && fromStore.icon != null && !icons.containsKey(d.storeId)) loadIcon(d.storeId, fromStore);
         }
-
-        /** Developer view: the real file name and what is inside. */
-        private String technical(File f) {
-            String base = ModPacks.baseName(f);
-            if (base.endsWith(ModPacks.PACK_EXTENSION)) {
-                List<String> parts = new ArrayList<>();
-                for (String p : ModPacks.describe(f)) {
-                    parts.add(getString("native".equals(p) ? R.string.mods_part_native
-                            : "java".equals(p) ? R.string.mods_part_java : R.string.mods_part_assets));
-                }
-                return base + (parts.isEmpty() ? "" : " \u00b7 " + String.join(", ", parts));
+        UpdatesCard updatesCard = null;
+        String problems = null;
+        if (health != null) {
+            if (!health.updates.isEmpty()) {
+                String body = updating && updatingText != null ? updatingText
+                        : health.updates.size() == 1 ? getString(R.string.updates_mods_body_one)
+                        : getString(R.string.updates_mods_body, health.updates.size());
+                updatesCard = new UpdatesCard(body, updating, updatingProgress);
             }
-            return base;
-        }
-
-        @Override
-        public int getItemCount() {
-            return mods.size();
-        }
-
-        class Holder extends RecyclerView.ViewHolder {
-            final TextView name;
-            final TextView avatar;
-            final android.widget.ImageView icon;
-            final View badge;
-            final ViewGroup chips;
-            final TextView kind;
-            final TextView file;
-            final MaterialSwitch toggle;
-            final View remove;
-            final View settings;
-            final View handle;
-
-            Holder(View v) {
-                super(v);
-                name = v.findViewById(R.id.mod_name);
-                avatar = v.findViewById(R.id.mod_avatar);
-                icon = v.findViewById(R.id.mod_icon);
-                badge = v.findViewById(R.id.mod_store_badge);
-                chips = v.findViewById(R.id.mod_chips);
-                kind = v.findViewById(R.id.mod_kind);
-                file = v.findViewById(R.id.mod_file);
-                toggle = v.findViewById(R.id.mod_switch);
-                remove = v.findViewById(R.id.mod_remove);
-                settings = v.findViewById(R.id.mod_settings);
-                handle = v.findViewById(R.id.mod_handle);
+            if (health.hasProblems()) {
+                problems = health.fixes.issues.size() == 1 ? getString(R.string.problems_body_one)
+                        : getString(R.string.problems_body, health.fixes.issues.size());
             }
         }
+        uiState.setValue(new ModsState(getString(R.string.mods_order_hint), updatesCard, problems, rows, developer, fabOpen));
+    }
+
+    private void loadIcon(String storeId, BrowserModels.Entry store) {
+        icons.put(storeId, null); // asked for, so it is not asked for again while it loads
+        dev.segually.sbamodloader.browser.ImageLoader.load(requireContext(), store.imageBase, store.icon, 160, bitmap -> {
+            if (!isAdded()) return;
+            icons.put(storeId, bitmap);
+            refresh();
+        });
+    }
+
+    /** The line under the name: who made it and which version. */
+    private String describe(Details d, int number) {
+        List<String> parts = new ArrayList<>();
+        if (developer && number > 0) parts.add("#" + number);
+        if (d.author != null) parts.add(getString(R.string.mods_by_author, d.author));
+        if (d.version != null) parts.add(getString(R.string.mods_version, d.version));
+        return String.join(" \u00b7 ", parts);
+    }
+
+    /** Small labels for what the mod is made of: native code, Java code, assets, or a plugin. */
+    private List<ModChip> chips(File f) {
+        List<ModChip> chips = new ArrayList<>();
+        String base = ModPacks.baseName(f);
+        if (base.endsWith(ModPacks.PACK_EXTENSION)) {
+            List<String> described = ModPacks.describe(f);
+            for (String p : described) {
+                chips.add(new ModChip(getString("native".equals(p) ? R.string.mods_chip_native
+                        : "java".equals(p) ? R.string.mods_chip_java : R.string.mods_chip_assets),
+                        "assets".equals(p) ? R.drawable.ic_folder : R.drawable.ic_code));
+            }
+            if (chips.isEmpty()) chips.add(new ModChip(getString(R.string.mods_chip_pack), R.drawable.ic_folder));
+        } else if (base.endsWith(".so")) {
+            chips.add(new ModChip(getString(R.string.mods_chip_native), R.drawable.ic_code));
+        } else {
+            chips.add(new ModChip(getString(R.string.mods_chip_plugin), R.drawable.ic_code));
+        }
+        String storeId = new InstalledMods(requireContext()).idForFile(f);
+        ModUpdates.Update update = storeId == null ? null : updatesById.get(storeId);
+        if (update != null) chips.add(new ModChip(getString(R.string.updates_chip, update.target.version), R.drawable.ic_download));
+        if (!base.endsWith(ModPacks.PACK_EXTENSION) && !base.endsWith(".so") && !SBASettings.getFusionEnabled(requireContext())) {
+            chips.add(new ModChip(getString(R.string.mods_needs_fusion), R.drawable.ic_warning));
+        }
+        return chips;
+    }
+
+    /** Developer view: the real file name and what is inside. */
+    private String technical(File f) {
+        String base = ModPacks.baseName(f);
+        if (base.endsWith(ModPacks.PACK_EXTENSION)) {
+            List<String> parts = new ArrayList<>();
+            for (String p : ModPacks.describe(f)) {
+                parts.add(getString("native".equals(p) ? R.string.mods_part_native
+                        : "java".equals(p) ? R.string.mods_part_java : R.string.mods_part_assets));
+            }
+            return base + (parts.isEmpty() ? "" : " \u00b7 " + String.join(", ", parts));
+        }
+        return base;
+    }
+
+    // ---- ModsActions ----------------------------------------------------------------------------
+
+    private int indexOf(String key) {
+        for (int i = 0; i < mods.size(); i++) if (mods.get(i).getAbsolutePath().equals(key)) return i;
+        return -1;
+    }
+
+    @Override
+    public void toggle(String key, boolean on) {
+        int pos = indexOf(key);
+        if (pos < 0) return;
+        File current = mods.get(pos);
+        File target = new File(current.getParentFile(), on ? ModPacks.baseName(current) : ModPacks.baseName(current) + DISABLED);
+        if (current.renameTo(target)) mods.set(pos, target);
+        refresh();
+    }
+
+    @Override
+    public void remove(String key) {
+        int pos = indexOf(key);
+        if (pos >= 0) confirmRemove(mods.get(pos));
+    }
+
+    @Override
+    public void openSettings(String key) {
+        int pos = indexOf(key);
+        if (pos < 0) return;
+        File f = mods.get(pos);
+        dev.segually.sbamodloader.tools.ModSettings declared = dev.segually.sbamodloader.tools.ModSettingsStore.schemaFor(f);
+        if (declared != null) dev.segually.sbamodloader.ui.ModSettingsSheet.show(requireContext(), details(f).title, declared);
+    }
+
+    @Override
+    public void open(String key) {
+        int pos = indexOf(key);
+        if (pos < 0) return;
+        String storeId = details(mods.get(pos)).storeId;
+        if (storeId != null) ((MainActivity) requireActivity()).openBrowse(storeId);
+    }
+
+    @Override
+    public void move(int from, int to) {
+        if (from < 0 || to < 0 || from >= orderableCount || to >= orderableCount || from == to) return;
+        mods.add(to, mods.remove(from));
+        refresh();
+    }
+
+    @Override
+    public void dragFinished() {
+        ModPacks.saveOrder(requireContext(), mods.subList(0, orderableCount));
+        refresh(); // the position numbers
+    }
+
+    @Override
+    public void updateAll() {
+        runUpdateAll();
+    }
+
+    @Override
+    public void reviewProblems() {
+        showProblems();
+    }
+
+    @Override
+    public void addByHand() {
+        picker.launch(new String[]{"*/*"});
+    }
+
+    @Override
+    public void browse() {
+        ((MainActivity) requireActivity()).openBrowse(null);
+    }
+
+    @Override
+    public void setFabOpen(boolean open) {
+        fabOpen = open;
+        refresh();
     }
 }
