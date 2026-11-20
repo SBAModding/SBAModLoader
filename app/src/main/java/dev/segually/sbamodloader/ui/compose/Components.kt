@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CornerSize
@@ -121,7 +122,8 @@ fun ChoiceGroup(options: List<String>, selected: Int, onSelect: (Int) -> Unit, m
             )
             Surface(
                 onClick = { onSelect(index) },
-                modifier = Modifier.weight(1f).height(56.dp),
+                // 56dp tall with 4dp of inset above and below, as MaterialButton draws it.
+                modifier = Modifier.weight(1f).height(56.dp).padding(vertical = 4.dp),
                 shape = shape,
                 color = if (checked) colors.secondaryContainer else Color.Transparent,
                 contentColor = if (checked) colors.onSecondaryContainer else colors.onSurface,
@@ -149,9 +151,16 @@ fun SbaText(
     maxLines: Int = Int.MAX_VALUE,
     overflow: androidx.compose.ui.text.style.TextOverflow = androidx.compose.ui.text.style.TextOverflow.Clip,
 ) {
+    val known = style.fontSize.isSp && style.lineHeight.isSp
     val extra = with(androidx.compose.ui.platform.LocalDensity.current) {
         val diff = style.fontSize.value * 1.52f - style.lineHeight.value
-        if (style.fontSize.isSp && style.lineHeight.isSp && diff > 0f) diff.sp.toDp() else 0.dp
+        if (known && diff > 0f) diff.sp.toDp() else 0.dp
     }
-    Text(text, modifier.padding(bottom = extra), color = color, style = style, maxLines = maxLines, overflow = overflow)
+    // A TextView puts the first baseline at the font's natural ascent; Compose centres the line in its line height,
+    // which is higher. The difference (measured against the Views: 0.875 em minus half the line height) is added back.
+    val shift = with(androidx.compose.ui.platform.LocalDensity.current) {
+        val diff = style.fontSize.value * 0.875f - style.lineHeight.value / 2f
+        if (known && diff > 0f) diff.sp.toDp() else 0.dp
+    }
+    Text(text, modifier.padding(bottom = extra).offset(y = shift), color = color, style = style, maxLines = maxLines, overflow = overflow)
 }

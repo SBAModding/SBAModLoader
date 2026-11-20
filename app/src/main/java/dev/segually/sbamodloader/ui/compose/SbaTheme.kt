@@ -133,3 +133,18 @@ fun SbaTheme(content: @Composable () -> Unit) {
         }) { androidx.compose.runtime.CompositionLocalProvider(LocalSbaText provides sbaText) { content() } }
     }
 }
+
+/**
+ * For a screen that scrolls by itself: the first, throwaway measure pass of a ComposeView has no height limit, which a
+ * scrolling container refuses. Screens inside a NestedScrollView must not use this, since their height is meant to be
+ * unlimited.
+ */
+@Composable
+fun Modifier.boundedHeight(): Modifier {
+    val fallback = with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.roundToPx() }
+    return this.then(Modifier.layout { measurable, constraints ->
+        val bounded = if (constraints.hasBoundedHeight) constraints else constraints.copy(maxHeight = fallback)
+        val placeable = measurable.measure(bounded)
+        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    })
+}

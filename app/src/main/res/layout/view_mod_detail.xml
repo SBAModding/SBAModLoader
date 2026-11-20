@@ -4,30 +4,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <ScrollView
-        android:id="@+id/detail_scroll"
+    <!-- The store page, with its scrolling and the "pick a mod" prompt, is Jetpack Compose: BrowseDetail. -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/detail_content"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:visibility="gone">
-
-        <LinearLayout
-            android:id="@+id/detail_content"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingStart="24dp"
-            android:paddingTop="16dp"
-            android:paddingEnd="24dp"
-            android:paddingBottom="112dp" />
-    </ScrollView>
-
-    <TextView
-        android:id="@+id/detail_empty"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:text="@string/browse_select_prompt"
-        android:textAppearance="@style/TextAppearance.SBA.BodyLarge"
-        android:textColor="?attr/colorOnSurfaceVariant" />
+        android:layout_height="match_parent" />
 </FrameLayout>

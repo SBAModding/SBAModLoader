@@ -1,37 +1,21 @@
 package dev.segually.sbamodloader.ui.pages;
 
 import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.text.format.DateUtils;
 import android.text.format.Formatter;
-import android.util.TypedValue;
-import android.view.Gravity;
 import android.view.LayoutInflater;
-import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.chip.Chip;
-import com.google.android.material.chip.ChipGroup;
-import com.google.android.material.color.MaterialColors;
-import com.google.android.material.textfield.TextInputEditText;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,14 +36,28 @@ import dev.segually.sbamodloader.browser.ImageLoader;
 import dev.segually.sbamodloader.browser.InstallPlanner;
 import dev.segually.sbamodloader.browser.ModInstaller;
 import dev.segually.sbamodloader.browser.ModVersions;
-import dev.segually.sbamodloader.browser.RemoteModRepository;
 import dev.segually.sbamodloader.ui.Insets;
+import dev.segually.sbamodloader.ui.compose.Badge;
+import dev.segually.sbamodloader.ui.compose.BrowseHeader;
+import dev.segually.sbamodloader.ui.compose.BrowseHeaderActions;
+import dev.segually.sbamodloader.ui.compose.BrowseItem;
+import dev.segually.sbamodloader.ui.compose.BrowseListActions;
+import dev.segually.sbamodloader.ui.compose.BrowseListState;
+import dev.segually.sbamodloader.ui.compose.BrowseScreenHost;
+import dev.segually.sbamodloader.ui.compose.DetailActions;
+import dev.segually.sbamodloader.ui.compose.DetailState;
+import dev.segually.sbamodloader.ui.compose.InfoLine;
+import dev.segually.sbamodloader.ui.compose.InstallUi;
+import dev.segually.sbamodloader.ui.compose.Reason;
+import dev.segually.sbamodloader.ui.compose.StatTile;
+import dev.segually.sbamodloader.ui.compose.SubChip;
+import dev.segually.sbamodloader.ui.compose.ViewerRequest;
 
 /**
  * The mod browser. On a wide (landscape) layout the search, filters and list sit on the left and the selected
  * mod on the right; in portrait the list and the detail are separate pages and back returns to the list.
  */
-public class BrowseFragment extends Fragment {
+public class BrowseFragment extends Fragment implements BrowseHeaderActions, BrowseListActions, DetailActions {
     /** Argument: the id of a mod whose store page to open as soon as the list has loaded. */
     public static final String ARG_MOD_ID = "mod_id";
     private final BrowseQuery query = new BrowseQuery();
@@ -72,20 +70,31 @@ public class BrowseFragment extends Fragment {
     private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
     /** The Browse fragment currently on screen, if any: where a running install reports back to. */
     private static java.lang.ref.WeakReference<BrowseFragment> visible = new java.lang.ref.WeakReference<>(null);
-    private LinearLayout installArea;
     private List<Entry> all = new ArrayList<>();
-    private final ModAdapter adapter = new ModAdapter();
     private String selectedId;
     /** The release picked for each mod on this page (mod id to version); a mod without an entry shows its default. */
     private final Map<String, String> chosen = new HashMap<>();
+    /** Store icons that have been loaded, by mod id. */
+    private final Map<String, android.graphics.Bitmap> icons = new HashMap<>();
+    /** The text of a running install, and how far its download is, 0 to 100 (0 shows an indeterminate bar). */
+    private String installStatus;
+    private int installPercent;
+    private String loadMessage;
+    private boolean loadFailed;
+    private boolean loading;
+    private int kindChoice;
+    private int categoryChoice;
 
     private View detailPage; // null when the list and the detail share the screen
-    private ChipGroup chipsSub;
-    private View subsScroll;
-    private TextView resultCount, emptyView;
-    private View retryButton;
-    private MaterialButton sortButton;
-    private ScrollViewHolder detail;
+
+    private final androidx.compose.runtime.MutableState<BrowseHeader> headerState = state(new BrowseHeader());
+    private final androidx.compose.runtime.MutableState<BrowseListState> listState = state(new BrowseListState());
+    private final androidx.compose.runtime.MutableState<DetailState> detailState = state(null);
+    private final androidx.compose.runtime.MutableState<ViewerRequest> viewerState = state(null);
+
+    private static <T> androidx.compose.runtime.MutableState<T> state(T initial) {
+        return androidx.compose.runtime.SnapshotStateKt.mutableStateOf(initial, androidx.compose.runtime.SnapshotStateKt.structuralEqualityPolicy());
+    }
 
     private final OnBackPressedCallback backCallback = new OnBackPressedCallback(false) {
         @Override
@@ -94,12 +103,6 @@ public class BrowseFragment extends Fragment {
         }
     };
 
-    private static final class ScrollViewHolder {
-        View scroll;
-        LinearLayout content;
-        View empty;
-    }
-
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
@@ -107,68 +110,26 @@ public class BrowseFragment extends Fragment {
         visible = new java.lang.ref.WeakReference<>(this);
         detailPage = v.findViewById(R.id.detail_page);
 
-        detail = new ScrollViewHolder();
-        detail.scroll = v.findViewById(R.id.detail_scroll);
-        detail.content = v.findViewById(R.id.detail_content);
-        detail.empty = v.findViewById(R.id.detail_empty);
-
         Insets.padForChrome(v.findViewById(R.id.browse_list_page), 0, 0, false);
         if (detailPage != null) Insets.padForChrome(detailPage, 0);
-        else Insets.padForChrome(detail.scroll, 0);
+        else Insets.padForChrome(v.findViewById(R.id.detail_root), 0);
 
-        resultCount = v.findViewById(R.id.result_count);
-        emptyView = v.findViewById(R.id.browse_empty);
-        sortButton = v.findViewById(R.id.btn_sort);
-        chipsSub = v.findViewById(R.id.chips_sub);
-        subsScroll = v.findViewById(R.id.subs_scroll);
-
-        RecyclerView list = v.findViewById(R.id.browse_list);
-        listView = list;
-        list.setLayoutManager(new LinearLayoutManager(requireContext()));
-        list.setAdapter(adapter);
-
-        TextInputEditText search = v.findViewById(R.id.search_input);
-        search.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                query.text = s.toString();
-                refresh();
-            }
-        });
-
-        com.google.android.material.button.MaterialButtonToggleGroup kinds = v.findViewById(R.id.chips_kind);
-        kinds.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
-            if (!isChecked) return;
-            int id = checkedId;
-            query.kind = id == R.id.chip_kind_fusion ? Kind.FUSION
-                    : id == R.id.chip_kind_native ? Kind.NATIVE
-                    : id == R.id.chip_kind_pack ? Kind.PACK : null;
-            refresh();
-        });
-        com.google.android.material.button.MaterialButtonToggleGroup categories = v.findViewById(R.id.chips_category);
-        categories.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
-            if (!isChecked) return;
-            int id = checkedId;
-            query.category = id == R.id.chip_cat_texture ? Category.TEXTURE_PACK
-                    : id == R.id.chip_cat_mod ? Category.MOD : null;
-            query.subs.clear();
-            rebuildSubChips();
-            refresh();
-        });
-
-        sortButton.setOnClickListener(this::showSortMenu);
-        updateSortLabel();
+        androidx.compose.ui.platform.ComposeView header = v.findViewById(R.id.browse_header);
+        androidx.compose.ui.platform.ComposeView list = v.findViewById(R.id.browse_content);
+        androidx.compose.ui.platform.ComposeView detail = v.findViewById(R.id.detail_content);
+        for (androidx.compose.ui.platform.ComposeView c : new androidx.compose.ui.platform.ComposeView[]{header, list, detail}) {
+            c.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
+        }
+        BrowseScreenHost.header(header, headerState, this);
+        BrowseScreenHost.list(list, listState, this);
+        BrowseScreenHost.detail(detail, detailState, this, getString(R.string.browse_select_prompt), viewerState, () -> viewerState.setValue(null));
+        updateHeader();
 
         if (detailPage != null) {
             ((MaterialToolbar) v.findViewById(R.id.detail_toolbar)).setNavigationOnClickListener(x -> closeDetail());
             requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backCallback);
         }
 
-        retryButton = v.findViewById(R.id.browse_retry);
-        retryButton.setOnClickListener(x -> loadRepository());
         loadRepository();
         return v;
     }
@@ -176,7 +137,6 @@ public class BrowseFragment extends Fragment {
     @Override
     public void onDestroyView() {
         if (visible.get() == this) visible = new java.lang.ref.WeakReference<>(null);
-        installArea = null;
         super.onDestroyView();
     }
 
@@ -194,9 +154,10 @@ public class BrowseFragment extends Fragment {
     }
 
     private void loadRepository() {
-        resultCount.setText(R.string.browse_loading);
-        retryButton.setVisibility(View.GONE);
-        emptyView.setVisibility(View.GONE);
+        loading = true;
+        loadFailed = false;
+        updateHeader();
+        updateList();
         final android.content.Context app = requireContext().getApplicationContext();
         new Thread(() -> {
             dev.segually.sbamodloader.browser.Repositories.Result read = dev.segually.sbamodloader.browser.Repositories.load(app, true);
@@ -204,11 +165,11 @@ public class BrowseFragment extends Fragment {
             List<Entry> result = read.officialFailed && read.entries.isEmpty() ? null : read.entries;
             boolean cached = read.anyFromCache;
             if (isAdded()) requireActivity().runOnUiThread(() -> {
+                loading = false;
                 if (result == null) {
-                    resultCount.setText(R.string.browse_load_failed);
-                    emptyView.setText(R.string.browse_load_failed_detail);
-                    emptyView.setVisibility(View.VISIBLE);
-                    retryButton.setVisibility(View.VISIBLE);
+                    loadFailed = true;
+                    updateHeader();
+                    updateList();
                     return;
                 }
                 all = result;
@@ -218,139 +179,162 @@ public class BrowseFragment extends Fragment {
                 String wanted = args == null ? null : args.getString(ARG_MOD_ID);
                 if (wanted != null) {
                     args.remove(ARG_MOD_ID); // only once; coming back to the list later should not reopen it
-                    boolean click = dev.segually.sbamodloader.BuildConfig.DEBUG && args.getBoolean("debug_click");
-                    for (Entry candidate : all) {
-                        if (!candidate.id.equals(wanted)) continue;
-                        if (click && listView != null) {
-                            // Debug builds can open a page by "tapping" its card from code, to check the transition.
-                            listView.post(() -> {
-                                View card = findCard(candidate.id);
-                                if (card != null) card.performClick(); else select(candidate);
-                            });
-                        } else {
-                            select(candidate);
-                        }
-                    }
+                    for (Entry candidate : all) if (candidate.id.equals(wanted)) select(candidate);
                 }
             });
         }, "browse-load").start();
     }
 
-    // ---- filtering ------------------------------------------------------------------------------
+    // ---- BrowseHeaderActions -----------------------------------------------------------------------
 
-    private void rebuildSubChips() {
-        chipsSub.removeAllViews();
-        if (query.category == null) {
-            subsScroll.setVisibility(View.GONE);
-            return;
-        }
-        subsScroll.setVisibility(View.VISIBLE);
-        for (Sub sub : Sub.of(query.category)) {
-            Chip chip = new Chip(requireContext());
-            chip.setText(subLabel(sub));
-            chip.setCheckable(true);
-            chip.setChipIconVisible(false);
-            chip.setOnCheckedChangeListener((b, checked) -> {
-                if (checked) query.subs.add(sub);
-                else query.subs.remove(sub);
-                refresh();
-            });
-            chipsSub.addView(chip);
-        }
+    @Override
+    public void setQuery(@NonNull String text) {
+        query.text = text;
+        refresh();
     }
 
-    private void showSortMenu(View anchor) {
-        androidx.appcompat.widget.PopupMenu menu = new androidx.appcompat.widget.PopupMenu(requireContext(), anchor);
-        BrowseQuery.Sort[] sorts = BrowseQuery.Sort.values();
-        for (BrowseQuery.Sort s : sorts) {
-            menu.getMenu().add(Menu.NONE, s.ordinal(), s.ordinal(), sortLabel(s)).setCheckable(true).setChecked(s == query.sort);
-        }
-        menu.getMenu().setGroupCheckable(Menu.NONE, true, true);
-        menu.setOnMenuItemClickListener(item -> {
-            query.sort = sorts[item.getItemId()];
-            updateSortLabel();
-            refresh();
-            return true;
-        });
-        menu.show();
+    @Override
+    public void setKind(int kind) {
+        kindChoice = kind;
+        query.kind = kind == 1 ? Kind.FUSION : kind == 2 ? Kind.NATIVE : kind == 3 ? Kind.PACK : null;
+        refresh();
     }
 
-    private void updateSortLabel() {
-        sortButton.setText(getString(R.string.browse_sort_format, sortLabel(query.sort)));
+    @Override
+    public void setCategory(int category) {
+        categoryChoice = category;
+        query.category = category == 1 ? Category.TEXTURE_PACK : category == 2 ? Category.MOD : null;
+        query.subs.clear();
+        refresh();
     }
+
+    @Override
+    public void toggleSub(int index, boolean checked) {
+        if (query.category == null) return;
+        Sub sub = Sub.of(query.category).get(index);
+        if (checked) query.subs.add(sub);
+        else query.subs.remove(sub);
+        refresh();
+    }
+
+    @Override
+    public void setSort(int index) {
+        query.sort = BrowseQuery.Sort.values()[index];
+        refresh();
+    }
+
+    // ---- BrowseListActions -------------------------------------------------------------------------
+
+    @Override
+    public void open(@NonNull String id) {
+        for (Entry e : all) if (e.id.equals(id)) select(e);
+    }
+
+    @Override
+    public void retry() {
+        loadRepository();
+    }
+
+    // ---- what the page shows -------------------------------------------------------------------------
 
     private void refresh() {
         if (!isAdded()) return;
-        List<Entry> shown = query.apply(all);
-        adapter.submit(shown);
-        String count = shown.size() == 1 ? getString(R.string.browse_result_one)
-                : getString(R.string.browse_results, shown.size());
-        resultCount.setText(offlineCopy ? count + " \u00b7 " + getString(R.string.browse_offline_copy) : count);
-        emptyView.setText(all.isEmpty() ? R.string.browse_repository_empty : R.string.browse_no_results);
-        emptyView.setVisibility(shown.isEmpty() ? View.VISIBLE : View.GONE);
+        updateHeader();
+        updateList();
+    }
+
+    private void updateHeader() {
+        if (!isAdded()) return;
+        List<Entry> shown = all.isEmpty() && (loading || loadFailed) ? new ArrayList<>() : query.apply(all);
+        String count;
+        if (loading) count = getString(R.string.browse_loading);
+        else if (loadFailed) count = getString(R.string.browse_load_failed);
+        else {
+            count = shown.size() == 1 ? getString(R.string.browse_result_one) : getString(R.string.browse_results, shown.size());
+            if (offlineCopy) count = count + " \u00b7 " + getString(R.string.browse_offline_copy);
+        }
+        List<SubChip> subs = new ArrayList<>();
+        if (query.category != null) {
+            for (Sub sub : Sub.of(query.category)) subs.add(new SubChip(subLabel(sub), query.subs.contains(sub)));
+        }
+        BrowseQuery.Sort[] sorts = BrowseQuery.Sort.values();
+        List<String> options = new ArrayList<>();
+        for (BrowseQuery.Sort s : sorts) options.add(sortLabel(s));
+        headerState.setValue(new BrowseHeader(query.text == null ? "" : query.text, kindChoice, categoryChoice, subs, count,
+                getString(R.string.browse_sort_format, sortLabel(query.sort)), options, query.sort.ordinal()));
+    }
+
+    private void updateList() {
+        if (!isAdded()) return;
+        if (loadFailed) {
+            listState.setValue(new BrowseListState(new ArrayList<>(), getString(R.string.browse_load_failed_detail), true));
+            return;
+        }
+        List<Entry> shown = loading ? new ArrayList<>() : query.apply(all);
+        List<BrowseItem> items = new ArrayList<>();
+        String game = installedGameVersion();
+        for (Entry e : shown) {
+            StringBuilder stats = new StringBuilder();
+            if (e.ratingCount > 0) stats.append(String.format(Locale.US, "\u2605 %.1f  \u00b7  ", e.rating));
+            if (e.downloads > 0) stats.append(compact(e.downloads)).append("  \u00b7  ");
+            stats.append(Formatter.formatShortFileSize(requireContext(), e.size));
+            ModInstaller.State installed = ModInstaller.state(requireContext(), e);
+            if (busy.contains(e.id)) stats.append("  \u00b7  ").append(getString(R.string.detail_working));
+            else if (installed == ModInstaller.State.INSTALLED) stats.append("  \u00b7  ").append(getString(R.string.detail_installed));
+            else if (installed == ModInstaller.State.UPDATE_AVAILABLE) stats.append("  \u00b7  ").append(getString(R.string.detail_update_available));
+            if (game != null && ModVersions.bestFor(e, game) == null) stats.append("  \u00b7  ").append(getString(R.string.detail_other_game));
+            items.add(new BrowseItem(e.id, e.name.substring(0, 1).toUpperCase(Locale.ROOT),
+                    new kotlin.Pair<>(tint(e.id, 0.55f), tint(e.id + "b", 0.35f)), iconOf(e, 112),
+                    e.name, e.author + " \u00b7 " + kindLabel(e.kind) + (e.official() ? "" : " \u00b7 " + e.repoName),
+                    e.official(), e.summary, stats.toString(), e.id.equals(selectedId) && detailPage == null));
+        }
+        String message = null;
+        if (!loading && items.isEmpty()) message = getString(all.isEmpty() ? R.string.browse_repository_empty : R.string.browse_no_results);
+        listState.setValue(new BrowseListState(items, message, false));
+    }
+
+    /** A mod's store icon once it has loaded (the load is started the first time it is asked for). */
+    @Nullable
+    private android.graphics.Bitmap iconOf(Entry e, int pixels) {
+        if (e.icon == null) return null;
+        if (icons.containsKey(e.id)) return icons.get(e.id);
+        icons.put(e.id, null);
+        ImageLoader.load(requireContext(), e.imageBase, e.icon, 256, bitmap -> {
+            if (!isAdded()) return;
+            icons.put(e.id, bitmap);
+            updateList();
+            if (e.id.equals(selectedId)) updateDetail();
+        });
+        return null;
     }
 
     // ---- detail ---------------------------------------------------------------------------------
 
     private void select(Entry e) {
-        select(e, null);
-    }
-
-    /** Opens the store page. On a phone the tapped card grows into the page; next to the list it just fills in. */
-    private void select(Entry e, @Nullable View source) {
         selectedId = e.id;
-        showDetail(e);
+        updateDetail();
         if (detailPage != null) {
-            View listPage = requireView().findViewById(R.id.browse_list_page);
-            if (source != null && source.isAttachedToWindow()) {
-                lastSource = new java.lang.ref.WeakReference<>(source);
-                containerTransform(source, detailPage, true);
-            }
-            listPage.setVisibility(View.GONE);
+            ViewGroup root = (ViewGroup) requireView();
+            androidx.transition.TransitionManager.beginDelayedTransition(root, new com.google.android.material.transition.MaterialFadeThrough());
+            requireView().findViewById(R.id.browse_list_page).setVisibility(View.GONE);
             detailPage.setVisibility(View.VISIBLE);
             backCallback.setEnabled(true);
         } else {
-            adapter.notifyDataSetChanged();
+            updateList();
+        }
+        if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().getBooleanExtra("sba_viewer", false) && !e.screenshots.isEmpty()) {
+            requireActivity().getIntent().removeExtra("sba_viewer");
+            requireView().postDelayed(() -> openViewer(Math.min(1, e.screenshots.size() - 1)), 800); // debug builds: open the viewer
         }
     }
-
-    private java.lang.ref.WeakReference<View> lastSource;
-    private RecyclerView listView;
 
     private void closeDetail() {
         if (detailPage == null) return;
-        View listPage = requireView().findViewById(R.id.browse_list_page);
-        View back = findCard(selectedId);
-        if (back != null) {
-            containerTransform(detailPage, back, false);
-        }
+        ViewGroup root = (ViewGroup) requireView();
+        androidx.transition.TransitionManager.beginDelayedTransition(root, new com.google.android.material.transition.MaterialFadeThrough());
         detailPage.setVisibility(View.GONE);
-        listPage.setVisibility(View.VISIBLE);
+        requireView().findViewById(R.id.browse_list_page).setVisibility(View.VISIBLE);
         backCallback.setEnabled(false);
-    }
-
-    /** The card of a mod in the list, if it is on screen. */
-    @Nullable
-    private View findCard(@Nullable String id) {
-        if (id == null || listView == null) return null;
-        int pos = adapter.positionOf(id);
-        if (pos < 0) return null;
-        RecyclerView.ViewHolder h = listView.findViewHolderForAdapterPosition(pos);
-        return h == null ? null : h.itemView;
-    }
-
-    /** Morphs {@code from} into {@code to}: the card and the page are the same surface at two sizes. */
-    private void containerTransform(View from, View to, boolean entering) {
-        if (!(requireView() instanceof ViewGroup)) return;
-        com.google.android.material.transition.MaterialContainerTransform t =
-                new com.google.android.material.transition.MaterialContainerTransform(requireContext(), entering);
-        t.setStartView(from);
-        t.setEndView(to);
-        t.addTarget(to);
-        t.setScrimColor(Color.TRANSPARENT);
-        t.setAllContainerColors(color(com.google.android.material.R.attr.colorSurfaceContainerHigh));
-        t.setDuration(450);
-        androidx.transition.TransitionManager.beginDelayedTransition((ViewGroup) requireView(), t);
     }
 
     private String installedGameVersion() {
@@ -361,166 +345,11 @@ public class BrowseFragment extends Fragment {
         }
     }
 
-    private int dp(float v) {
-        return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics()));
-    }
-
-    private int color(int attr) {
-        return MaterialColors.getColor(requireView(), attr);
-    }
-
-    private TextView text(String s, int style, int colorAttr) {
-        TextView t = new TextView(requireContext());
-        t.setText(s);
-        t.setTextAppearance(style);
-        t.setTextColor(color(colorAttr));
-        return t;
-    }
-
-    private TextView section(String title) {
-        TextView t = text(title, R.style.TextAppearance_SBA_TitleLargeEmphasized,
-                com.google.android.material.R.attr.colorOnSurface);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = dp(28);
-        lp.bottomMargin = dp(8);
-        t.setLayoutParams(lp);
-        return t;
-    }
-
-    /** Progress of the download that is running, 0 to 100 (0 shows an indeterminate bar). */
-    private int installPercent;
-
-    private void showDetail(Entry e) {
-        final Version cv = chosenVersion(e);
-        LinearLayout c = detail.content;
-        c.removeAllViews();
-        detail.empty.setVisibility(View.GONE);
-        detail.scroll.setVisibility(View.VISIBLE);
-        detail.scroll.scrollTo(0, 0);
-
-        // Header: a coloured card with decorative shapes, the icon in a cookie shape, the name and the author.
-        View header = LayoutInflater.from(requireContext()).inflate(R.layout.view_detail_header, c, false);
-        TextView headerAvatar = header.findViewById(R.id.header_avatar);
-        styleAvatar(headerAvatar, e, 23);
-        android.widget.ImageView headerIcon = header.findViewById(R.id.header_icon);
-        bindIcon(headerIcon, e, 256, 23);
-        ((TextView) header.findViewById(R.id.header_name)).setText(e.name);
-        ((TextView) header.findViewById(R.id.header_author)).setText(e.author);
-        ((TextView) header.findViewById(R.id.header_meta)).setText("v" + cv.version + " \u00b7 " + kindLabel(e.kind));
-        c.addView(header);
-
-        // Badges: audited, source
-        ChipGroup badges = new ChipGroup(requireContext());
-        badges.setPadding(0, dp(12), 0, 0);
-        if (e.official()) {
-            badges.addView(badge(getString(R.string.browse_audited), R.drawable.ic_verified, true));
-        } else {
-            badges.addView(badge(getString(R.string.browse_unverified), R.drawable.ic_warning, false));
-        }
-        badges.addView(badge(getString(e.openSource ? R.string.detail_open_source_short : R.string.detail_closed_source_short),
-                e.openSource ? R.drawable.ic_code : R.drawable.ic_lock, false));
-        String installedGame = installedGameVersion();
-        if (installedGame != null && !cv.supportsGame(installedGame)) {
-            badges.addView(badge(getString(R.string.detail_for_version, String.join(", ", cv.gameVersions)), R.drawable.ic_warning, false));
-        }
-        c.addView(badges);
-
-        // Install, update, remove
-        LinearLayout installArea = new LinearLayout(requireContext());
-        installArea.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        ilp.topMargin = dp(16);
-        c.addView(installArea, ilp);
-        this.installArea = installArea;
-        renderInstallArea(installArea, e, null);
-
-        // Stats: only what the repository actually has (it carries no download counts or ratings yet)
-        LinearLayout stats = new LinearLayout(requireContext());
-        stats.setOrientation(LinearLayout.HORIZONTAL);
-        stats.setPadding(0, dp(20), 0, 0);
-        statIndex = 0;
-        if (e.ratingCount > 0) {
-            stats.addView(stat(String.format(Locale.US, "%.1f \u2605", e.rating), getString(R.string.detail_rating_count, e.ratingCount)));
-        }
-        if (e.downloads > 0) stats.addView(stat(compact(e.downloads), getString(R.string.detail_downloads)));
-        stats.addView(stat(Formatter.formatShortFileSize(requireContext(), cv.size), getString(R.string.detail_size)));
-        stats.addView(stat(DateUtils.getRelativeTimeSpanString(cv.updatedMillis, System.currentTimeMillis(),
-                DateUtils.DAY_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString(), getString(R.string.detail_updated).toLowerCase(Locale.ROOT)));
-        c.addView(stats);
-
-        if (dev.segually.sbamodloader.BuildConfig.DEBUG && requireActivity().getIntent().hasExtra("sba_scroll")) {
-            final int y = requireActivity().getIntent().getIntExtra("sba_scroll", 0); // debug builds: scroll, for layout checks
-            detail.scroll.postDelayed(() -> detail.scroll.scrollTo(0, y), 600);
-        }
-
-        // Screenshots
-        if (!e.screenshots.isEmpty()) {
-            c.addView(section(getString(R.string.detail_screenshots)));
-            c.addView(screenshotStrip(e));
-            if (dev.segually.sbamodloader.BuildConfig.DEBUG
-                    && requireActivity().getIntent().getBooleanExtra("sba_viewer", false)) {
-                requireActivity().getIntent().removeExtra("sba_viewer");
-                c.post(() -> showViewer(e.imageBase, e.screenshots, 1)); // debug builds: open the viewer, for layout checks
-            }
-        }
-
-        // About
-        c.addView(section(getString(R.string.detail_about)));
-        c.addView(text(e.description, R.style.TextAppearance_SBA_BodyMedium,
-                com.google.android.material.R.attr.colorOnSurface));
-
-        // Verification
-        c.addView(section(getString(R.string.detail_verification)));
-        LinearLayout card = new LinearLayout(requireContext());
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackgroundResource(R.drawable.bg_card);
-        card.setPadding(dp(16), dp(8), dp(16), dp(16));
-        for (dev.segually.sbamodloader.browser.SafetyReasons.Reason reason
-                : dev.segually.sbamodloader.browser.SafetyReasons.build(e, cv, PROJECT_OWNER)) {
-            card.addView(reasonRow(reason, cv));
-        }
-        // The checksum means nothing to most people; it is there for developers.
-        if (dev.segually.sbamodloader.SBASettings.getDeveloperFeatures(requireContext())) {
-            TextView hashTitle = text(getString(R.string.detail_hash_title),
-                    R.style.TextAppearance_SBA_LabelMedium,
-                    com.google.android.material.R.attr.colorOnSurfaceVariant);
-            LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            hlp.topMargin = dp(12);
-            card.addView(hashTitle, hlp);
-            TextView hash = text(cv.sha256, R.style.TextAppearance_SBA_BodySmall,
-                    com.google.android.material.R.attr.colorOnSurface);
-            hash.setTextIsSelectable(true);
-            card.addView(hash);
-        }
-        c.addView(card);
-
-        // Categories
-        c.addView(section(getString(R.string.detail_categories)));
-        ChipGroup cats = new ChipGroup(requireContext());
-        for (Sub s : e.categories) {
-            cats.addView(badge(categoryLabel(s.parent) + " › " + subLabel(s), 0, false));
-        }
-        c.addView(cats);
-
-        // Details
-        c.addView(section(getString(R.string.detail_info)));
-        c.addView(info(getString(R.string.detail_type), kindLabel(e.kind)));
-        c.addView(info(getString(R.string.detail_version), cv.version));
-        c.addView(info(getString(R.string.detail_game_versions), String.join(", ", cv.gameVersions)));
-        c.addView(info(getString(R.string.detail_license), e.license));
-        if (!cv.dependencies.isEmpty()) {
-            List<String> needs = new ArrayList<>();
-            for (Dependency d : cv.dependencies) needs.add(dependencyLabel(d));
-            c.addView(info(getString(R.string.detail_requires), String.join("\n", needs)));
-        } else if (!e.requires.isEmpty() && cv == e.latest()) {
-            c.addView(info(getString(R.string.detail_requires), String.join(", ", e.requires)));
-        }
-
-        if (!cv.changelog.isEmpty()) {
-            c.addView(section(getString(R.string.detail_whats_new)));
-            c.addView(text(cv.changelog, R.style.TextAppearance_SBA_BodyMedium,
-                    com.google.android.material.R.attr.colorOnSurface));
-        }
+    @Nullable
+    private Entry selected() {
+        if (selectedId == null) return null;
+        for (Entry e : all) if (e.id.equals(selectedId)) return e;
+        return null;
     }
 
     /** The release shown for {@code e}: the one the user picked, otherwise the newest that fits the installed game. */
@@ -529,155 +358,144 @@ public class BrowseFragment extends Fragment {
         return v != null ? v : ModVersions.defaultFor(e, installedGameVersion());
     }
 
-    /** Install, Update and Remove for {@code e}. {@code status} is a progress line while an install is running. */
-    private void renderInstallArea(LinearLayout area, Entry e, @Nullable String status) {
-        // A running download only changes its text and bar, so update those in place instead of rebuilding them.
-        View first = area.getChildCount() > 0 ? area.getChildAt(0) : null;
-        if (busy.contains(e.id) && first != null && "progress".equals(first.getTag())) {
-            ((TextView) first.findViewById(R.id.install_status)).setText(status != null ? status : getString(R.string.detail_working));
-            com.google.android.material.progressindicator.LinearProgressIndicator bar = first.findViewById(R.id.install_progress);
-            if (installPercent > 0) {
-                bar.setIndeterminate(false);
-                bar.setProgressCompat(installPercent, true);
-            }
+    /** The project owner's name; their mods say so on the safety card. */
+    private static final String PROJECT_OWNER = "Segually";
+
+    private void updateDetail() {
+        Entry e = selected();
+        if (e == null || !isAdded()) {
+            detailState.setValue(null);
             return;
+        }
+        final Version cv = chosenVersion(e);
+        android.content.Context c = requireContext();
+        List<Badge> badges = new ArrayList<>();
+        if (e.official()) badges.add(new Badge(getString(R.string.browse_audited), R.drawable.ic_verified, true));
+        else badges.add(new Badge(getString(R.string.browse_unverified), R.drawable.ic_warning, false));
+        badges.add(new Badge(getString(e.openSource ? R.string.detail_open_source_short : R.string.detail_closed_source_short),
+                e.openSource ? R.drawable.ic_code : R.drawable.ic_lock, false));
+        String installedGame = installedGameVersion();
+        if (installedGame != null && !cv.supportsGame(installedGame)) {
+            badges.add(new Badge(getString(R.string.detail_for_version, String.join(", ", cv.gameVersions)), R.drawable.ic_warning, false));
         }
 
-        // Build the new state next to the old one, then morph the old main button or bar into the new one.
-        final int before = area.getChildCount();
-        buildInstallViews(area, e, status);
-        final int after = area.getChildCount();
-        if (before == 0 || after == before) {
-            for (int i = before - 1; i >= 0; i--) area.removeViewAt(i);
-            return;
+        List<StatTile> stats = new ArrayList<>();
+        // Only what the repository actually has (it carries no download counts or ratings yet).
+        if (e.ratingCount > 0) stats.add(new StatTile(String.format(Locale.US, "%.1f \u2605", e.rating), getString(R.string.detail_rating_count, e.ratingCount)));
+        if (e.downloads > 0) stats.add(new StatTile(compact(e.downloads), getString(R.string.detail_downloads)));
+        stats.add(new StatTile(Formatter.formatShortFileSize(c, cv.size), getString(R.string.detail_size)));
+        stats.add(new StatTile(DateUtils.getRelativeTimeSpanString(cv.updatedMillis, System.currentTimeMillis(),
+                DateUtils.DAY_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString(), getString(R.string.detail_updated).toLowerCase(Locale.ROOT)));
+
+        List<Reason> reasons = new ArrayList<>();
+        for (dev.segually.sbamodloader.browser.SafetyReasons.Reason reason
+                : dev.segually.sbamodloader.browser.SafetyReasons.build(e, cv, PROJECT_OWNER)) {
+            reasons.add(reasonOf(reason));
         }
-        final View oldMain = area.getChildAt(0);
-        final View newMain = area.getChildAt(before);
-        boolean sameKind = String.valueOf(oldMain.getTag()).equals(String.valueOf(newMain.getTag()));
-        for (int i = before - 1; i >= 1; i--) area.removeViewAt(i);
-        if (sameKind || !area.isLaidOut() || !(area.getParent() instanceof ViewGroup)) {
-            area.removeView(oldMain);
-            return;
+        // The checksum means nothing to most people; it is there for developers.
+        String hash = dev.segually.sbamodloader.SBASettings.getDeveloperFeatures(c) ? cv.sha256 : null;
+
+        List<String> categories = new ArrayList<>();
+        for (Sub s : e.categories) categories.add(categoryLabel(s.parent) + " \u203a " + subLabel(s));
+
+        List<InfoLine> info = new ArrayList<>();
+        info.add(new InfoLine(getString(R.string.detail_type), kindLabel(e.kind)));
+        info.add(new InfoLine(getString(R.string.detail_version), cv.version));
+        info.add(new InfoLine(getString(R.string.detail_game_versions), String.join(", ", cv.gameVersions)));
+        info.add(new InfoLine(getString(R.string.detail_license), e.license));
+        if (!cv.dependencies.isEmpty()) {
+            List<String> needs = new ArrayList<>();
+            for (Dependency d : cv.dependencies) needs.add(dependencyLabel(d));
+            info.add(new InfoLine(getString(R.string.detail_requires), String.join("\n", needs)));
+        } else if (!e.requires.isEmpty() && cv == e.latest()) {
+            info.add(new InfoLine(getString(R.string.detail_requires), String.join(", ", e.requires)));
         }
-        for (int i = 1; i < area.getChildCount(); i++) area.getChildAt(i).setVisibility(View.INVISIBLE);
-        com.google.android.material.transition.MaterialContainerTransform morph =
-                new com.google.android.material.transition.MaterialContainerTransform();
-        morph.setStartView(oldMain);
-        morph.setEndView(newMain);
-        morph.addTarget(newMain);
-        morph.setScrimColor(Color.TRANSPARENT);
-        morph.setDuration(450);
-        morph.setFadeMode(com.google.android.material.transition.MaterialContainerTransform.FADE_MODE_CROSS);
-        morph.setAllContainerColors(Color.TRANSPARENT);
-        morph.addListener(new androidx.transition.TransitionListenerAdapter() {
-            @Override
-            public void onTransitionEnd(@NonNull androidx.transition.Transition transition) {
-                area.removeView(oldMain);
-            }
-        });
-        androidx.transition.TransitionManager.beginDelayedTransition((ViewGroup) area.getParent(), morph);
-        oldMain.setVisibility(View.GONE);
-        for (int i = 1; i < area.getChildCount(); i++) area.getChildAt(i).setVisibility(View.VISIBLE);
+
+        detailState.setValue(new DetailState(e.id, e.name.substring(0, 1).toUpperCase(Locale.ROOT),
+                new kotlin.Pair<>(tint(e.id, 0.55f), tint(e.id + "b", 0.35f)), iconOf(e, 256),
+                e.name, e.author, "v" + cv.version + " \u00b7 " + kindLabel(e.kind), badges, installUi(e, cv), stats,
+                e.imageBase, e.screenshots, e.description, reasons, hash, categories, info,
+                cv.changelog.isEmpty() ? null : cv.changelog));
     }
 
-    private void buildInstallViews(LinearLayout area, Entry e, @Nullable String status) {
-        final Version cv = chosenVersion(e);
-        final String installed = ModInstaller.installedVersion(requireContext(), e);
-        boolean working = busy.contains(e.id);
-
-        if (working) {
-            // A wavy bar and a line saying what is happening, instead of a disabled button.
-            View progress = LayoutInflater.from(requireContext()).inflate(R.layout.view_install_progress, area, false);
-            TextView line = progress.findViewById(R.id.install_status);
-            line.setText(status != null ? status : getString(R.string.detail_working));
-            com.google.android.material.progressindicator.LinearProgressIndicator bar = progress.findViewById(R.id.install_progress);
-            if (installPercent > 0) {
-                bar.setIndeterminate(false);
-                bar.setProgressCompat(installPercent, true);
+    /** What the install area shows: a progress bar while an install runs, otherwise the buttons. */
+    private InstallUi installUi(Entry e, Version cv) {
+        if (busy.contains(e.id)) return new InstallUi.Working(installStatus != null ? installStatus : getString(R.string.detail_working), installPercent);
+        String installed = ModInstaller.installedVersion(requireContext(), e);
+        boolean same = installed != null && installed.equals(cv.version);
+        boolean newer = installed != null && ModVersions.compare(cv.version, installed) > 0;
+        String label = same ? getString(R.string.detail_remove)
+                : installed == null ? getString(R.string.detail_install)
+                : getString(newer ? R.string.detail_update : R.string.detail_switch, cv.version);
+        boolean split = !same && e.versions.size() > 1;
+        List<String> options = new ArrayList<>();
+        int current = 0;
+        String game = installedGameVersion();
+        if (split) {
+            for (int i = 0; i < e.versions.size(); i++) {
+                Version v = e.versions.get(i);
+                StringBuilder text = new StringBuilder(getString(R.string.detail_version_item, v.version, String.join(", ", v.gameVersions)));
+                if (i == 0) text.append(" \u00b7 ").append(getString(R.string.detail_version_latest));
+                if (v.supportsGame(game)) text.append(" \u00b7 ").append(getString(R.string.detail_version_fits));
+                options.add(text.toString());
+                if (v == cv) current = i;
             }
-            progress.setTag("progress");
-            area.addView(progress);
-            return;
         }
-
-        // A release other than the installed one, with other releases to pick from: a split button, whose trailing
-        // part opens the list of versions.
-        if ((installed == null || !installed.equals(cv.version)) && e.versions.size() > 1) {
-            View split = LayoutInflater.from(requireContext()).inflate(R.layout.view_split_install, area, false);
-            MaterialButton main = split.findViewById(R.id.split_main);
-            boolean newer = installed != null && ModVersions.compare(cv.version, installed) > 0;
-            main.setText(installed == null ? getString(R.string.detail_install)
-                    : getString(newer ? R.string.detail_update : R.string.detail_switch, cv.version));
-            main.setOnClickListener(x -> startInstall(area, e, cv));
-            MaterialButton more = split.findViewById(R.id.split_more);
-            more.setOnClickListener(x -> showVersionMenu(split, e, () -> more.setChecked(false)));
-            split.setTag("action");
-            area.addView(split);
-            addRemoveButton(area, e, installed);
-            return;
-        }
-
-        MaterialButton primary = new MaterialButton(requireContext());
-        primary.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72)));
-        // setTextAppearance resets the text colour, so the colour is set again after it.
-        primary.setTextAppearance(R.style.TextAppearance_SBA_TitleMediumEmphasized);
-        primary.setTextColor(color(com.google.android.material.R.attr.colorOnPrimary));
-        primary.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
-        primary.setIconPadding(dp(12));
-        primary.setIconTint(android.content.res.ColorStateList.valueOf(color(com.google.android.material.R.attr.colorOnPrimary)));
-        if (working) {
-            primary.setText(status != null ? status : getString(R.string.detail_working));
-            primary.setEnabled(false);
-        } else if (installed != null && installed.equals(cv.version)) {
-            primary.setText(R.string.detail_remove);
-            primary.setIconResource(R.drawable.ic_delete);
-            primary.setOnClickListener(x -> {
-                ModInstaller.remove(requireContext(), e);
-                renderInstallArea(area, e, null);
-                adapter.notifyDataSetChanged();
-            });
-        } else {
-            // A different version of an installed mod is an update when it is newer, a switch when it is older.
-            boolean newer = installed != null && ModVersions.compare(cv.version, installed) > 0;
-            primary.setText(installed == null ? getString(R.string.detail_install)
-                    : getString(newer ? R.string.detail_update : R.string.detail_switch, cv.version));
-            primary.setIconResource(R.drawable.ic_download);
-            primary.setOnClickListener(x -> startInstall(area, e, cv));
-        }
-        primary.setTag("action");
-        area.addView(primary);
-        addRemoveButton(area, e, installed);
+        return new InstallUi.Idle(label, same, split, installed != null && !same, options, current);
     }
 
-    /** A secondary Remove under the main button, shown when another release than the installed one is selected. */
-    private void addRemoveButton(LinearLayout area, Entry e, @Nullable String installed) {
-        final Version cv = chosenVersion(e);
-        if (installed == null || installed.equals(cv.version)) return;
-        MaterialButton remove = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        remove.setText(R.string.detail_remove);
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
-        rlp.topMargin = dp(8);
-        remove.setLayoutParams(rlp);
-        remove.setOnClickListener(x -> {
+    // ---- DetailActions -------------------------------------------------------------------------------
+
+    @Override
+    public void primary() {
+        Entry e = selected();
+        if (e == null) return;
+        Version cv = chosenVersion(e);
+        String installed = ModInstaller.installedVersion(requireContext(), e);
+        if (installed != null && installed.equals(cv.version)) {
             ModInstaller.remove(requireContext(), e);
-            renderInstallArea(area, e, null);
-            adapter.notifyDataSetChanged();
-        });
-        area.addView(remove);
+            updateDetail();
+            updateList();
+        } else {
+            startInstall(e, cv);
+        }
+    }
+
+    @Override
+    public void remove() {
+        Entry e = selected();
+        if (e == null) return;
+        ModInstaller.remove(requireContext(), e);
+        updateDetail();
+        updateList();
+    }
+
+    @Override
+    public void pickVersion(int index) {
+        Entry e = selected();
+        if (e == null || index < 0 || index >= e.versions.size()) return;
+        chosen.put(e.id, e.versions.get(index).version);
+        updateDetail();
+    }
+
+    @Override
+    public void openViewer(int index) {
+        Entry e = selected();
+        if (e != null) viewerState.setValue(new ViewerRequest(e.imageBase, e.screenshots, index));
     }
 
     /** Works out what the install involves; asks first when there is anything to warn about or extra to download. */
-    private void startInstall(LinearLayout area, Entry e, Version version) {
+    private void startInstall(Entry e, Version version) {
         if (busy.contains(e.id)) return; // already running (for instance, started before the user left this tab)
         Map<String, Entry> index = new HashMap<>();
         for (Entry x : all) index.put(x.id, x);
         InstallPlanner.Plan plan = InstallPlanner.plan(e, version, index,
                 ModInstaller.installedVersions(requireContext(), all), installedGameVersion());
-        if (plan.needsConfirmation()) showPlanDialog(e, plan, () -> runInstall(area, e, plan));
-        else runInstall(area, e, plan);
+        if (plan.needsConfirmation()) showPlanDialog(e, plan, () -> runInstall(e, plan));
+        else runInstall(e, plan);
     }
 
-    private void runInstall(LinearLayout area, Entry e, InstallPlanner.Plan plan) {
+    private void runInstall(Entry e, InstallPlanner.Plan plan) {
         final List<String> ids = new ArrayList<>();
         for (InstallPlanner.Step step : plan.steps) ids.add(step.entry.id);
         synchronized (busy) {
@@ -685,8 +503,9 @@ public class BrowseFragment extends Fragment {
             busy.addAll(ids);
         }
         installPercent = 0;
-        renderInstallArea(area, e, getString(R.string.detail_working));
-        adapter.notifyDataSetChanged();
+        installStatus = getString(R.string.detail_working);
+        updateDetail();
+        updateList();
         // The worker thread must not touch this fragment: the user can leave the tab while it runs. It only uses
         // the application context, and reports back through onUi, which skips a fragment that is gone.
         final android.content.Context app = requireContext().getApplicationContext();
@@ -700,7 +519,8 @@ public class BrowseFragment extends Fragment {
                     final int percent = total > 0 ? (int) (done * 100 / total) : 0;
                     onUi(f -> {
                         f.installPercent = percent;
-                        if (e.id.equals(f.selectedId) && f.installArea != null) f.renderInstallArea(f.installArea, e, line);
+                        f.installStatus = line;
+                        if (e.id.equals(f.selectedId)) f.updateDetail();
                     });
                 });
             } catch (Exception ex) { // not only IOException: anything thrown here would otherwise crash the app
@@ -713,34 +533,13 @@ public class BrowseFragment extends Fragment {
                 MAIN.post(() -> Toast.makeText(app, app.getString(R.string.detail_install_failed, e.name, err), Toast.LENGTH_LONG).show());
             }
             onUi(f -> {
-                f.adapter.notifyDataSetChanged();
-                if (e.id.equals(f.selectedId) && f.installArea != null) f.renderInstallArea(f.installArea, e, null);
+                f.updateList();
+                if (e.id.equals(f.selectedId)) f.updateDetail();
             });
         }, "mod-install").start();
     }
 
     // ---- versions, warnings and dependencies -------------------------------------------------------
-
-    private void showVersionMenu(View anchor, Entry e, @Nullable Runnable onDismiss) {
-        androidx.appcompat.widget.PopupMenu menu = new androidx.appcompat.widget.PopupMenu(requireContext(), anchor);
-        if (onDismiss != null) menu.setOnDismissListener(m -> onDismiss.run());
-        String game = installedGameVersion();
-        Version current = chosenVersion(e);
-        for (int i = 0; i < e.versions.size(); i++) {
-            Version v = e.versions.get(i);
-            StringBuilder label = new StringBuilder(getString(R.string.detail_version_item, v.version, String.join(", ", v.gameVersions)));
-            if (i == 0) label.append(" \u00b7 ").append(getString(R.string.detail_version_latest));
-            if (v.supportsGame(game)) label.append(" \u00b7 ").append(getString(R.string.detail_version_fits));
-            menu.getMenu().add(Menu.NONE, i, i, label.toString()).setCheckable(true).setChecked(v == current);
-        }
-        menu.getMenu().setGroupCheckable(Menu.NONE, true, true);
-        menu.setOnMenuItemClickListener(item -> {
-            chosen.put(e.id, e.versions.get(item.getItemId()).version);
-            showDetail(e);
-            return true;
-        });
-        menu.show();
-    }
 
     private String boundsText(Dependency d) {
         return dev.segually.sbamodloader.browser.PlanText.bounds(requireContext(), d);
@@ -796,289 +595,37 @@ public class BrowseFragment extends Fragment {
         dialog.show();
     }
 
-    // ---- pictures ----------------------------------------------------------------------------------
+    // ---- the safety card ----------------------------------------------------------------------------
 
-    private static android.view.ViewOutlineProvider rounded(int radiusPx) {
-        return new android.view.ViewOutlineProvider() {
-            @Override
-            public void getOutline(View view, android.graphics.Outline outline) {
-                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radiusPx);
-            }
-        };
-    }
-
-    /** Shows the mod's icon over its letter avatar once it has loaded; without an icon nothing changes. */
-    private void bindIcon(android.widget.ImageView view, Entry e, int pixels, float radiusDp) {
-        view.setTag(e.id);
-        view.setImageDrawable(null);
-        view.setVisibility(View.GONE);
-        if (e.icon == null) return;
-        ImageLoader.load(requireContext(), e.imageBase, e.icon, pixels, bitmap -> {
-            if (!e.id.equals(view.getTag())) return; // the row was reused for another mod meanwhile
-            view.setImageBitmap(bitmap);
-            view.setVisibility(View.VISIBLE);
-        });
-    }
-
-    /**
-     * Screenshots as a row of pictures at one height, each as wide as the picture is, running to the edges of the
-     * screen (like the store apps do). Tapping one opens a full screen viewer you can swipe through.
-     */
-    private View screenshotStrip(Entry e) {
-        RecyclerView strip = new RecyclerView(requireContext());
-        strip.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(requireContext(),
-                androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false));
-        strip.setClipToPadding(false);
-        strip.setPadding(dp(24), 0, dp(14), 0);
-        strip.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        strip.setNestedScrollingEnabled(false);
-        // The page has 24dp of side padding; the row ignores it so the pictures slide out under the screen edge.
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(230));
-        lp.setMarginStart(-dp(24));
-        lp.setMarginEnd(-dp(24));
-        strip.setLayoutParams(lp);
-        final List<String> paths = e.screenshots;
-        final String base = e.imageBase;
-        final float height = dp(220);
-        strip.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-            @NonNull
-            @Override
-            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
-                return new RecyclerView.ViewHolder(LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.item_screenshot, parent, false)) {
-                };
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder h, int position) {
-                String path = paths.get(position);
-                android.widget.ImageView image = (android.widget.ImageView) h.itemView;
-                ViewGroup.LayoutParams params = image.getLayoutParams();
-                params.width = dp(340);
-                image.setLayoutParams(params);
-                image.setImageDrawable(null);
-                image.setTag(path);
-                GradientDrawable placeholder = new GradientDrawable();
-                placeholder.setColor(color(com.google.android.material.R.attr.colorSurfaceContainerHigh));
-                placeholder.setCornerRadius(dp(16));
-                image.setBackground(placeholder);
-                ImageLoader.load(requireContext(), base, path, 1024, bitmap -> {
-                    if (!path.equals(image.getTag())) return;
-                    image.setImageBitmap(bitmap);
-                    // As wide as the picture is at this height (a phone screenshot is narrow, a tablet one wide).
-                    ViewGroup.LayoutParams lp2 = image.getLayoutParams();
-                    lp2.width = Math.max(dp(120), Math.min(dp(480), Math.round(height * bitmap.getWidth() / bitmap.getHeight())));
-                    image.setLayoutParams(lp2);
-                });
-                dev.segually.sbamodloader.ui.Motion.pressable(image);
-                image.setOnClickListener(x -> showViewer(base, paths, position));
-            }
-
-            @Override
-            public int getItemCount() {
-                return paths.size();
-            }
-        });
-        return strip;
-    }
-
-    /** A full screen viewer for the screenshots: swipe between them, with a counter and a close button. */
-    private void showViewer(String base, List<String> paths, int start) {
-        android.app.Dialog dialog = new android.app.Dialog(requireContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen);
-        android.widget.FrameLayout root = new android.widget.FrameLayout(requireContext());
-        root.setBackgroundColor(Color.BLACK);
-
-        RecyclerView pager = new RecyclerView(requireContext());
-        pager.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(requireContext(),
-                androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false));
-        new androidx.recyclerview.widget.PagerSnapHelper().attachToRecyclerView(pager);
-        pager.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-            @NonNull
-            @Override
-            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
-                android.widget.ImageView v = new android.widget.ImageView(parent.getContext());
-                v.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-                v.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                return new RecyclerView.ViewHolder(v) {
-                };
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder h, int position) {
-                android.widget.ImageView v = (android.widget.ImageView) h.itemView;
-                String path = paths.get(position);
-                v.setImageDrawable(null);
-                v.setTag(path);
-                ImageLoader.load(requireContext(), base, path, 2048, bitmap -> {
-                    if (path.equals(v.getTag())) v.setImageBitmap(bitmap);
-                });
-                v.setOnClickListener(x -> dialog.dismiss());
-            }
-
-            @Override
-            public int getItemCount() {
-                return paths.size();
-            }
-        });
-        root.addView(pager, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        pager.scrollToPosition(start);
-
-        TextView counter = new TextView(requireContext());
-        counter.setTextAppearance(R.style.TextAppearance_SBA_TitleMediumEmphasized);
-        counter.setTextColor(Color.WHITE);
-        counter.setText((start + 1) + " / " + paths.size());
-        counter.setPadding(dp(16), dp(8), dp(16), dp(8));
-        GradientDrawable pill = new GradientDrawable();
-        pill.setColor(0x80000000);
-        pill.setCornerRadius(dp(20));
-        counter.setBackground(pill);
-        android.widget.FrameLayout.LayoutParams clp = new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        clp.topMargin = dp(36);
-        root.addView(counter, clp);
-        pager.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
-                androidx.recyclerview.widget.LinearLayoutManager lm = (androidx.recyclerview.widget.LinearLayoutManager) rv.getLayoutManager();
-                int position = lm == null ? -1 : lm.findFirstCompletelyVisibleItemPosition();
-                if (position >= 0) counter.setText((position + 1) + " / " + paths.size());
-            }
-        });
-
-        android.widget.ImageButton close = new android.widget.ImageButton(requireContext());
-        close.setImageResource(R.drawable.ic_close);
-        close.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
-        GradientDrawable round = new GradientDrawable();
-        round.setShape(GradientDrawable.OVAL);
-        round.setColor(0x80000000);
-        close.setBackground(round);
-        close.setContentDescription(getString(android.R.string.cancel));
-        close.setOnClickListener(x -> dialog.dismiss());
-        android.widget.FrameLayout.LayoutParams xlp = new android.widget.FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.START);
-        xlp.topMargin = dp(32);
-        xlp.setMarginStart(dp(16));
-        root.addView(close, xlp);
-
-        dialog.setContentView(root);
-        dialog.show();
-    }
-
-    private Chip badge(String label, int icon, boolean accent) {
-        Chip chip = new Chip(requireContext());
-        chip.setText(label);
-        chip.setClickable(false);
-        chip.setCheckable(false);
-        if (icon != 0) {
-            chip.setChipIconResource(icon);
-            chip.setChipIconVisible(true);
-            if (accent) chip.setChipIconTint(android.content.res.ColorStateList.valueOf(color(androidx.appcompat.R.attr.colorPrimary)));
-        }
-        return chip;
-    }
-
-    /** A numbered tile in the row of facts; each tile has its own corner shape, which gives the row some rhythm. */
-    private int statIndex;
-
-    private View stat(String value, String label) {
-        View tile = LayoutInflater.from(requireContext()).inflate(R.layout.view_stat_tile, null, false);
-        ((TextView) tile.findViewById(R.id.tile_value)).setText(value);
-        ((TextView) tile.findViewById(R.id.tile_label)).setText(label);
-        float big = dp(28), small = dp(8);
-        int tone = statIndex % 3;
-        boolean even = statIndex++ % 2 == 0;
-        // Tonal containers in turn (tertiary, secondary, primary), each with its own readable text colour.
-        int container = color(tone == 0 ? com.google.android.material.R.attr.colorTertiaryContainer
-                : tone == 1 ? com.google.android.material.R.attr.colorSecondaryContainer
-                : com.google.android.material.R.attr.colorPrimaryContainer);
-        int onContainer = color(tone == 0 ? com.google.android.material.R.attr.colorOnTertiaryContainer
-                : tone == 1 ? com.google.android.material.R.attr.colorOnSecondaryContainer
-                : com.google.android.material.R.attr.colorOnPrimaryContainer);
-        ((com.google.android.material.card.MaterialCardView) tile).setCardBackgroundColor(container);
-        ((TextView) tile.findViewById(R.id.tile_value)).setTextColor(onContainer);
-        ((TextView) tile.findViewById(R.id.tile_label)).setTextColor(onContainer);
-        ((com.google.android.material.card.MaterialCardView) tile).setShapeAppearanceModel(
-                com.google.android.material.shape.ShapeAppearanceModel.builder()
-                        .setTopLeftCornerSize(even ? big : small).setBottomRightCornerSize(even ? big : small)
-                        .setTopRightCornerSize(even ? small : big).setBottomLeftCornerSize(even ? small : big)
-                        .build());
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        lp.setMarginEnd(dp(8));
-        tile.setLayoutParams(lp);
-        return tile;
-    }
-
-    /** The name the project's owner publishes under; their mods say so on the safety card. */
-    private static final String PROJECT_OWNER = "Segually";
-
-    private View reasonRow(dev.segually.sbamodloader.browser.SafetyReasons.Reason r, Version cv) {
+    private Reason reasonOf(dev.segually.sbamodloader.browser.SafetyReasons.Reason r) {
         switch (r.type) {
             case AUDITED:
-                return verifyRow(R.drawable.ic_verified, getString(R.string.detail_audited_title),
-                        getString(R.string.detail_audited_body, r.a, r.b));
+                return new Reason(R.drawable.ic_verified, getString(R.string.detail_audited_title), getString(R.string.detail_audited_body, r.a, r.b));
             case UNVERIFIED:
-                return verifyRow(R.drawable.ic_warning, getString(R.string.safety_unverified, r.a),
-                        getString(R.string.safety_unverified_body));
+                return new Reason(R.drawable.ic_warning, getString(R.string.safety_unverified, r.a), getString(R.string.safety_unverified_body));
             case NOTE:
-                return verifyRow(R.drawable.ic_check_circle, r.a, null);
+                return new Reason(R.drawable.ic_check_circle, r.a, null);
             case NO_CODE:
-                return verifyRow(R.drawable.ic_check_circle, getString(R.string.safety_no_code), getString(R.string.safety_no_code_body));
+                return new Reason(R.drawable.ic_check_circle, getString(R.string.safety_no_code), getString(R.string.safety_no_code_body));
             case NATIVE_CODE:
-                return verifyRow(R.drawable.ic_code, getString(R.string.safety_native), getString(R.string.safety_native_body));
+                return new Reason(R.drawable.ic_code, getString(R.string.safety_native), getString(R.string.safety_native_body));
             case JAVA_CODE:
-                return verifyRow(R.drawable.ic_code, getString(R.string.safety_java), getString(R.string.safety_java_body));
+                return new Reason(R.drawable.ic_code, getString(R.string.safety_java), getString(R.string.safety_java_body));
             case PLUGIN_CODE:
-                return verifyRow(R.drawable.ic_code, getString(R.string.safety_plugin), getString(R.string.safety_plugin_body));
+                return new Reason(R.drawable.ic_code, getString(R.string.safety_plugin), getString(R.string.safety_plugin_body));
             case OPEN_SOURCE:
-                return verifyRow(R.drawable.ic_code, getString(R.string.detail_open_source_title, r.a),
-                        getString(R.string.detail_open_source_body, r.b, r.c));
+                return new Reason(R.drawable.ic_code, getString(R.string.detail_open_source_title, r.a), getString(R.string.detail_open_source_body, r.b, r.c));
             case CLOSED_SOURCE:
-                return verifyRow(R.drawable.ic_lock, getString(R.string.detail_closed_source_title, r.a),
-                        getString(R.string.detail_closed_source_body, r.b));
+                return new Reason(R.drawable.ic_lock, getString(R.string.detail_closed_source_title, r.a), getString(R.string.detail_closed_source_body, r.b));
             case OWNER:
-                return verifyRow(R.drawable.ic_verified, getString(R.string.safety_owner), getString(R.string.safety_owner_body, r.a));
+                return new Reason(R.drawable.ic_verified, getString(R.string.safety_owner), getString(R.string.safety_owner_body, r.a));
             default: {
                 int n = Integer.parseInt(r.a);
-                return verifyRow(R.drawable.ic_check_circle,
+                return new Reason(R.drawable.ic_check_circle,
                         n == 1 ? getString(R.string.safety_history_one) : getString(R.string.safety_history, n),
                         getString(R.string.safety_history_body));
             }
         }
-    }
-
-    private View verifyRow(int icon, String title, String body) {
-        LinearLayout row = new LinearLayout(requireContext());
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(0, dp(12), 0, 0);
-        android.widget.ImageView iv = new android.widget.ImageView(requireContext());
-        iv.setImageResource(icon);
-        // A warning is red; everything else that backs the mod up is the accent colour.
-        iv.setColorFilter(color(icon == R.drawable.ic_warning ? androidx.appcompat.R.attr.colorError : androidx.appcompat.R.attr.colorPrimary));
-        row.addView(iv, new LinearLayout.LayoutParams(dp(24), dp(24)));
-        LinearLayout col = new LinearLayout(requireContext());
-        col.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        clp.setMarginStart(dp(16));
-        col.addView(text(title, R.style.TextAppearance_SBA_BodyLarge,
-                com.google.android.material.R.attr.colorOnSurface));
-        if (body != null) {
-            col.addView(text(body, R.style.TextAppearance_SBA_BodySmall,
-                    com.google.android.material.R.attr.colorOnSurfaceVariant));
-        }
-        row.addView(col, clp);
-        return row;
-    }
-
-    private View info(String label, String value) {
-        LinearLayout row = new LinearLayout(requireContext());
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(0, dp(6), 0, dp(6));
-        TextView l = text(label, R.style.TextAppearance_SBA_BodyMedium,
-                com.google.android.material.R.attr.colorOnSurfaceVariant);
-        row.addView(l, new LinearLayout.LayoutParams(dp(140), ViewGroup.LayoutParams.WRAP_CONTENT));
-        TextView v = text(value, R.style.TextAppearance_SBA_BodyMedium,
-                com.google.android.material.R.attr.colorOnSurface);
-        row.addView(v, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        return row;
     }
 
     // ---- labels and small helpers ----------------------------------------------------------------
@@ -1125,90 +672,4 @@ public class BrowseFragment extends Fragment {
         return Color.HSVToColor(new float[]{hue, 0.5f, value + 0.2f});
     }
 
-    private void styleAvatar(TextView t, Entry e, float radiusDp) {
-        t.setText(e.name.substring(0, 1).toUpperCase(Locale.ROOT));
-        t.setGravity(Gravity.CENTER);
-        t.setTextColor(Color.WHITE);
-        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{tint(e.id, 0.55f), tint(e.id + "b", 0.35f)});
-        g.setCornerRadius(dp(radiusDp));
-        g.setStroke(dp(1.5f), color(com.google.android.material.R.attr.colorOutlineVariant)); // the same outline as the icon
-        t.setBackground(g);
-    }
-
-    // ---- list ------------------------------------------------------------------------------------
-
-    private final class ModAdapter extends RecyclerView.Adapter<ModAdapter.Holder> {
-        private List<Entry> items = new ArrayList<>();
-
-        int positionOf(String id) {
-            for (int i = 0; i < items.size(); i++) if (items.get(i).id.equals(id)) return i;
-            return -1;
-        }
-
-        void submit(List<Entry> list) {
-            items = list;
-            notifyDataSetChanged();
-        }
-
-        @NonNull
-        @Override
-        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
-            return new Holder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_browse_mod, parent, false));
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull Holder h, int position) {
-            Entry e = items.get(position);
-            styleAvatar(h.avatar, e, 14);
-            bindIcon(h.icon, e, 112, 16);
-            h.name.setText(e.name);
-            h.meta.setText(e.author + " · " + kindLabel(e.kind) + (e.official() ? "" : " · " + e.repoName));
-            h.verified.setVisibility(e.official() ? View.VISIBLE : View.GONE);
-            h.summary.setText(e.summary);
-            StringBuilder stats = new StringBuilder();
-            if (e.ratingCount > 0) stats.append(String.format(Locale.US, "\u2605 %.1f  \u00b7  ", e.rating));
-            if (e.downloads > 0) stats.append(compact(e.downloads)).append("  \u00b7  ");
-            stats.append(Formatter.formatShortFileSize(requireContext(), e.size));
-            ModInstaller.State state = ModInstaller.state(requireContext(), e);
-            if (busy.contains(e.id)) stats.append("  \u00b7  ").append(getString(R.string.detail_working));
-            else if (state == ModInstaller.State.INSTALLED) stats.append("  \u00b7  ").append(getString(R.string.detail_installed));
-            else if (state == ModInstaller.State.UPDATE_AVAILABLE) stats.append("  \u00b7  ").append(getString(R.string.detail_update_available));
-            String game = installedGameVersion();
-            if (game != null && ModVersions.bestFor(e, game) == null) stats.append("  \u00b7  ").append(getString(R.string.detail_other_game));
-            h.stats.setText(stats);
-            boolean selected = e.id.equals(selectedId) && detailPage == null;
-            ((com.google.android.material.card.MaterialCardView) h.root).setCardBackgroundColor(
-                    com.google.android.material.color.MaterialColors.getColor(h.root, selected
-                            ? com.google.android.material.R.attr.colorSecondaryContainer
-                            : com.google.android.material.R.attr.colorSurfaceContainerHigh));
-            h.root.setOnClickListener(v -> select(e, h.root));
-            dev.segually.sbamodloader.ui.Motion.pressable(h.root);
-            dev.segually.sbamodloader.ui.Motion.appear(h.itemView, position);
-        }
-
-        @Override
-        public int getItemCount() {
-            return items.size();
-        }
-
-        final class Holder extends RecyclerView.ViewHolder {
-            final View root;
-            final TextView avatar, name, meta, summary, stats;
-            final android.widget.ImageView icon;
-            final View verified;
-
-            Holder(View v) {
-                super(v);
-                root = v.findViewById(R.id.item_root);
-                avatar = v.findViewById(R.id.item_avatar);
-                icon = v.findViewById(R.id.item_icon);
-                verified = v.findViewById(R.id.item_verified);
-                name = v.findViewById(R.id.item_name);
-                meta = v.findViewById(R.id.item_meta);
-                summary = v.findViewById(R.id.item_summary);
-                stats = v.findViewById(R.id.item_stats);
-            }
-        }
-    }
 }
