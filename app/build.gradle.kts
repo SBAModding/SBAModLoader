@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("com.google.protobuf")
     id("kotlin-parcelize")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 dependencies {
@@ -11,6 +12,15 @@ dependencies {
     implementation("androidx.coordinatorlayout:coordinatorlayout:1.3.0")
     implementation("com.google.android.material:material:1.14.0")
     implementation("com.google.protobuf:protobuf-javalite:4.36.1")
+
+    // Jetpack Compose. The BOM pins every androidx.compose artifact to one tested set.
+    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3:1.5.0")
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.activity:activity-compose:1.13.0")
+    debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")
     // The real org.json, because the Android one is only a stub in JVM unit tests.
@@ -32,6 +42,7 @@ android {
     buildFeatures {
         prefab = true
         buildConfig = true
+        compose = true
     }
 
     compileOptions {

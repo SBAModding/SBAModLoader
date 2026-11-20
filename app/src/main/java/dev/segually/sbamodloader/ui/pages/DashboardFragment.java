@@ -6,16 +6,11 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
-import android.widget.TextView;
 
-import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.color.MaterialColors;
 
 import dev.segually.sbamodloader.BootstrapActivity;
 import dev.segually.sbamodloader.tools.DeviceSupport;
@@ -29,43 +24,33 @@ import dev.segually.sbamodloader.tools.PatchManager;
 import dev.segually.sbamodloader.tools.AppUpdater;
 import dev.segually.sbamodloader.ui.UpdatePrompt;
 import dev.segually.sbamodloader.ui.Insets;
+import dev.segually.sbamodloader.ui.compose.DashboardState;
+import dev.segually.sbamodloader.ui.compose.DashboardScreenHost;
+import dev.segually.sbamodloader.ui.compose.SetupStep;
+import dev.segually.sbamodloader.ui.compose.StepState;
 
 public class DashboardFragment extends Fragment {
-    private enum State { OK, ERROR, PENDING }
-
-    private View stepGame, stepVersion, stepPatches;
-    private TextView setupTitle;
-    private TextView heroSub;
-    private View ringCheck;
-    private com.google.android.material.progressindicator.CircularProgressIndicator ringView;
-    private MaterialButton btnRetry, btnLaunch;
+    /** What the Compose screen shows; render() replaces it whenever something changes. */
+    private final androidx.compose.runtime.MutableState<DashboardState> uiState =
+            androidx.compose.runtime.SnapshotStateKt.mutableStateOf(new DashboardState(), androidx.compose.runtime.SnapshotStateKt.structuralEqualityPolicy());
     /** A newer version of the loader, or null when there is none (or it could not be checked). */
     private AppUpdater.Release newerVersion;
 
     /** Null while the patch source is being checked. */
     private PatchManager.SyncResult patchResult;
     private boolean patchSyncing;
+    /** How many installed mods have an update waiting. */
+    private int modUpdates;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_dashboard, container, false);
         Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), requireContext().getResources().getConfiguration().screenWidthDp >= 840 ? 1100 : 760, false, v.findViewById(R.id.page_appbar));
-        stepGame = v.findViewById(R.id.step_game);
-        stepVersion = v.findViewById(R.id.step_version);
-        stepPatches = v.findViewById(R.id.step_patches);
-        setupTitle = v.findViewById(R.id.setup_title);
-        heroSub = v.findViewById(R.id.hero_sub);
-        ringView = v.findViewById(R.id.setup_ring);
-        ringCheck = v.findViewById(R.id.setup_ring_check);
-        dev.segually.sbamodloader.ui.Motion.pressable(v.findViewById(R.id.btn_launch));
-        android.view.ViewGroup content = v.findViewById(R.id.dashboard_content);
-        for (int i = 0; i < content.getChildCount(); i++) dev.segually.sbamodloader.ui.Motion.appear(content.getChildAt(i), i);
-        btnRetry = v.findViewById(R.id.btn_retry_patches);
-        btnLaunch = v.findViewById(R.id.btn_launch);
-
-        btnRetry.setOnClickListener(x -> syncPatches());
-        btnLaunch.setOnClickListener(x -> startBootstrap());
+        androidx.compose.ui.platform.ComposeView compose = v.findViewById(R.id.dashboard_content);
+        compose.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
+        DashboardScreenHost.setContent(compose, uiState, this::startBootstrap, this::syncPatches,
+                () -> ((MainActivity) requireActivity()).openMods());
 
         boolean prereleases = SBASettings.getUpdatePrereleases(requireContext());
         new Thread(() -> {
@@ -103,14 +88,8 @@ public class DashboardFragment extends Fragment {
             dev.segually.sbamodloader.browser.ModHealth h = dev.segually.sbamodloader.browser.ModHealth.check(app, true);
             if (!isAdded()) return;
             requireActivity().runOnUiThread(() -> {
-                View root = getView();
-                if (root == null) return;
-                View card = root.findViewById(R.id.card_mod_updates);
-                int n = h.updates.size();
-                card.setVisibility(n == 0 ? View.GONE : View.VISIBLE);
-                ((TextView) root.findViewById(R.id.mod_updates_text)).setText(n == 1
-                        ? getString(R.string.dashboard_mod_updates_one) : getString(R.string.dashboard_mod_updates, n));
-                card.setOnClickListener(x -> ((dev.segually.sbamodloader.MainActivity) requireActivity()).openMods());
+                modUpdates = h.updates.size();
+                render();
             });
         }, "dashboard-mods").start();
     }
@@ -159,56 +138,39 @@ public class DashboardFragment extends Fragment {
         if (!isAdded()) return;
         boolean game = gameInstalled();
         boolean latest = newerVersion == null;
-        bind(stepGame, game ? State.OK : State.ERROR, getString(game ? R.string.step_game_ok : R.string.step_game_missing));
-        stepVersion.setOnClickListener(latest ? null : x -> UpdatePrompt.start(requireActivity(), newerVersion));
-        bind(stepVersion, latest ? State.OK : State.ERROR, getString(latest ? R.string.step_version_ok : R.string.step_version_outdated));
+        java.util.List<SetupStep> steps = new java.util.ArrayList<>();
+        steps.add(new SetupStep(game ? StepState.OK : StepState.ERROR,
+                getString(game ? R.string.step_game_ok : R.string.step_game_missing), null));
+        steps.add(new SetupStep(latest ? StepState.OK : StepState.ERROR,
+                getString(latest ? R.string.step_version_ok : R.string.step_version_outdated),
+                latest ? null : () -> { UpdatePrompt.start(requireActivity(), newerVersion); return kotlin.Unit.INSTANCE; }));
 
         boolean patchesOk = false;
         boolean failed = false;
         if (!game) {
-            bind(stepPatches, State.PENDING, getString(R.string.step_patches_no_source));
+            steps.add(new SetupStep(StepState.PENDING, getString(R.string.step_patches_no_source), null));
         } else if (patchResult == null) {
-            bind(stepPatches, State.PENDING, getString(R.string.step_patches_checking));
+            steps.add(new SetupStep(StepState.PENDING, getString(R.string.step_patches_checking), null));
         } else {
             switch (patchResult.state) {
                 case INSTALLED -> {
                     patchesOk = true;
-                    bind(stepPatches, State.OK, getString(R.string.step_patches_ok));
+                    steps.add(new SetupStep(StepState.OK, getString(R.string.step_patches_ok), null));
                 }
-                case NOT_AVAILABLE -> bind(stepPatches, State.PENDING, getString(R.string.step_patches_not_available));
-                case OFFLINE -> bind(stepPatches, State.PENDING, getString(R.string.step_patches_offline));
+                case NOT_AVAILABLE -> steps.add(new SetupStep(StepState.PENDING, getString(R.string.step_patches_not_available), null));
+                case OFFLINE -> steps.add(new SetupStep(StepState.PENDING, getString(R.string.step_patches_offline), null));
                 case FAILED -> {
                     failed = true;
                     String detail = patchResult.message == null || patchResult.message.isEmpty() ? "" : "\n" + patchResult.message;
-                    bind(stepPatches, State.ERROR, getString(R.string.step_patches_failed) + detail);
+                    steps.add(new SetupStep(StepState.ERROR, getString(R.string.step_patches_failed) + detail, null));
                 }
             }
         }
 
         int done = (game ? 1 : 0) + (latest ? 1 : 0) + (patchesOk ? 1 : 0);
-        setupTitle.setText(getString(R.string.setup_progress, done, 3));
-        ringView.setProgressCompat(done, true);
-        ringCheck.setVisibility(done == 3 ? View.VISIBLE : View.GONE);
-        String gameVersion = installedGameVersion();
-        heroSub.setText(gameVersion == null ? getString(R.string.step_game_missing)
-                : getString(R.string.hero_game_version, gameVersion));
-        btnRetry.setVisibility(failed ? View.VISIBLE : View.GONE);
         // Launching while a patch is being installed (or failed to install) would start an unpatched game.
-        btnLaunch.setEnabled(game && patchResult != null && !failed);
-    }
-
-    private void bind(View step, State state, String text) {
-        @DrawableRes int iconRes = state == State.OK ? R.drawable.ic_check_circle : state == State.ERROR ? R.drawable.ic_warning : R.drawable.ic_pending;
-        int attr = state == State.ERROR ? androidx.appcompat.R.attr.colorError
-                : state == State.OK ? androidx.appcompat.R.attr.colorPrimary
-                : com.google.android.material.R.attr.colorOnSurfaceVariant;
-        int color = MaterialColors.getColor(step, attr);
-        ImageView iv = step.findViewById(R.id.step_icon);
-        iv.setImageResource(iconRes);
-        iv.setColorFilter(color);
-        TextView tv = step.findViewById(R.id.step_text);
-        tv.setText(text);
-        tv.setTextColor(state == State.ERROR ? color : MaterialColors.getColor(step, com.google.android.material.R.attr.colorOnSurface));
+        uiState.setValue(new DashboardState(installedGameVersion(), steps, done,
+                game && patchResult != null && !failed, failed, modUpdates));
     }
 
     private void startBootstrap() {
