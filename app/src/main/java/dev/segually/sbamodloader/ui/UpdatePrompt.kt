@@ -43,6 +43,24 @@ object UpdatePrompt {
         }
     }
 
+    private fun progressDialog(activity: Activity, progress: androidx.compose.runtime.State<Float?>) =
+        SbaDialogs.show(activity, cancelable = false) {
+            AlertCard(title = stringResource(R.string.update_dialog_title), buttons = {}) {
+                Column(Modifier.fillMaxWidth()) {
+                    AlertText(stringResource(R.string.update_downloading), color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+                    val p = progress.value
+                    if (p == null) LinearWavyProgressIndicator(Modifier.fillMaxWidth().padding(top = 16.dp))
+                    else LinearWavyProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+                }
+            }
+        }
+
+    /** Debug builds: the download dialog at 60%, with nothing downloaded or installed, for layout checks. */
+    @JvmStatic
+    fun debugProgress(activity: Activity) {
+        progressDialog(activity, mutableStateOf(0.6f))
+    }
+
     /** Downloads the update, then hands it to Android's installer. */
     @JvmStatic
     fun start(activity: Activity, release: AppUpdater.Release) {
@@ -65,16 +83,7 @@ object UpdatePrompt {
         busy = true
         // Null while the size is not known; otherwise 0..1.
         val progress = mutableStateOf<Float?>(null)
-        val dialog = SbaDialogs.show(activity, cancelable = false) {
-            AlertCard(title = stringResource(R.string.update_dialog_title), buttons = {}) {
-                Column(Modifier.fillMaxWidth()) {
-                    AlertText(stringResource(R.string.update_downloading), color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
-                    val p = progress.value
-                    if (p == null) LinearWavyProgressIndicator(Modifier.fillMaxWidth().padding(top = 16.dp))
-                    else LinearWavyProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
-                }
-            }
-        }
+        val dialog = progressDialog(activity, progress)
         val app = activity.applicationContext
         Thread({
             var error: String? = null

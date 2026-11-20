@@ -303,6 +303,7 @@ public class MainActivity extends AppCompatActivity {
             });
             case "plan" -> d.plan(this, "Install Super Cars Adventure?", "2 downloads, 120 MB\n\u2022 Super Cars Adventure 1.0.0\n\u2022 Helper 1.2.0\n\n\u26A0 Made for game 13.0.8, you have 13.0.9.", false, "Install anyway", () -> { });
             case "problems" -> d.problems(this, java.util.Arrays.asList("Cars needs Helper 1.2.7 or higher (you have 1.2.3)", "Radio needs Helper 1.0 or lower"), "These will be installed: Helper 1.2.7", true, () -> { });
+            case "download" -> dev.segually.sbamodloader.ui.UpdatePrompt.debugProgress(this);
             case "confirm" -> d.confirm(this, "Remove this mod?", "Always Skip Cutscenes", "Remove", "Cancel", () -> { });
             default -> d.info(this, "Game updated", "Your game was updated from 13.0.8 to 13.0.9.\n\nMods were checked.", null, "Turn them back on", () -> { }, true);
         }
