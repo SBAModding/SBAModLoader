@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.util.TypedValue
 import androidx.annotation.AttrRes
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -12,11 +13,16 @@ import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -103,31 +109,6 @@ private fun Context.resolvedColorScheme(): ColorScheme {
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private fun Typography.withFont(family: FontFamily): Typography {
-    // The Views' TextView adds the font's own top and bottom padding to each line; Compose drops it by default.
-    // Keeping it makes text sit exactly where it did in the XML layouts.
-    @Suppress("DEPRECATION")
-    fun TextStyle.f() = copy(fontFamily = family, platformStyle = PlatformTextStyle(includeFontPadding = true))
-    return copy(
-        displayLarge = displayLarge.f(), displayMedium = displayMedium.f(), displaySmall = displaySmall.f(),
-        headlineLarge = headlineLarge.f(), headlineMedium = headlineMedium.f(), headlineSmall = headlineSmall.f(),
-        titleLarge = titleLarge.f(), titleMedium = titleMedium.f(), titleSmall = titleSmall.f(),
-        bodyLarge = bodyLarge.f(), bodyMedium = bodyMedium.f(), bodySmall = bodySmall.f(),
-        labelLarge = labelLarge.f(), labelMedium = labelMedium.f(), labelSmall = labelSmall.f(),
-        displayLargeEmphasized = displayLargeEmphasized.f(), displayMediumEmphasized = displayMediumEmphasized.f(),
-        displaySmallEmphasized = displaySmallEmphasized.f(),
-        headlineLargeEmphasized = headlineLargeEmphasized.f(), headlineMediumEmphasized = headlineMediumEmphasized.f(),
-        headlineSmallEmphasized = headlineSmallEmphasized.f(),
-        titleLargeEmphasized = titleLargeEmphasized.f(), titleMediumEmphasized = titleMediumEmphasized.f(),
-        titleSmallEmphasized = titleSmallEmphasized.f(),
-        bodyLargeEmphasized = bodyLargeEmphasized.f(), bodyMediumEmphasized = bodyMediumEmphasized.f(),
-        bodySmallEmphasized = bodySmallEmphasized.f(),
-        labelLargeEmphasized = labelLargeEmphasized.f(), labelMediumEmphasized = labelMediumEmphasized.f(),
-        labelSmallEmphasized = labelSmallEmphasized.f(),
-    )
-}
-
 /** Material 3 Expressive, themed from the activity's own theme so it always matches the Views. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -139,7 +120,16 @@ fun SbaTheme(content: @Composable () -> Unit) {
     MaterialExpressiveTheme(
         colorScheme = scheme,
         motionScheme = MotionScheme.expressive(),
-        typography = androidx.compose.material3.Typography().withFont(SbaFontFamily),
-        content = content,
-    )
+        typography = remember(context) { context.sbaTypography() },
+    ) {
+        val sbaText = remember(context) { context.sbaTextStyles() }
+        // A ComposeView inside a scrolling View parent is first measured without a width limit, which a horizontally
+        // scrolling row refuses. The first pass is thrown away, so any finite width will do.
+        val fallback = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
+        Box(Modifier.layout { measurable, constraints ->
+            val bounded = if (constraints.hasBoundedWidth) constraints else constraints.copy(maxWidth = fallback)
+            val placeable = measurable.measure(bounded)
+            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        }) { androidx.compose.runtime.CompositionLocalProvider(LocalSbaText provides sbaText) { content() } }
+    }
 }

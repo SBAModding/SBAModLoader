@@ -104,7 +104,7 @@ private fun HeroCard(state: DashboardState, onLaunch: () -> Unit, modifier: Modi
                     stringResource(R.string.hero_title),
                     Modifier.padding(end = 96.dp),
                     color = colors.onPrimaryContainer,
-                    style = MaterialTheme.typography.headlineLargeEmphasized.copy(fontWeight = FontWeight.Bold),
+                    style = LocalSbaText.current.hero,
                 )
                 Text(
                     if (state.gameVersion == null) stringResource(R.string.step_game_missing)
@@ -127,7 +127,7 @@ private fun HeroCard(state: DashboardState, onLaunch: () -> Unit, modifier: Modi
                     Spacer(Modifier.width(12.dp))
                     Text(
                         stringResource(R.string.dashboard_launch),
-                        style = MaterialTheme.typography.titleMediumEmphasized.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                     )
                 }
             }
@@ -153,7 +153,7 @@ private fun SetupCard(state: DashboardState, modifier: Modifier = Modifier) {
                     stringResource(R.string.setup_progress, state.done, 3),
                     Modifier.weight(1f),
                     color = colors.onSurface,
-                    style = MaterialTheme.typography.titleLargeEmphasized.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleLargeEmphasized,
                 )
                 val progress by animateFloatAsState(state.done / 3f, label = "setupProgress")
                 val thickness = with(LocalDensity.current) { 8.dp.toPx() }
@@ -222,7 +222,7 @@ private fun ModUpdatesCard(state: DashboardState, onClick: () -> Unit, modifier:
                 else stringResource(R.string.dashboard_mod_updates, state.modUpdates),
                 Modifier.weight(1f).padding(start = 16.dp),
                 color = colors.onTertiaryContainer,
-                style = MaterialTheme.typography.titleMediumEmphasized.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMediumEmphasized,
             )
         }
     }

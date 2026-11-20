@@ -63,6 +63,10 @@ public class MainActivity extends AppCompatActivity {
             page = savedInstanceState.getInt(KEY_PAGE, 0);
             navigation.select(page, false);
         } else {
+            // Debug builds: --ez sba_developer true|false turns developer features on or off before the page is built.
+            if (BuildConfig.DEBUG && getIntent().hasExtra("sba_developer")) {
+                SBASettings.setDeveloperFeatures(this, getIntent().getBooleanExtra("sba_developer", false));
+            }
             showPage(0);
             // Debug builds can open on a given page (adb shell am start ... --ei sba_page 2), for layout checks.
             int start = BuildConfig.DEBUG ? getIntent().getIntExtra("sba_page", 0) : 0;

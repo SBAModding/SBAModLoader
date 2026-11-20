@@ -21,7 +21,7 @@ import dev.segually.sbamodloader.SBASettings;
 /** A row of accent colour choices: the app's green, some presets, and a colour of your own. */
 public final class AccentSwatches {
     /** The presets (the first is the app's own green, saved as 0). */
-    private static final int[] PRESETS = {
+    public static final int[] PRESETS = {
             0xFF7FD1A7, 0xFF8AB4F8, 0xFFC6A8FF, 0xFFFFA6C9, 0xFFFF8A7A, 0xFFFFB05C, 0xFFE9C349, 0xFF5CD6D6,
     };
 
@@ -106,22 +106,27 @@ public final class AccentSwatches {
 
     private void pickCustom() {
         if (!enabled) return;
+        pickCustom(context, this::choose);
+    }
+
+    /** The dialog for a colour of your own; calls [onChosen] with the ARGB colour when the user confirms. */
+    public static void pickCustom(Context context, java.util.function.IntConsumer onChosen) {
         int current = SBASettings.getAccentColor(context);
         float[] hsv = new float[3];
         Color.colorToHSV(current != 0 ? current : PRESETS[1], hsv);
 
         LinearLayout body = new LinearLayout(context);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(dp(24), dp(8), dp(24), 0);
+        body.setPadding(dp(context, 24), dp(context, 8), dp(context, 24), 0);
         View preview = new View(context);
-        body.addView(preview, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72)));
-        Slider hue = slider(body, R.string.appearance_accent_hue, 0, 359, hsv[0]);
-        Slider strength = slider(body, R.string.appearance_accent_strength, 20, 100, Math.max(0.2f, hsv[1]) * 100);
+        body.addView(preview, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(context, 72)));
+        Slider hue = slider(context, body, R.string.appearance_accent_hue, 0, 359, hsv[0]);
+        Slider strength = slider(context, body, R.string.appearance_accent_strength, 20, 100, Math.max(0.2f, hsv[1]) * 100);
         int[] chosen = {0};
         Runnable update = () -> {
             chosen[0] = Color.HSVToColor(new float[]{hue.getValue(), strength.getValue() / 100f, 0.9f});
             GradientDrawable d = new GradientDrawable();
-            d.setCornerRadius(dp(24));
+            d.setCornerRadius(dp(context, 24));
             d.setColor(chosen[0]);
             preview.setBackground(d);
         };
@@ -132,16 +137,16 @@ public final class AccentSwatches {
         new MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.appearance_accent_custom)
                 .setView(body)
-                .setPositiveButton(R.string.appearance_accent_use, (d, w) -> choose(chosen[0] | 0xFF000000))
+                .setPositiveButton(R.string.appearance_accent_use, (d, w) -> onChosen.accept(chosen[0] | 0xFF000000))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 
-    private Slider slider(LinearLayout parent, int labelRes, float from, float to, float value) {
+    private static Slider slider(Context context, LinearLayout parent, int labelRes, float from, float to, float value) {
         android.widget.TextView label = new android.widget.TextView(context);
         label.setText(labelRes);
         label.setTextAppearance(R.style.TextAppearance_SBA_RowBody);
-        label.setPadding(0, dp(12), 0, 0);
+        label.setPadding(0, dp(context, 12), 0, 0);
         parent.addView(label);
         Slider slider = new Slider(context);
         slider.setValueFrom(from);
@@ -165,6 +170,10 @@ public final class AccentSwatches {
     }
 
     private int dp(int value) {
+        return dp(context, value);
+    }
+
+    private static int dp(Context context, int value) {
         return Math.round(value * context.getResources().getDisplayMetrics().density);
     }
 }

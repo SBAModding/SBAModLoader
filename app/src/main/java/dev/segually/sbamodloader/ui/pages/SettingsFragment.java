@@ -10,7 +10,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.google.android.material.materialswitch.MaterialSwitch;
 
 
 import dev.segually.sbamodloader.BuildConfig;
@@ -25,19 +24,27 @@ import android.widget.Toast;
 import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.Utilities;
 import dev.segually.sbamodloader.ui.AccentSwatches;
+import dev.segually.sbamodloader.ui.compose.SettingsActions;
+import dev.segually.sbamodloader.ui.compose.SettingsScreenHost;
+import dev.segually.sbamodloader.ui.compose.SettingsState;
+import dev.segually.sbamodloader.ui.compose.SourceRow;
 import dev.segually.sbamodloader.ui.Insets;
 import dev.segually.sbamodloader.ui.Theming;
 
-public class SettingsFragment extends Fragment {
-    private View devSection;
-    private View devCard;
-    private View libunityCard;
-    private View dataLabel;
-    private View dataPath;
-    private MaterialSwitch devSwitch;
-    private TextView patchInfo;
+public class SettingsFragment extends Fragment implements SettingsActions {
+    /** What the Compose page shows; refresh() rebuilds it from the settings whenever something changes. */
+    private final androidx.compose.runtime.MutableState<SettingsState> uiState =
+            androidx.compose.runtime.SnapshotStateKt.mutableStateOf(new SettingsState(), androidx.compose.runtime.SnapshotStateKt.structuralEqualityPolicy());
     private int versionTaps;
     private Toast tapToast;
+    /** Shown instead of the installed patch while one is being installed. */
+    private String patchInfoOverride;
+    private String patchUrlError;
+    // The state of the "check for updates" button.
+    private AppUpdater.Release foundUpdate;
+    private String updateStatus;
+    private String updateButton;
+    private boolean updateButtonEnabled = true;
 
     private final androidx.activity.result.ActivityResultLauncher<String> exportPicker =
             registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/zip"),
@@ -63,29 +70,59 @@ public class SettingsFragment extends Fragment {
     private final androidx.activity.result.ActivityResultLauncher<String[]> patchPicker =
             registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.OpenDocument(), this::loadPatch);
 
-    private void refreshDeveloper() {
-        boolean on = SBASettings.getDeveloperFeatures(requireContext());
-        int shown = on ? View.VISIBLE : View.GONE;
-        // Anything technical, or that only exists for developers, is only there once developer features are on.
-        devSection.setVisibility(shown);
-        devCard.setVisibility(shown);
-        libunityCard.setVisibility(shown);
-        dataLabel.setVisibility(shown);
-        dataPath.setVisibility(shown);
-        PatchManager.Manifest m = PatchManager.installedManifest(requireContext());
-        if (m == null) {
-            patchInfo.setText(R.string.patch_none_installed);
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
+        View v = inflater.inflate(R.layout.fragment_settings, container, false);
+        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 720, false, v.findViewById(R.id.page_appbar));
+        updateButton = getString(R.string.updates_check_now);
+        androidx.compose.ui.platform.ComposeView compose = v.findViewById(R.id.settings_content);
+        compose.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
+        refresh();
+        SettingsScreenHost.setContent(compose, uiState, this);
+        return v;
+    }
+
+    /** Rebuilds what the page shows from the stored settings. */
+    private void refresh() {
+        if (!isAdded()) return;
+        android.content.Context c = requireContext();
+        boolean dev = SBASettings.getDeveloperFeatures(c);
+        String patch;
+        if (patchInfoOverride != null) {
+            patch = patchInfoOverride;
         } else {
-            String name = m.name.isEmpty() ? getString(R.string.patch_unnamed) : m.name;
-            patchInfo.setText(getString(R.string.patch_installed_format, name, m.gameVersion)
-                    + (m.skipHashVerification ? "\n" + getString(R.string.patch_hash_skipped) : ""));
+            PatchManager.Manifest m = PatchManager.installedManifest(c);
+            if (m == null) {
+                patch = getString(R.string.patch_none_installed);
+            } else {
+                String name = m.name.isEmpty() ? getString(R.string.patch_unnamed) : m.name;
+                patch = getString(R.string.patch_installed_format, name, m.gameVersion)
+                        + (m.skipHashVerification ? "\n" + getString(R.string.patch_hash_skipped) : "");
+            }
         }
+        java.util.List<SourceRow> sources = new java.util.ArrayList<>();
+        sources.add(new SourceRow(getString(R.string.sources_official), getString(R.string.sources_official_body), true, true));
+        for (dev.segually.sbamodloader.browser.RepoSource r : SBASettings.getExtraRepos(c)) {
+            sources.add(new SourceRow(r.name, r.url, r.enabled, false));
+        }
+        uiState.setValue(new SettingsState(
+                SBASettings.getThemeMode(c), SBASettings.getLayoutMode(c),
+                Theming.accentSupported(), SBASettings.getMaterialYou(c), SBASettings.getAccentColor(c),
+                SBASettings.getAutoUpdate(c), SBASettings.getUpdatePrereleases(c),
+                updateStatus, updateButton, updateButtonEnabled,
+                SBASettings.getFusionEnabled(c), SBASettings.getSkipFusionWhenUnused(c), SBASettings.getUseUnstrippedLibUnity(c),
+                dev, patch, SBASettings.getCustomPatchUrl(c), patchUrlError, sources,
+                Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, null).getAbsolutePath(),
+                getString(R.string.settings_about_format, BuildConfig.VERSION_NAME) + " (" + BuildConfig.VERSION_CODE + ")",
+                buildData()));
     }
 
     private void loadPatch(android.net.Uri uri) {
         if (uri == null) return;
         android.content.Context app = requireContext().getApplicationContext();
-        patchInfo.setText(R.string.patch_installing);
+        patchInfoOverride = getString(R.string.patch_installing);
+        refresh();
         new Thread(() -> {
             String error = null;
             try {
@@ -95,194 +132,217 @@ public class SettingsFragment extends Fragment {
             }
             String err = error;
             if (isAdded()) requireActivity().runOnUiThread(() -> {
-                refreshDeveloper();
+                patchInfoOverride = null;
+                refresh();
                 Toast.makeText(requireContext(), err == null ? getString(R.string.patch_install_ok) : err, Toast.LENGTH_LONG).show();
             });
         }, "patch-install").start();
     }
 
-    @Nullable
+    // ---- SettingsActions ----------------------------------------------------------------------------
+
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
-        View v = inflater.inflate(R.layout.fragment_settings, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 720, false, v.findViewById(R.id.page_appbar));
+    public void setThemeMode(int mode) {
+        android.content.Context app = requireContext().getApplicationContext();
+        int chosen = mode == 1 ? SBASettings.THEME_LIGHT : mode == 2 ? SBASettings.THEME_DARK : SBASettings.THEME_SYSTEM;
+        if (chosen == SBASettings.getThemeMode(app)) return;
+        SBASettings.setThemeMode(app, chosen);
+        requireActivity().recreate();
+    }
 
-        devCard = v.findViewById(R.id.card_developer);
-        libunityCard = v.findViewById(R.id.card_libunity);
-        dataLabel = v.findViewById(R.id.data_label);
-        dataPath = v.findViewById(R.id.data_path);
-        MaterialSwitch libunity = v.findViewById(R.id.switch_libunity);
-        libunity.setChecked(SBASettings.getUseUnstrippedLibUnity(requireContext()));
-        libunity.setOnCheckedChangeListener((b, on) -> SBASettings.setUseUnstrippedLibUnity(requireContext(), on));
+    @Override
+    public void setLayoutMode(int mode) {
+        android.content.Context app = requireContext().getApplicationContext();
+        int chosen = mode == 1 ? SBASettings.LAYOUT_PHONE : mode == 2 ? SBASettings.LAYOUT_DESKTOP : SBASettings.LAYOUT_AUTO;
+        if (chosen == SBASettings.getLayoutMode(app)) return;
+        SBASettings.setLayoutMode(app, chosen);
+        requireActivity().recreate();
+    }
 
-        MaterialSwitch fusion = v.findViewById(R.id.switch_fusion);
-        fusion.setChecked(SBASettings.getFusionEnabled(requireContext()));
-        final android.widget.CompoundButton.OnCheckedChangeListener[] fusionListener = new android.widget.CompoundButton.OnCheckedChangeListener[1];
-        fusionListener[0] = (b, on) -> {
-            if (on && !DeviceSupport.fusionSupported(requireContext())) {
-                // Put the switch back until the user has read the warning and confirmed.
-                b.setOnCheckedChangeListener(null);
-                b.setChecked(false);
-                b.setOnCheckedChangeListener(fusionListener[0]);
-                FusionWarning.showTurnOn(requireContext(), DeviceSupport.fusionProblems(requireContext()), () -> {
-                    SBASettings.setFusionEnabled(requireContext(), true);
-                    b.setOnCheckedChangeListener(null);
-                    b.setChecked(true);
-                    b.setOnCheckedChangeListener(fusionListener[0]);
-                }, () -> { });
-            } else {
-                SBASettings.setFusionEnabled(requireContext(), on);
+    @Override
+    public void setMaterialYou(boolean on) {
+        SBASettings.setMaterialYou(requireContext().getApplicationContext(), on);
+        requireActivity().recreate();
+    }
+
+    @Override
+    public void setAccent(int argb) {
+        SBASettings.setAccentColor(requireContext().getApplicationContext(), argb);
+        requireActivity().recreate();
+    }
+
+    @Override
+    public void pickCustomAccent() {
+        AccentSwatches.pickCustom(requireContext(), this::setAccent);
+    }
+
+    @Override
+    public void setAutoUpdate(boolean on) {
+        SBASettings.setAutoUpdate(requireContext(), on);
+        refresh();
+    }
+
+    @Override
+    public void setPrereleases(boolean on) {
+        SBASettings.setUpdatePrereleases(requireContext(), on);
+        // The answer for the old choice no longer applies.
+        foundUpdate = null;
+        updateStatus = null;
+        updateButton = getString(R.string.updates_check_now);
+        refresh();
+    }
+
+    @Override
+    public void checkForUpdate() {
+        if (foundUpdate != null) {
+            UpdatePrompt.start(requireActivity(), foundUpdate);
+            return;
+        }
+        updateStatus = getString(R.string.updates_checking);
+        updateButtonEnabled = false;
+        refresh();
+        android.content.Context app = requireContext().getApplicationContext();
+        boolean prereleases = SBASettings.getUpdatePrereleases(app);
+        new Thread(() -> {
+            AppUpdater.Release release = null;
+            boolean failed = false;
+            try {
+                release = AppUpdater.findNewer(prereleases);
+                SBASettings.setLastUpdateCheck(app, System.currentTimeMillis());
+            } catch (java.io.IOException e) {
+                failed = true;
             }
-        };
-        fusion.setOnCheckedChangeListener(fusionListener[0]);
+            AppUpdater.Release r = release;
+            boolean f = failed;
+            if (isAdded()) requireActivity().runOnUiThread(() -> {
+                updateButtonEnabled = true;
+                if (f) {
+                    updateStatus = getString(R.string.updates_check_failed);
+                } else if (r == null) {
+                    updateStatus = getString(R.string.updates_up_to_date);
+                } else {
+                    foundUpdate = r;
+                    updateStatus = getString(R.string.updates_available, r.version);
+                    updateButton = getString(R.string.updates_update_to, r.version);
+                }
+                refresh();
+            });
+        }, "update-check").start();
+    }
 
-        MaterialSwitch skipFusion = v.findViewById(R.id.switch_skipfusion);
-        skipFusion.setChecked(SBASettings.getSkipFusionWhenUnused(requireContext()));
-        skipFusion.setOnCheckedChangeListener((b, on) -> SBASettings.setSkipFusionWhenUnused(requireContext(), on));
+    @Override
+    public void setFusion(boolean on) {
+        android.content.Context c = requireContext();
+        if (on && !DeviceSupport.fusionSupported(c)) {
+            // Leave it off until the user has read the warning and confirmed.
+            FusionWarning.showTurnOn(c, DeviceSupport.fusionProblems(c), () -> {
+                SBASettings.setFusionEnabled(c, true);
+                refresh();
+            }, () -> { });
+        } else {
+            SBASettings.setFusionEnabled(c, on);
+        }
+        refresh();
+    }
 
-        v.findViewById(R.id.safety_github).setOnClickListener(x -> openLink(AppUpdater.REPO_URL));
-        v.findViewById(R.id.safety_discord).setOnClickListener(x -> openLink(AppUpdater.DISCORD_URL));
-        setUpUpdates(v);
-        setUpAppearance(v);
-        setUpSources(v);
-        rowToggles(v, R.id.card_libunity, R.id.switch_libunity);
-        rowToggles(v, R.id.card_fusion, R.id.switch_fusion);
-        rowToggles(v, R.id.card_skipfusion, R.id.switch_skipfusion);
-        rowToggles(v, R.id.card_developer, R.id.switch_developer);
-        rowToggles(v, R.id.row_autoupdate, R.id.switch_autoupdate);
-        rowToggles(v, R.id.row_prereleases, R.id.switch_prereleases);
+    @Override
+    public void setSkipFusion(boolean on) {
+        SBASettings.setSkipFusionWhenUnused(requireContext(), on);
+        refresh();
+    }
 
-        devSection = v.findViewById(R.id.dev_section);
-        patchInfo = v.findViewById(R.id.patch_info);
-        devSwitch = v.findViewById(R.id.switch_developer);
-        devSwitch.setChecked(SBASettings.getDeveloperFeatures(requireContext()));
-        devSwitch.setOnCheckedChangeListener((b, on) -> {
-            SBASettings.setDeveloperFeatures(requireContext(), on);
-            refreshDeveloper();
-        });
-        v.findViewById(R.id.btn_load_patch).setOnClickListener(x -> patchPicker.launch(new String[]{"application/zip", "application/octet-stream", "*/*"}));
-        v.findViewById(R.id.btn_export_assemblies).setOnClickListener(x -> {
-            android.content.Context c = requireContext();
-            if (!dev.segually.sbamodloader.tools.InteropExport.available()) {
-                Toast.makeText(c, R.string.export_assemblies_none, Toast.LENGTH_LONG).show();
-            } else if (!dev.segually.sbamodloader.tools.InteropExport.generatedHere(c)) {
-                Toast.makeText(c, R.string.export_assemblies_downloaded, Toast.LENGTH_LONG).show();
-            } else {
-                exportPicker.launch(dev.segually.sbamodloader.tools.InteropExport.suggestedName(c));
-            }
-        });
-        v.findViewById(R.id.btn_remove_patch).setOnClickListener(x -> {
-            PatchManager.remove(requireContext());
-            refreshDeveloper();
-        });
-        com.google.android.material.textfield.TextInputEditText url = v.findViewById(R.id.patch_url);
-        com.google.android.material.textfield.TextInputLayout urlLayout = v.findViewById(R.id.patch_url_layout);
-        url.setText(SBASettings.getCustomPatchUrl(requireContext()));
-        v.findViewById(R.id.btn_save_patch_url).setOnClickListener(x -> {
-            String value = String.valueOf(url.getText()).trim();
-            if (!value.isEmpty() && !value.startsWith("https://")) {
-                urlLayout.setError(getString(R.string.settings_patch_url_invalid));
-                return;
-            }
-            urlLayout.setError(null);
-            SBASettings.setCustomPatchUrl(requireContext(), value);
-            Toast.makeText(requireContext(), R.string.settings_saved, Toast.LENGTH_SHORT).show();
-        });
-        refreshDeveloper();
+    @Override
+    public void setLibunity(boolean on) {
+        SBASettings.setUseUnstrippedLibUnity(requireContext(), on);
+        refresh();
+    }
 
-        ((TextView) dataPath).setText(
-                Utilities.getExternalSBAModLoaderDirectory(TargetGame.PACKAGE_NAME, null).getAbsolutePath());
+    @Override
+    public void setDeveloper(boolean on) {
+        SBASettings.setDeveloperFeatures(requireContext(), on);
+        refresh();
+    }
 
-        TextView version = v.findViewById(R.id.about_version);
-        version.setText(getString(R.string.settings_about_format, BuildConfig.VERSION_NAME) + " (" + BuildConfig.VERSION_CODE + ")");
-        version.setOnClickListener(x -> onVersionTapped());
-        ((TextView) v.findViewById(R.id.about_build)).setText(buildData());
-        return v;
+    @Override
+    public void savePatchUrl(String value) {
+        if (!value.isEmpty() && !value.startsWith("https://")) {
+            patchUrlError = getString(R.string.settings_patch_url_invalid);
+            refresh();
+            return;
+        }
+        patchUrlError = null;
+        SBASettings.setCustomPatchUrl(requireContext(), value);
+        refresh();
+        Toast.makeText(requireContext(), R.string.settings_saved, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void loadLocalPatch() {
+        patchPicker.launch(new String[]{"application/zip", "application/octet-stream", "*/*"});
+    }
+
+    @Override
+    public void exportAssemblies() {
+        android.content.Context c = requireContext();
+        if (!dev.segually.sbamodloader.tools.InteropExport.available()) {
+            Toast.makeText(c, R.string.export_assemblies_none, Toast.LENGTH_LONG).show();
+        } else if (!dev.segually.sbamodloader.tools.InteropExport.generatedHere(c)) {
+            Toast.makeText(c, R.string.export_assemblies_downloaded, Toast.LENGTH_LONG).show();
+        } else {
+            exportPicker.launch(dev.segually.sbamodloader.tools.InteropExport.suggestedName(c));
+        }
+    }
+
+    @Override
+    public void removePatch() {
+        PatchManager.remove(requireContext());
+        refresh();
+    }
+
+    @Override
+    public void addRepository() {
+        showAddRepoDialog();
+    }
+
+    @Override
+    public void setRepositoryEnabled(int index, boolean on) {
+        android.content.Context c = requireContext();
+        java.util.List<dev.segually.sbamodloader.browser.RepoSource> now = SBASettings.getExtraRepos(c);
+        if (index < 0 || index >= now.size()) return;
+        dev.segually.sbamodloader.browser.RepoSource r = now.get(index);
+        now.set(index, new dev.segually.sbamodloader.browser.RepoSource(r.name, r.url, on));
+        SBASettings.setExtraRepos(c, now);
+        refresh();
+    }
+
+    @Override
+    public void removeRepository(int index) {
+        android.content.Context c = requireContext();
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(c)
+                .setTitle(R.string.sources_remove_title)
+                .setMessage(getString(R.string.sources_remove_body))
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.sources_remove, (d, w) -> {
+                    java.util.List<dev.segually.sbamodloader.browser.RepoSource> now = SBASettings.getExtraRepos(c);
+                    if (index >= 0 && index < now.size()) now.remove(index);
+                    SBASettings.setExtraRepos(c, now);
+                    refresh();
+                }).show();
+    }
+
+    @Override
+    public void openGithub() {
+        openLink(AppUpdater.REPO_URL);
+    }
+
+    @Override
+    public void openDiscord() {
+        openLink(AppUpdater.DISCORD_URL);
     }
 
     // ---- mod sources ------------------------------------------------------------------------------
 
-    private void setUpSources(View v) {
-        android.widget.LinearLayout list = v.findViewById(R.id.sources_list);
-        renderSources(list);
-        v.findViewById(R.id.btn_add_repo).setOnClickListener(x -> showAddRepo(list));
-    }
-
-    private void renderSources(android.widget.LinearLayout list) {
-        list.removeAllViews();
-        android.content.Context c = requireContext();
-        list.addView(sourceRow(getString(R.string.sources_official), getString(R.string.sources_official_body), true, null, null));
-        final java.util.List<dev.segually.sbamodloader.browser.RepoSource> extra = SBASettings.getExtraRepos(c);
-        for (int i = 0; i < extra.size(); i++) {
-            final int index = i;
-            dev.segually.sbamodloader.browser.RepoSource r = extra.get(i);
-            list.addView(sourceRow(r.name, r.url, r.enabled, on -> {
-                java.util.List<dev.segually.sbamodloader.browser.RepoSource> now = SBASettings.getExtraRepos(c);
-                now.set(index, new dev.segually.sbamodloader.browser.RepoSource(r.name, r.url, on));
-                SBASettings.setExtraRepos(c, now);
-            }, () -> new com.google.android.material.dialog.MaterialAlertDialogBuilder(c)
-                    .setTitle(R.string.sources_remove_title)
-                    .setMessage(getString(R.string.sources_remove_body))
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.sources_remove, (d, w) -> {
-                        java.util.List<dev.segually.sbamodloader.browser.RepoSource> now = SBASettings.getExtraRepos(c);
-                        now.remove(index);
-                        SBASettings.setExtraRepos(c, now);
-                        renderSources(list);
-                    }).show()));
-        }
-    }
-
-    private interface Toggled {
-        void on(boolean enabled);
-    }
-
-    /** One repository: its name, its address, and a switch and a remove button (the official one has neither). */
-    private View sourceRow(String name, String detail, boolean enabled, Toggled toggled, Runnable remove) {
-        android.content.Context c = requireContext();
-        float d = getResources().getDisplayMetrics().density;
-        android.widget.LinearLayout row = new android.widget.LinearLayout(c);
-        row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        row.setPadding(Math.round(20 * d), Math.round(12 * d), Math.round(12 * d), Math.round(12 * d));
-        row.setMinimumHeight(Math.round(72 * d));
-        android.widget.LinearLayout col = new android.widget.LinearLayout(c);
-        col.setOrientation(android.widget.LinearLayout.VERTICAL);
-        TextView title = new TextView(c);
-        title.setTextAppearance(R.style.TextAppearance_SBA_RowTitle);
-        title.setText(name);
-        col.addView(title);
-        TextView sub = new TextView(c);
-        sub.setTextAppearance(R.style.TextAppearance_SBA_RowBody);
-        sub.setText(detail);
-        sub.setMaxLines(2);
-        sub.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
-        col.addView(sub);
-        row.addView(col, new android.widget.LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        if (toggled == null) {
-            android.widget.ImageView lock = new android.widget.ImageView(c);
-            lock.setImageResource(R.drawable.ic_verified);
-            lock.setImageTintList(android.content.res.ColorStateList.valueOf(
-                    com.google.android.material.color.MaterialColors.getColor(row, androidx.appcompat.R.attr.colorPrimary)));
-            row.addView(lock, new android.widget.LinearLayout.LayoutParams(Math.round(28 * d), Math.round(28 * d)));
-        } else {
-            MaterialSwitch sw = new MaterialSwitch(c);
-            sw.setChecked(enabled);
-            sw.setOnCheckedChangeListener((b, on) -> toggled.on(on));
-            row.addView(sw);
-            android.widget.ImageButton del = new android.widget.ImageButton(c);
-            del.setImageResource(R.drawable.ic_delete);
-            del.setBackgroundResource(android.R.color.transparent);
-            del.setContentDescription(getString(R.string.sources_remove));
-            del.setImageTintList(android.content.res.ColorStateList.valueOf(
-                    com.google.android.material.color.MaterialColors.getColor(row, com.google.android.material.R.attr.colorOnSurfaceVariant)));
-            del.setOnClickListener(x -> remove.run());
-            row.addView(del, new android.widget.LinearLayout.LayoutParams(Math.round(48 * d), Math.round(48 * d)));
-        }
-        return row;
-    }
-
-    private void showAddRepo(android.widget.LinearLayout list) {
+    private void showAddRepoDialog() {
         android.content.Context c = requireContext();
         float d = getResources().getDisplayMetrics().density;
         android.widget.LinearLayout body = new android.widget.LinearLayout(c);
@@ -344,72 +404,11 @@ public class SettingsFragment extends Fragment {
                     java.util.List<dev.segually.sbamodloader.browser.RepoSource> now = SBASettings.getExtraRepos(app);
                     now.add(source);
                     SBASettings.setExtraRepos(app, now);
-                    renderSources(list);
+                    refresh();
                     dialog.dismiss();
                     Toast.makeText(app, getString(R.string.sources_added, source.name), Toast.LENGTH_SHORT).show();
                 });
             }, "repo-probe").start();
-        });
-    }
-
-    /** Makes the whole row toggle its switch, not just the switch itself. */
-    private static void rowToggles(View root, int rowId, int switchId) {
-        View row = root.findViewById(rowId);
-        MaterialSwitch sw = root.findViewById(switchId);
-        row.setOnClickListener(x -> sw.toggle());
-    }
-
-    private void setUpAppearance(View v) {
-        android.content.Context app = requireContext().getApplicationContext();
-        com.google.android.material.button.MaterialButtonToggleGroup group = v.findViewById(R.id.theme_mode_group);
-        int mode = SBASettings.getThemeMode(app);
-        group.check(mode == SBASettings.THEME_LIGHT ? R.id.theme_light
-                : mode == SBASettings.THEME_DARK ? R.id.theme_dark : R.id.theme_system);
-        group.addOnButtonCheckedListener((g, id, checked) -> {
-            if (!checked) return;
-            int chosen = id == R.id.theme_light ? SBASettings.THEME_LIGHT
-                    : id == R.id.theme_dark ? SBASettings.THEME_DARK : SBASettings.THEME_SYSTEM;
-            if (chosen == SBASettings.getThemeMode(app)) return;
-            SBASettings.setThemeMode(app, chosen);
-            requireActivity().recreate();
-        });
-
-        com.google.android.material.button.MaterialButtonToggleGroup layoutGroup = v.findViewById(R.id.layout_mode_group);
-        int layoutMode = SBASettings.getLayoutMode(app);
-        layoutGroup.check(layoutMode == SBASettings.LAYOUT_PHONE ? R.id.layout_phone
-                : layoutMode == SBASettings.LAYOUT_DESKTOP ? R.id.layout_desktop : R.id.layout_auto);
-        layoutGroup.addOnButtonCheckedListener((g, id, checked) -> {
-            if (!checked) return;
-            int chosen = id == R.id.layout_phone ? SBASettings.LAYOUT_PHONE
-                    : id == R.id.layout_desktop ? SBASettings.LAYOUT_DESKTOP : SBASettings.LAYOUT_AUTO;
-            if (chosen == SBASettings.getLayoutMode(app)) return;
-            SBASettings.setLayoutMode(app, chosen);
-            requireActivity().recreate();
-        });
-
-        View materialYouRow = v.findViewById(R.id.row_material_you);
-        MaterialSwitch materialYou = v.findViewById(R.id.switch_material_you);
-        View accentRow = v.findViewById(R.id.row_accent);
-        boolean dynamic = Theming.accentSupported();
-        // Without dynamic colours (Android 11 and older) there is nothing to choose: the app's own colours are used.
-        materialYouRow.setVisibility(dynamic ? View.VISIBLE : View.GONE);
-        accentRow.setVisibility(dynamic ? View.VISIBLE : View.GONE);
-        materialYou.setChecked(SBASettings.getMaterialYou(app));
-        rowToggles(v, R.id.row_material_you, R.id.switch_material_you);
-        AccentSwatches swatches = new AccentSwatches(requireContext(), v.findViewById(R.id.accent_swatches),
-                () -> requireActivity().recreate());
-        Runnable showAccent = () -> {
-            boolean you = SBASettings.getMaterialYou(app);
-            v.findViewById(R.id.accent_scroll).setAlpha(you ? 0.38f : 1f);
-            swatches.setEnabled(!you);
-            ((TextView) v.findViewById(R.id.accent_hint)).setText(
-                    you ? R.string.appearance_accent_off : R.string.appearance_accent_desc);
-        };
-        showAccent.run();
-        materialYou.setOnCheckedChangeListener((b, on) -> {
-            SBASettings.setMaterialYou(app, on);
-            showAccent.run();
-            requireActivity().recreate();
         });
     }
 
@@ -419,61 +418,6 @@ public class SettingsFragment extends Fragment {
         } catch (android.content.ActivityNotFoundException e) {
             Toast.makeText(requireContext(), url, Toast.LENGTH_LONG).show();
         }
-    }
-
-    private void setUpUpdates(View v) {
-        MaterialSwitch auto = v.findViewById(R.id.switch_autoupdate);
-        auto.setChecked(SBASettings.getAutoUpdate(requireContext()));
-        auto.setOnCheckedChangeListener((b, on) -> SBASettings.setAutoUpdate(requireContext(), on));
-
-        MaterialSwitch pre = v.findViewById(R.id.switch_prereleases);
-        pre.setChecked(SBASettings.getUpdatePrereleases(requireContext()));
-        TextView status = v.findViewById(R.id.update_status);
-        android.widget.Button button = v.findViewById(R.id.btn_check_update);
-        final AppUpdater.Release[] found = new AppUpdater.Release[1];
-        pre.setOnCheckedChangeListener((b, on) -> {
-            SBASettings.setUpdatePrereleases(requireContext(), on);
-            // The answer for the old choice no longer applies.
-            found[0] = null;
-            status.setVisibility(View.GONE);
-            button.setText(R.string.updates_check_now);
-        });
-
-        button.setOnClickListener(x -> {
-            if (found[0] != null) {
-                UpdatePrompt.start(requireActivity(), found[0]);
-                return;
-            }
-            status.setVisibility(View.VISIBLE);
-            status.setText(R.string.updates_checking);
-            button.setEnabled(false);
-            android.content.Context app = requireContext().getApplicationContext();
-            boolean prereleases = SBASettings.getUpdatePrereleases(app);
-            new Thread(() -> {
-                AppUpdater.Release release = null;
-                boolean failed = false;
-                try {
-                    release = AppUpdater.findNewer(prereleases);
-                    SBASettings.setLastUpdateCheck(app, System.currentTimeMillis());
-                } catch (java.io.IOException e) {
-                    failed = true;
-                }
-                AppUpdater.Release r = release;
-                boolean f = failed;
-                if (isAdded()) requireActivity().runOnUiThread(() -> {
-                    button.setEnabled(true);
-                    if (f) {
-                        status.setText(R.string.updates_check_failed);
-                    } else if (r == null) {
-                        status.setText(R.string.updates_up_to_date);
-                    } else {
-                        found[0] = r;
-                        status.setText(getString(R.string.updates_available, r.version));
-                        button.setText(getString(R.string.updates_update_to, r.version));
-                    }
-                });
-            }, "update-check").start();
-        });
     }
 
     /** Version, build and device lines for the bottom of the page; useful to quote when reporting a problem. */
@@ -495,7 +439,8 @@ public class SettingsFragment extends Fragment {
     }
 
     /** Seven taps on the version number turn on developer features, like Android's build number. */
-    private void onVersionTapped() {
+    @Override
+    public void onVersionTap() {
         if (tapToast != null) tapToast.cancel();
         if (SBASettings.getDeveloperFeatures(requireContext())) {
             tapToast = Toast.makeText(requireContext(), R.string.settings_dev_already, Toast.LENGTH_SHORT);
@@ -507,8 +452,7 @@ public class SettingsFragment extends Fragment {
         if (left <= 0) {
             versionTaps = 0;
             SBASettings.setDeveloperFeatures(requireContext(), true);
-            devSwitch.setChecked(true);
-            refreshDeveloper();
+            refresh();
             tapToast = Toast.makeText(requireContext(), R.string.settings_dev_on, Toast.LENGTH_SHORT);
             tapToast.show();
         } else if (left <= 3) {
