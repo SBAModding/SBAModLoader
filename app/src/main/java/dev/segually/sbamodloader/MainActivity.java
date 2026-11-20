@@ -68,6 +68,11 @@ public class MainActivity extends AppCompatActivity {
                     java.util.Arrays.asList("Less than 4 GB of memory", "No hardware keystore"), () -> { }, () -> { }), 1200);
         }
 
+        if (BuildConfig.DEBUG && getIntent().hasExtra("sba_dialog")) {
+            String which = getIntent().getStringExtra("sba_dialog");
+            getWindow().getDecorView().postDelayed(() -> debugDialog(which), 1200);
+        }
+
         CrashDetector.init(this);
         if (savedInstanceState == null) checkForUpdate();
     }
@@ -272,6 +277,22 @@ public class MainActivity extends AppCompatActivity {
     public void openBrowse(String modId) {
         pendingBrowseMod = modId;
         goTo(1);
+    }
+
+    /** Debug builds: opens one of the app's dialogs for layout checks (--es sba_dialog accent|repo|plan|problems|confirm|info). */
+    private void debugDialog(String which) {
+        var d = dev.segually.sbamodloader.ui.AppDialogs.INSTANCE;
+        switch (which) {
+            case "accent" -> d.pickAccent(this, 0xFF8AB4F8, c -> { });
+            case "repo" -> d.addRepository(this, new dev.segually.sbamodloader.ui.AppDialogs.RepositoryHandler() {
+                public String invalid(String url) { return "That is not an https address ending in .json"; }
+                public void submit(String url, java.util.function.Consumer<String> done) { done.accept(null); }
+            });
+            case "plan" -> d.plan(this, "Install Super Cars Adventure?", "2 downloads, 120 MB\n\u2022 Super Cars Adventure 1.0.0\n\u2022 Helper 1.2.0\n\n\u26A0 Made for game 13.0.8, you have 13.0.9.", false, "Install anyway", () -> { });
+            case "problems" -> d.problems(this, java.util.Arrays.asList("Cars needs Helper 1.2.7 or higher (you have 1.2.3)", "Radio needs Helper 1.0 or lower"), "These will be installed: Helper 1.2.7", true, () -> { });
+            case "confirm" -> d.confirm(this, "Remove this mod?", "Always Skip Cutscenes", "Remove", "Cancel", () -> { });
+            default -> d.info(this, "Game updated", "Your game was updated from 13.0.8 to 13.0.9.\n\nMods were checked.", null, "Turn them back on", () -> { }, true);
+        }
     }
 
     private void selectNav(int index) {
