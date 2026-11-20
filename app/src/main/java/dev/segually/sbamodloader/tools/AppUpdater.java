@@ -40,7 +40,11 @@ public final class AppUpdater {
     private static final String API_URL = "https://api.github.com/repos/" + REPO + "/releases?per_page=20";
     private static final String DOWNLOAD_PREFIX = REPO_URL + "/releases/download/";
     private static final long MAX_APK_BYTES = 300L * 1024 * 1024;
-    private static final Pattern VERSION = Pattern.compile("^v?(\\d+(?:\\.\\d+)*)([a-z]*)$");
+    /**
+     * A version is numbers, an optional letter, and an optional "-marker" naming a track of builds that is kept apart
+     * from the main releases (0.0.5a-compose, 0.0.6-beta.2...): digits, then letters, then the marker.
+     */
+    private static final Pattern VERSION = Pattern.compile("^v?(\\d+(?:\\.\\d+)*)([a-z]*)(?:-([a-z0-9][a-z0-9.\\-]*))?$");
 
     private AppUpdater() {
     }
@@ -74,7 +78,7 @@ public final class AppUpdater {
                 JSONObject r = releases.getJSONObject(i);
                 if (r.optBoolean("draft") || (r.optBoolean("prerelease") && !includePrereleases)) continue;
                 String version = r.optString("tag_name", "").replaceFirst("^v", "");
-                if (compareVersions(version, BuildConfig.VERSION_NAME) <= 0) continue;
+                if (!isOffered(version, BuildConfig.VERSION_NAME)) continue;
                 if (best != null && compareVersions(version, best.version) <= 0) continue;
                 String wanted = "SBAModLoader-" + version + ".apk";
                 JSONArray assets = r.optJSONArray("assets");
@@ -95,9 +99,30 @@ public final class AppUpdater {
         return best;
     }
 
+    /** The marker of a version ("compose" in 0.0.5a-compose), or "" for a main release or something unreadable. */
+    static String marker(String version) {
+        Matcher m = VERSION.matcher(version);
+        return m.matches() && m.group(3) != null ? m.group(3) : "";
+    }
+
+    /**
+     * Whether a release is an update for the running build. A main build (no marker) only sees main releases, so a
+     * track of test builds never reaches it. A build with a marker sees newer releases of its own marker and newer main
+     * releases, so when the main release it was leading up to ships, it gets that; releases with another marker are not
+     * its business.
+     */
+    static boolean isOffered(String candidate, String running) {
+        if (!VERSION.matcher(candidate).matches()) return false;
+        String mine = marker(running);
+        String theirs = marker(candidate);
+        if (!theirs.isEmpty() && !theirs.equals(mine)) return false;
+        return compareVersions(candidate, running) > 0;
+    }
+
     /**
      * Orders versions like 0.0.1a &lt; 0.0.1b &lt; 0.0.1 &lt; 0.0.2: the numbers first, then a version without a
-     * letter suffix is newer than the same numbers with one. Something unreadable counts as older.
+     * letter suffix is newer than the same numbers with one. A "-marker" is not part of the order. Something unreadable
+     * counts as older.
      */
     static int compareVersions(String a, String b) {
         Matcher ma = VERSION.matcher(a), mb = VERSION.matcher(b);

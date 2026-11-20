@@ -54,8 +54,8 @@ android {
         minSdk = 24
         targetSdk = 36
         applicationId = "dev.segually.sbamodloader"
-        versionCode = 13
-        versionName = "0.0.4.2"
+        versionCode = 14
+        versionName = "0.0.5a-compose"
         buildConfigField("String", "GIT_SHA", "\"${gitShortSha()}\"")
         buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
         ndk {
