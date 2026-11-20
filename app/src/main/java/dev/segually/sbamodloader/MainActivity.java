@@ -77,6 +77,15 @@ public class MainActivity extends AppCompatActivity {
             getWindow().getDecorView().postDelayed(() -> debugDialog(which), 1200);
         }
 
+        // Debug builds: --ez sba_cycle true switches through the tabs from code, for frame timing (no touches needed).
+        if (BuildConfig.DEBUG && getIntent().getBooleanExtra("sba_cycle", false)) {
+            final int[] order = {1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0};
+            for (int i = 0; i < order.length; i++) {
+                final int target = order[i];
+                getWindow().getDecorView().postDelayed(() -> goTo(target), 6000 + 1200L * i);
+            }
+        }
+
         CrashDetector.init(this);
         if (savedInstanceState == null) checkForUpdate();
     }

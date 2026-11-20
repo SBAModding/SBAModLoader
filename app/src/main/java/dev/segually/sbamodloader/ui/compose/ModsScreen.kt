@@ -346,10 +346,10 @@ private fun ReorderableGrid(
                                 val origin = origins[key] ?: return@detectDragGestures
                                 // The row's own place is the one the dragged row's middle is over.
                                 val middle = pointer - grab + Offset(size.width / 2f, size.height / 2f)
-                                val to = currentRows.indexOfFirst { other ->
-                                    other.orderable && other.key != key && Rect(origins[other.key] ?: Offset.Zero,
-                                        (sizes[other.key] ?: IntSize.Zero).let { Size(it.width.toFloat(), it.height.toFloat()) }).contains(middle)
-                                }
+                                val to = dropTarget(
+                                    currentRows.map { r -> origins[r.key]?.let { o -> (sizes[r.key] ?: IntSize.Zero).let { z -> Rect(o, Size(z.width.toFloat(), z.height.toFloat())) } } },
+                                    currentRows.map { it.orderable }, from, middle,
+                                )
                                 if (to >= 0 && from >= 0 && to != from) onMove(from, to)
                             },
                             onDragEnd = { draggedKey = null; onDragEnd() },
@@ -376,6 +376,18 @@ private fun ReorderableGrid(
             }
         }
     }
+}
+
+/**
+ * Where a dragged row goes: the index of the orderable row whose box holds [middle] (the dragged row's middle), or -1
+ * when it is over no other orderable row (or over itself), in which case nothing moves.
+ */
+internal fun dropTarget(rects: List<Rect?>, orderable: List<Boolean>, dragged: Int, middle: Offset): Int {
+    for (i in rects.indices) {
+        val rect = rects[i] ?: continue
+        if (i != dragged && orderable[i] && rect.contains(middle)) return i
+    }
+    return -1
 }
 
 /** The floating action menu (add a mod by hand, browse the store), laid over the whole page. */
