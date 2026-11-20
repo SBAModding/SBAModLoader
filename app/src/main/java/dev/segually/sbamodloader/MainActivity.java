@@ -7,7 +7,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
 import dev.segually.sbamodloader.tools.CrashDetector;
-import dev.segually.sbamodloader.ui.FloatingNav;
+import dev.segually.sbamodloader.ui.compose.NavDockHost;
+import dev.segually.sbamodloader.ui.compose.NavState;
 import dev.segually.sbamodloader.ui.pages.BrowseFragment;
 import dev.segually.sbamodloader.ui.pages.DashboardFragment;
 import dev.segually.sbamodloader.ui.pages.ModsFragment;
@@ -16,8 +17,8 @@ import dev.segually.sbamodloader.ui.pages.SettingsFragment;
 public class MainActivity extends AppCompatActivity {
     private static final String KEY_PAGE = "page";
     private int page = 0;
-    private android.view.View nav;
-    private FloatingNav navigation;
+    private final androidx.compose.runtime.MutableState<NavState> navState =
+            androidx.compose.runtime.SnapshotStateKt.mutableStateOf(new NavState(0, false, 0), androidx.compose.runtime.SnapshotStateKt.structuralEqualityPolicy());
     private boolean desktop;
     /** Set by {@link #openBrowse}: the store page the Browse tab should open on when it is created. */
     private String pendingBrowseMod;
@@ -30,38 +31,22 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         dev.segually.sbamodloader.ui.Theming.applySystemBars(this);
 
-        // The fade under the floating bar goes from the page colour to the same colour, transparent: a plain
-        // "to transparent black" gradient leaves a grey band on a light theme.
-        int pageColor = com.google.android.material.color.MaterialColors.getColor(findViewById(R.id.main_root),
-                android.R.attr.colorBackground);
-        findViewById(R.id.edge_fade).setBackground(new android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
-                new int[]{pageColor, (pageColor & 0x00FFFFFF)}));
-
-        nav = findViewById(R.id.nav_bar);
-        navigation = new FloatingNav(findViewById(R.id.nav_items),
-                new int[]{R.drawable.ic_nav_dashboard, R.drawable.ic_nav_browse, R.drawable.ic_nav_mods, R.drawable.ic_nav_settings},
-                new int[]{R.string.nav_home, R.string.nav_browse, R.string.nav_mods, R.string.nav_settings},
-                this::showPage);
-        navigation.select(0, false);
-
-        applyLayoutMode();
+        androidx.compose.ui.platform.ComposeView navHost = findViewById(R.id.nav_host);
+        NavDockHost.setContent(navHost, navState, this::showPage);
 
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main_root), (v, insets) -> {
-            float density = getResources().getDisplayMetrics().density;
-            var bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
-            var lp = (android.widget.FrameLayout.LayoutParams) nav.getLayoutParams();
-            lp.bottomMargin = bars.bottom + Math.round(16 * density);
-            nav.setLayoutParams(lp);
-            var fade = findViewById(R.id.edge_fade).getLayoutParams();
-            fade.height = bars.bottom + Math.round(140 * density);
-            findViewById(R.id.edge_fade).setLayoutParams(fade);
+            // The pages are Compose and use up the insets, so the dock is told the bottom bar's height from here.
+            int bottom = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()).bottom;
+            NavState now = navState.getValue();
+            if (now.getBottomInset() != bottom) navState.setValue(new NavState(now.getSelected(), now.getShowAllLabels(), bottom));
             return insets;
         });
 
+        applyLayoutMode();
+
         if (savedInstanceState != null) {
             page = savedInstanceState.getInt(KEY_PAGE, 0);
-            navigation.select(page, false);
+            selectNav(page);
         } else {
             // Debug builds: --ez sba_developer true|false turns developer features on or off before the page is built.
             dev.segually.sbamodloader.ui.compose.SbaDebug.collapse = BuildConfig.DEBUG && getIntent().getBooleanExtra("sba_collapse", false);
@@ -245,7 +230,7 @@ public class MainActivity extends AppCompatActivity {
         boolean now = dev.segually.sbamodloader.ui.LayoutMode.isDesktop(this);
         dev.segually.sbamodloader.ui.LayoutMode.current = now;
         desktop = now;
-        navigation.setShowAllLabels(desktop);
+        navState.setValue(new NavState(navState.getValue().getSelected(), desktop, navState.getValue().getBottomInset()));
     }
 
     @Override
@@ -269,7 +254,6 @@ public class MainActivity extends AppCompatActivity {
 
     /** Goes to a page (0 Home, 1 Browse, 2 Mods, 3 Settings) with whichever navigation is showing. */
     private void goTo(int index) {
-        navigation.select(index, false);
         showPage(index);
     }
 
@@ -284,9 +268,14 @@ public class MainActivity extends AppCompatActivity {
         goTo(1);
     }
 
+    private void selectNav(int index) {
+        NavState now = navState.getValue();
+        if (now.getSelected() != index) navState.setValue(new NavState(index, now.getShowAllLabels(), now.getBottomInset()));
+    }
+
     private void showPage(int index) {
         page = index;
-        if (navigation != null && navigation.selectedIndex() != index) navigation.select(index, false);
+        selectNav(index);
         Fragment f = switch (index) {
             case 1 -> {
                 BrowseFragment browse = new BrowseFragment();

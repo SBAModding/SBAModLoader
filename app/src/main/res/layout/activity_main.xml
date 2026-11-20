@@ -1,46 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?android:attr/colorBackground">
 
-    <LinearLayout
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/page_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal">
+        android:layout_height="match_parent" />
 
-        <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/page_container"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1" />
-    </LinearLayout>
-
-    <!-- scroll edge effect: content fades out under the floating bar instead of being cut -->
-    <View
-        android:id="@+id/edge_fade"
+    <!-- The floating navigation and the fade under it are Jetpack Compose: NavDock. It only takes touches on the buttons. -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/nav_host"
         android:layout_width="match_parent"
-        android:layout_height="140dp"
-        android:layout_gravity="bottom"
-        android:importantForAccessibility="no" />
-
-    <com.google.android.material.floatingtoolbar.FloatingToolbarLayout
-        android:id="@+id/nav_bar"
-        style="?attr/floatingToolbarStyle"
-        app:backgroundTint="?attr/colorSurfaceContainerHigh"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="16dp">
-
-        <LinearLayout
-            android:id="@+id/nav_items"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="4dp" />
-    </com.google.android.material.floatingtoolbar.FloatingToolbarLayout>
+        android:layout_height="match_parent" />
 </FrameLayout>
