@@ -100,13 +100,13 @@ private fun HeroCard(state: DashboardState, onLaunch: () -> Unit, modifier: Modi
         Box {
             ShapeBackdrop(Modifier.matchParentSize())
             Column(Modifier.padding(24.dp)) {
-                Text(
+                SbaText(
                     stringResource(R.string.hero_title),
                     Modifier.padding(end = 96.dp),
                     color = colors.onPrimaryContainer,
                     style = LocalSbaText.current.hero,
                 )
-                Text(
+                SbaText(
                     if (state.gameVersion == null) stringResource(R.string.step_game_missing)
                     else stringResource(R.string.hero_game_version, state.gameVersion),
                     Modifier.padding(top = 4.dp),
@@ -149,7 +149,7 @@ private fun SetupCard(state: DashboardState, modifier: Modifier = Modifier) {
                 Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
+                SbaText(
                     stringResource(R.string.setup_progress, state.done, 3),
                     Modifier.weight(1f),
                     color = colors.onSurface,
@@ -196,7 +196,7 @@ private fun SetupRow(step: SetupStep) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(painterResource(icon), null, Modifier.size(28.dp), tint = tint)
-        Text(
+        SbaText(
             step.text,
             Modifier.weight(1f).padding(start = 16.dp),
             color = if (step.state == StepState.ERROR) tint else colors.onSurface,
@@ -217,7 +217,7 @@ private fun ModUpdatesCard(state: DashboardState, onClick: () -> Unit, modifier:
     ) {
         Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(R.drawable.ic_download), null, Modifier.size(28.dp), tint = colors.onTertiaryContainer)
-            Text(
+            SbaText(
                 if (state.modUpdates == 1) stringResource(R.string.dashboard_mod_updates_one)
                 else stringResource(R.string.dashboard_mod_updates, state.modUpdates),
                 Modifier.weight(1f).padding(start = 16.dp),

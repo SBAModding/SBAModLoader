@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import dev.segually.sbamodloader.R
 
 /** The 28dp card every page uses (`Widget.SBA.Card`). */
@@ -49,10 +50,9 @@ fun SbaCard(
 /** A small coloured heading above a card (`TextAppearance.SBA.Section`). */
 @Composable
 fun SectionLabel(text: String) {
-    Text(
+    SbaText(
         text,
-        // The bottom 1dp: a TextView's last line is a natural line tall, a little more than the line height.
-        Modifier.padding(start = 12.dp, top = 28.dp, bottom = 9.dp),
+        Modifier.padding(start = 12.dp, top = 28.dp, bottom = 8.dp),
         color = MaterialTheme.colorScheme.primary,
         style = LocalSbaText.current.section,
     )
@@ -62,13 +62,13 @@ fun SectionLabel(text: String) {
 /** The bold line of a row (`TextAppearance.SBA.RowTitle`). */
 @Composable
 fun RowTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text, modifier.padding(bottom = 0.4.dp), color = MaterialTheme.colorScheme.onSurface, style = LocalSbaText.current.rowTitle)
+    SbaText(text, modifier, color = MaterialTheme.colorScheme.onSurface, style = LocalSbaText.current.rowTitle)
 }
 
 /** The quieter line under it (`TextAppearance.SBA.RowBody`). */
 @Composable
 fun RowBody(text: String, modifier: Modifier = Modifier) {
-    Text(text, modifier.padding(bottom = 1.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = LocalSbaText.current.rowBody)
+    SbaText(text, modifier, color = MaterialTheme.colorScheme.onSurfaceVariant, style = LocalSbaText.current.rowBody)
 }
 
 /** A switch with a check or a cross in its thumb (`Widget.SBA.Switch`). */
@@ -133,4 +133,25 @@ fun ChoiceGroup(options: List<String>, selected: Int, onSelect: (Int) -> Unit, m
             }
         }
     }
+}
+
+/**
+ * Text that takes the height a TextView gave it. A TextView's last line is the font's natural height (about 1.52 times
+ * the size for Roboto Flex), which is more than the line height of the Material styles; Compose makes every line
+ * exactly the line height. The difference is added under the text so that pages keep the same height as the Views.
+ */
+@Composable
+fun SbaText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    style: androidx.compose.ui.text.TextStyle = androidx.compose.material3.LocalTextStyle.current,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: androidx.compose.ui.text.style.TextOverflow = androidx.compose.ui.text.style.TextOverflow.Clip,
+) {
+    val extra = with(androidx.compose.ui.platform.LocalDensity.current) {
+        val diff = style.fontSize.value * 1.52f - style.lineHeight.value
+        if (style.fontSize.isSp && style.lineHeight.isSp && diff > 0f) diff.sp.toDp() else 0.dp
+    }
+    Text(text, modifier.padding(bottom = extra), color = color, style = style, maxLines = maxLines, overflow = overflow)
 }

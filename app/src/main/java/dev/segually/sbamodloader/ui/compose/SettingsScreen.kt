@@ -142,16 +142,16 @@ private fun SafetyCard(actions: SettingsActions) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.ic_warning), null, Modifier.size(28.dp), tint = colors.error)
-                Text(
+                SbaText(
                     stringResource(R.string.safety_title),
                     Modifier.weight(1f).padding(start = 12.dp),
                     color = colors.error,
                     style = MaterialTheme.typography.titleMediumEmphasized,
                 )
             }
-            Text(
+            SbaText(
                 stringResource(R.string.safety_body),
-                Modifier.padding(top = 12.dp, bottom = 1.dp).fillMaxWidth(),
+                Modifier.padding(top = 12.dp).fillMaxWidth(),
                 color = colors.onSurface,
                 style = LocalSbaText.current.rowBody,
             )
@@ -269,7 +269,7 @@ private fun SourcesCard(state: SettingsState, actions: SettingsActions) {
             ) {
                 Column(Modifier.weight(1f)) {
                     RowTitle(row.name)
-                    Text(
+                    SbaText(
                         row.detail,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = LocalSbaText.current.rowBody,
