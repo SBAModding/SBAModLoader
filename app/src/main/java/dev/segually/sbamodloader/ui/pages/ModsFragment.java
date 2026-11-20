@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -243,64 +242,18 @@ public class ModsFragment extends Fragment implements ModsActions {
     private void showProblems() {
         if (health == null) return;
         final ModHealth h = health;
-        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
-                new com.google.android.material.bottomsheet.BottomSheetDialog(requireContext());
-        LinearLayout column = new LinearLayout(requireContext());
-        column.setOrientation(LinearLayout.VERTICAL);
-        int pad = Math.round(24 * getResources().getDisplayMetrics().density);
-        column.setPadding(pad, pad, pad, pad);
-
-        TextView title = new TextView(requireContext());
-        title.setText(R.string.problems_title);
-        title.setTextAppearance(R.style.TextAppearance_SBA_HeadlineSmallEmphasized);
-        column.addView(title);
-
-        for (InstallPlanner.Issue issue : h.fixes.issues) {
-            TextView row = new TextView(requireContext());
-            row.setText(PlanText.issue(requireContext(), issue, h.gameVersion));
-            row.setTextAppearance(R.style.TextAppearance_SBA_BodyLarge);
-            int p = Math.round(16 * getResources().getDisplayMetrics().density);
-            row.setPadding(p, p, p, p);
-            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-            bg.setCornerRadius(20 * getResources().getDisplayMetrics().density);
-            bg.setColor(com.google.android.material.color.MaterialColors.getColor(column,
-                    com.google.android.material.R.attr.colorSurfaceContainerHigh));
-            row.setBackground(bg);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.topMargin = Math.round(10 * getResources().getDisplayMetrics().density);
-            column.addView(row, lp);
-        }
-
-        TextView hint = new TextView(requireContext());
-        hint.setTextAppearance(R.style.TextAppearance_SBA_BodyMedium);
+        List<String> issues = new ArrayList<>();
+        for (InstallPlanner.Issue issue : h.fixes.issues) issues.add(PlanText.issue(requireContext(), issue, h.gameVersion));
         boolean canFix = !h.fixes.blocked() && !h.fixes.steps.isEmpty();
+        String hint;
         if (h.fixes.blocked()) {
-            hint.setText(R.string.problems_fix_none);
+            hint = getString(R.string.problems_fix_none);
         } else {
             List<String> names = new ArrayList<>();
             for (InstallPlanner.Step step : h.fixes.steps) names.add(step.entry.name + " " + step.version.version);
-            hint.setText(getString(R.string.problems_fix_hint, String.join(", ", names)));
+            hint = getString(R.string.problems_fix_hint, String.join(", ", names));
         }
-        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        hlp.topMargin = Math.round(16 * getResources().getDisplayMetrics().density);
-        column.addView(hint, hlp);
-
-        com.google.android.material.button.MaterialButton fix = new com.google.android.material.button.MaterialButton(requireContext());
-        fix.setText(R.string.problems_fix);
-        fix.setEnabled(canFix);
-        fix.setIconResource(R.drawable.ic_check);
-        fix.setIconGravity(com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START);
-        fix.setTextAppearance(R.style.TextAppearance_SBA_TitleMediumEmphasized);
-        fix.setTextColor(com.google.android.material.color.MaterialColors.getColor(column,
-                com.google.android.material.R.attr.colorOnPrimary));
-        LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                Math.round(64 * getResources().getDisplayMetrics().density));
-        flp.topMargin = Math.round(16 * getResources().getDisplayMetrics().density);
-        column.addView(fix, flp);
-        fix.setOnClickListener(x -> {
-            fix.setEnabled(false);
+        dev.segually.sbamodloader.ui.AppDialogs.problems(requireContext(), issues, hint, canFix, () -> {
             final android.content.Context app = requireContext().getApplicationContext();
             new Thread(() -> {
                 String error = null;
@@ -311,15 +264,12 @@ public class ModsFragment extends Fragment implements ModsActions {
                 }
                 final String err = error;
                 post(() -> {
-                    sheet.dismiss();
                     Toast.makeText(requireContext(), err == null ? getString(R.string.problems_fixed) : err, Toast.LENGTH_LONG).show();
                     reload();
                     checkHealth(true);
                 });
             }, "mods-fix").start();
         });
-        sheet.setContentView(column);
-        sheet.show();
     }
 
     private File pluginsDir() {
@@ -391,10 +341,8 @@ public class ModsFragment extends Fragment implements ModsActions {
     }
 
     private void confirmRemove(File f) {
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.mods_remove_title)
-                .setMessage(titleOf(f))
-                .setPositiveButton(R.string.mods_remove, (d, w) -> {
+        dev.segually.sbamodloader.ui.AppDialogs.confirm(requireContext(), getString(R.string.mods_remove_title), titleOf(f),
+                getString(R.string.mods_remove), getString(android.R.string.cancel), () -> {
                     // A store mod is forgotten as well, with every file it put in place; otherwise the store would
                     // keep saying it is installed.
                     InstalledMods installed = new InstalledMods(requireContext());
@@ -413,9 +361,7 @@ public class ModsFragment extends Fragment implements ModsActions {
                     f.delete();
                     reload();
                     checkHealth(false);
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                });
     }
 
     /** Everything shown for one mod. A pack's own strings win, then the store's, then the file name. */

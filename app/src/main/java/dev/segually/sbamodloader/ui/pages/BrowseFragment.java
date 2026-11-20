@@ -561,19 +561,12 @@ public class BrowseFragment extends Fragment implements BrowseHeaderActions, Bro
                 body.append("\u26A0 ").append(issueText(plan.issues.get(i)));
             }
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder dialog =
-                new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                        .setTitle(getString(plan.blocked() ? R.string.plan_title_blocked
-                                : plan.issues.isEmpty() ? R.string.plan_title_confirm : R.string.plan_title_warn, e.name))
-                        .setMessage(body.toString());
-        if (plan.blocked()) {
-            dialog.setPositiveButton(R.string.plan_ok, null);
-        } else {
-            dialog.setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(plan.issues.isEmpty() ? R.string.plan_install : R.string.plan_install_anyway,
-                            (d, w) -> confirmed.run());
-        }
-        dialog.show();
+        dev.segually.sbamodloader.ui.AppDialogs.plan(requireContext(),
+                getString(plan.blocked() ? R.string.plan_title_blocked
+                        : plan.issues.isEmpty() ? R.string.plan_title_confirm : R.string.plan_title_warn, e.name),
+                body.toString(), plan.blocked(),
+                getString(plan.blocked() ? R.string.plan_ok : plan.issues.isEmpty() ? R.string.plan_install : R.string.plan_install_anyway),
+                confirmed);
     }
 
     // ---- the safety card ----------------------------------------------------------------------------

@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import dev.segually.sbamodloader.R
-import dev.segually.sbamodloader.ui.AccentSwatches
+import dev.segually.sbamodloader.ui.AppDialogs
 
 /** A mod repository in the Mod sources card. The official one is always first and has no switch or remove button. */
 data class SourceRow(val name: String, val detail: String, val enabled: Boolean, val official: Boolean)
@@ -214,7 +214,7 @@ private fun AppearanceCard(state: SettingsState, actions: SettingsActions) {
 @Composable
 private fun AccentRow(state: SettingsState, actions: SettingsActions, modifier: Modifier) {
     val enabled = !state.materialYou
-    val presets = AccentSwatches.PRESETS
+    val presets = AppDialogs.ACCENT_PRESETS
     val custom = state.accent != 0 && presets.drop(1).none { it == state.accent }
     Row(
         modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.38f).horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),

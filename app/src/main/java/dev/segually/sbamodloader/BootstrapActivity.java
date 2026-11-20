@@ -13,8 +13,6 @@ import android.provider.OpenableColumns;
 import android.util.Log;
 import android.view.View;
 import android.webkit.MimeTypeMap;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -41,6 +39,8 @@ import dev.segually.sbamodloader.hooks.ActivityManagerHooks;
 import dev.segually.sbamodloader.hooks.NotificationManagerHooks;
 import dev.segually.sbamodloader.hooks.PackageManagerHooks;
 import dev.segually.sbamodloader.hooks.GameRuntime;
+import dev.segually.sbamodloader.ui.compose.BootstrapScreenHost;
+import dev.segually.sbamodloader.ui.compose.BootstrapState;
 import dev.segually.sbamodloader.tools.SBAConfig;
 import dev.segually.sbamodloader.tools.GlobalMetadata;
 import dev.segually.sbamodloader.tools.InteropDownloader;
@@ -59,10 +59,8 @@ public class BootstrapActivity extends AppCompatActivity {
 
     public static final String BACKUP_UNITY_VERSION = "2017.0.0";
     public static final String IL2CPP_API_MAP = "il2cpp-api.map";
-    private TextView statusView;
-    private TextView progressDetailsView;
-    private View spinnerProgress;
-    private ProgressBar downloadProgress;
+    private final androidx.compose.runtime.MutableState<BootstrapState> uiState =
+            androidx.compose.runtime.SnapshotStateKt.mutableStateOf(new BootstrapState(), androidx.compose.runtime.SnapshotStateKt.structuralEqualityPolicy());
     private final AtomicReference<Uri> selectedFileUri = new AtomicReference<>(null);
     private volatile CountDownLatch filePickerLatch;
     private final ActivityResultLauncher<Intent> selectFileLauncher =
@@ -85,17 +83,15 @@ public class BootstrapActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         dev.segually.sbamodloader.ui.Theming.apply(this);
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_bootstrap);
-        statusView = findViewById(R.id.bootstrap_status);
-        progressDetailsView = findViewById(R.id.bootstrap_progress_details);
-        spinnerProgress = findViewById(R.id.bootstrap_progress);
-        downloadProgress = findViewById(R.id.bootstrap_download_progress);
+        androidx.compose.ui.platform.ComposeView content = new androidx.compose.ui.platform.ComposeView(this);
+        BootstrapScreenHost.setContent(content, uiState);
+        setContentView(content);
         setPhaseStatus(phase(R.string.dev_bootstrap_status_preparing, R.string.bootstrap_status_preparing));
 
         String targetPackage = TargetGame.PACKAGE_NAME;
 
         // Let the loading screen render first, then perform initialization work.
-        statusView.post(() -> new Thread(() -> runBootstrapFlow(targetPackage), "bootstrap-flow").start());
+        content.post(() -> new Thread(() -> runBootstrapFlow(targetPackage), "bootstrap-flow").start());
     }
 
     private void runBootstrapFlow(String targetPackage) {
@@ -237,23 +233,7 @@ public class BootstrapActivity extends AppCompatActivity {
     }
 
     private void setPhaseStatus(String status) {
-        runOnMainThread(() -> {
-            if (statusView != null) {
-                statusView.setText(status);
-            }
-            if (spinnerProgress != null) {
-                spinnerProgress.setVisibility(View.VISIBLE);
-            }
-            if (downloadProgress != null) {
-                downloadProgress.setVisibility(View.GONE);
-                downloadProgress.setIndeterminate(false);
-                downloadProgress.setProgress(0);
-            }
-            if (progressDetailsView != null) {
-                progressDetailsView.setVisibility(View.GONE);
-                progressDetailsView.setText("");
-            }
-        });
+        runOnMainThread(() -> uiState.setValue(new BootstrapState(status, true, false, null, null)));
     }
 
     private void setDownloadStatus(long downloadedBytes, long totalBytes) {
@@ -262,34 +242,12 @@ public class BootstrapActivity extends AppCompatActivity {
 
     private void setDownloadStatus(long downloadedBytes, long totalBytes, int technicalText, int simpleText) {
         runOnMainThread(() -> {
-            if (spinnerProgress != null) {
-                spinnerProgress.setVisibility(View.GONE);
-            }
-            long progress = Math.max(0L, Math.min(100L, (downloadedBytes * 100L) / totalBytes));
-            if (downloadProgress != null) {
-                downloadProgress.setVisibility(View.VISIBLE);
-                boolean hasTotal = totalBytes > 0L;
-                downloadProgress.setIndeterminate(!hasTotal);
-                if (hasTotal) {
-                    int percent = (int) progress;
-                    downloadProgress.setProgress(percent);
-                }
-            }
-            if (statusView != null) {
-                statusView.setText(phase(technicalText, simpleText));
-            }
-            if (progressDetailsView != null) {
-                progressDetailsView.setVisibility(View.VISIBLE);
-                int percent = totalBytes > 0L
-                        ? (int) progress
-                        : 0;
-                progressDetailsView.setText(getString(
-                        R.string.bootstrap_download_progress,
-                        percent,
-                        formatBytes(downloadedBytes),
-                        totalBytes > 0L ? formatBytes(totalBytes) : "?"
-                ));
-            }
+            boolean hasTotal = totalBytes > 0L;
+            long progress = hasTotal ? Math.max(0L, Math.min(100L, (downloadedBytes * 100L) / totalBytes)) : 0L;
+            String details = getString(R.string.bootstrap_download_progress, (int) progress,
+                    formatBytes(downloadedBytes), hasTotal ? formatBytes(totalBytes) : "?");
+            uiState.setValue(new BootstrapState(phase(technicalText, simpleText), false, true,
+                    hasTotal ? progress / 100f : null, details));
         });
     }
 
@@ -316,12 +274,7 @@ public class BootstrapActivity extends AppCompatActivity {
             } else {
                 Log.e(TAG, message);
             }
-            if (statusView != null) {
-                statusView.setText(getString(R.string.bootstrap_status_error));
-            }
-            if (spinnerProgress != null) {
-                spinnerProgress.setVisibility(View.GONE);
-            }
+            uiState.setValue(new BootstrapState(getString(R.string.bootstrap_status_error), false, false, null, null));
             if (isFinishing() || isDestroyed()) {
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                 return;
@@ -331,12 +284,7 @@ public class BootstrapActivity extends AppCompatActivity {
             if (reportFile != null) {
                 shown += "\n\nSaved to:\n" + reportFile.getAbsolutePath();
             }
-            new androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle(R.string.bootstrap_status_error)
-                    .setMessage(shown)
-                    .setCancelable(false)
-                    .setPositiveButton(android.R.string.ok, (d, w) -> finish())
-                    .show();
+            dev.segually.sbamodloader.ui.AppDialogs.info(this, getString(R.string.bootstrap_status_error), shown, this::finish, null, null, false);
         });
     }
 

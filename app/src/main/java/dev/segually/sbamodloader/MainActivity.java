@@ -62,6 +62,12 @@ public class MainActivity extends AppCompatActivity {
             if (mod != null) openBrowse(mod);
         }
 
+        // Debug builds can open a dialog for layout checks (--es sba_dialog fusion).
+        if (BuildConfig.DEBUG && "fusion".equals(getIntent().getStringExtra("sba_dialog"))) {
+            getWindow().getDecorView().postDelayed(() -> dev.segually.sbamodloader.ui.FusionWarning.showTurnOn(this,
+                    java.util.Arrays.asList("Less than 4 GB of memory", "No hardware keystore"), () -> { }, () -> { }), 1200);
+        }
+
         CrashDetector.init(this);
         if (savedInstanceState == null) checkForUpdate();
     }
@@ -106,16 +112,16 @@ public class MainActivity extends AppCompatActivity {
         appendList(text, R.string.game_update_failed, r.failed);
         appendList(text, R.string.game_update_reenabled, r.reenabled);
         appendList(text, R.string.game_update_unchecked, r.unchecked);
-        var dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle(r.gameChanged ? R.string.game_update_title : R.string.game_update_title_back)
-                .setMessage(text.toString().trim())
-                .setPositiveButton(android.R.string.ok, null);
+        Runnable keepOn = null;
         if (!r.disabledIds.isEmpty()) {
             android.content.Context app = getApplicationContext();
-            dialog.setNeutralButton(R.string.game_update_keep_on, (d, w) -> new Thread(() ->
-                    dev.segually.sbamodloader.browser.GameUpdate.keepOn(app, r.disabledIds), "game-update-keep").start());
+            keepOn = () -> new Thread(() ->
+                    dev.segually.sbamodloader.browser.GameUpdate.keepOn(app, r.disabledIds), "game-update-keep").start();
         }
-        dialog.show();
+        dev.segually.sbamodloader.ui.AppDialogs.info(this,
+                getString(r.gameChanged ? R.string.game_update_title : R.string.game_update_title_back),
+                text.toString().trim(), null,
+                keepOn == null ? null : getString(R.string.game_update_keep_on), keepOn, true);
     }
 
     private void appendList(StringBuilder into, int format, java.util.List<String> names) {

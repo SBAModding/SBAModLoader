@@ -23,7 +23,7 @@ import dev.segually.sbamodloader.ui.UpdatePrompt;
 import android.widget.Toast;
 import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.Utilities;
-import dev.segually.sbamodloader.ui.AccentSwatches;
+import dev.segually.sbamodloader.ui.AppDialogs;
 import dev.segually.sbamodloader.ui.compose.SettingsActions;
 import dev.segually.sbamodloader.ui.compose.SettingsScreenHost;
 import dev.segually.sbamodloader.ui.compose.SettingsState;
@@ -171,7 +171,7 @@ public class SettingsFragment extends Fragment implements SettingsActions {
 
     @Override
     public void pickCustomAccent() {
-        AccentSwatches.pickCustom(requireContext(), this::setAccent);
+        AppDialogs.pickAccent(requireContext(), SBASettings.getAccentColor(requireContext()), this::setAccent);
     }
 
     @Override
@@ -316,16 +316,13 @@ public class SettingsFragment extends Fragment implements SettingsActions {
     @Override
     public void removeRepository(int index) {
         android.content.Context c = requireContext();
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(c)
-                .setTitle(R.string.sources_remove_title)
-                .setMessage(getString(R.string.sources_remove_body))
-                .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton(R.string.sources_remove, (d, w) -> {
+        AppDialogs.confirm(c, getString(R.string.sources_remove_title), getString(R.string.sources_remove_body),
+                getString(R.string.sources_remove), getString(android.R.string.cancel), () -> {
                     java.util.List<dev.segually.sbamodloader.browser.RepoSource> now = SBASettings.getExtraRepos(c);
                     if (index >= 0 && index < now.size()) now.remove(index);
                     SBASettings.setExtraRepos(c, now);
                     refresh();
-                }).show();
+                });
     }
 
     @Override
@@ -342,71 +339,48 @@ public class SettingsFragment extends Fragment implements SettingsActions {
 
     private void showAddRepoDialog() {
         android.content.Context c = requireContext();
-        float d = getResources().getDisplayMetrics().density;
-        android.widget.LinearLayout body = new android.widget.LinearLayout(c);
-        body.setOrientation(android.widget.LinearLayout.VERTICAL);
-        body.setPadding(Math.round(24 * d), Math.round(8 * d), Math.round(24 * d), 0);
-        TextView warn = new TextView(c);
-        warn.setTextAppearance(R.style.TextAppearance_SBA_BodyMedium);
-        warn.setText(R.string.sources_add_warning);
-        body.addView(warn);
-        com.google.android.material.textfield.TextInputLayout layout = new com.google.android.material.textfield.TextInputLayout(c);
-        layout.setHint(getString(R.string.sources_add_hint));
-        com.google.android.material.textfield.TextInputEditText input = new com.google.android.material.textfield.TextInputEditText(layout.getContext());
-        input.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_URI);
-        input.setSingleLine(true);
-        layout.addView(input);
-        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Math.round(16 * d);
-        body.addView(layout, lp);
-        androidx.appcompat.app.AlertDialog dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(c)
-                .setTitle(R.string.sources_add_title)
-                .setView(body)
-                .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton(R.string.sources_add_confirm, null)
-                .create();
-        dialog.show();
-        // The dialog stays open when the address is wrong, so the button is wired after it is shown.
-        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(x -> {
-            String url = String.valueOf(input.getText()).trim();
-            if (!dev.segually.sbamodloader.browser.RepoSource.validUrl(url, dev.segually.sbamodloader.BuildConfig.DEBUG)) {
-                layout.setError(getString(R.string.sources_invalid));
-                return;
-            }
-            for (dev.segually.sbamodloader.browser.RepoSource known : SBASettings.getExtraRepos(c)) {
-                if (known.url.equals(url)) {
-                    dialog.dismiss();
-                    return;
+        AppDialogs.addRepository(c, new AppDialogs.RepositoryHandler() {
+            @Override
+            public String invalid(String url) {
+                if (!dev.segually.sbamodloader.browser.RepoSource.validUrl(url, dev.segually.sbamodloader.BuildConfig.DEBUG)) {
+                    return getString(R.string.sources_invalid);
                 }
+                return null;
             }
-            layout.setError(null);
-            layout.setHelperText(getString(R.string.sources_checking));
-            android.content.Context app = c.getApplicationContext();
-            new Thread(() -> {
-                dev.segually.sbamodloader.browser.RepoSource found = null;
-                String error = null;
-                try {
-                    found = dev.segually.sbamodloader.browser.RemoteModRepository.probe(url);
-                } catch (java.io.IOException e) {
-                    error = e.getMessage() != null ? e.getMessage() : e.toString();
-                }
-                final dev.segually.sbamodloader.browser.RepoSource source = found;
-                final String err = error;
-                if (isAdded()) requireActivity().runOnUiThread(() -> {
-                    if (source == null) {
-                        layout.setHelperText(null);
-                        layout.setError(getString(R.string.sources_failed, err));
+
+            @Override
+            public void submit(String url, java.util.function.Consumer<String> done) {
+                for (dev.segually.sbamodloader.browser.RepoSource known : SBASettings.getExtraRepos(c)) {
+                    if (known.url.equals(url)) {
+                        done.accept(null);
                         return;
                     }
-                    java.util.List<dev.segually.sbamodloader.browser.RepoSource> now = SBASettings.getExtraRepos(app);
-                    now.add(source);
-                    SBASettings.setExtraRepos(app, now);
-                    refresh();
-                    dialog.dismiss();
-                    Toast.makeText(app, getString(R.string.sources_added, source.name), Toast.LENGTH_SHORT).show();
-                });
-            }, "repo-probe").start();
+                }
+                android.content.Context app = c.getApplicationContext();
+                new Thread(() -> {
+                    dev.segually.sbamodloader.browser.RepoSource found = null;
+                    String error = null;
+                    try {
+                        found = dev.segually.sbamodloader.browser.RemoteModRepository.probe(url);
+                    } catch (java.io.IOException e) {
+                        error = e.getMessage() != null ? e.getMessage() : e.toString();
+                    }
+                    final dev.segually.sbamodloader.browser.RepoSource source = found;
+                    final String err = error;
+                    if (isAdded()) requireActivity().runOnUiThread(() -> {
+                        if (source == null) {
+                            done.accept(getString(R.string.sources_failed, err));
+                            return;
+                        }
+                        java.util.List<dev.segually.sbamodloader.browser.RepoSource> now = SBASettings.getExtraRepos(app);
+                        now.add(source);
+                        SBASettings.setExtraRepos(app, now);
+                        refresh();
+                        done.accept(null);
+                        Toast.makeText(app, getString(R.string.sources_added, source.name), Toast.LENGTH_SHORT).show();
+                    });
+                }, "repo-probe").start();
+            }
         });
     }
 
