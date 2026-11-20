@@ -14,8 +14,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.google.android.material.appbar.MaterialToolbar;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,13 +34,13 @@ import dev.segually.sbamodloader.browser.ImageLoader;
 import dev.segually.sbamodloader.browser.InstallPlanner;
 import dev.segually.sbamodloader.browser.ModInstaller;
 import dev.segually.sbamodloader.browser.ModVersions;
-import dev.segually.sbamodloader.ui.Insets;
 import dev.segually.sbamodloader.ui.compose.Badge;
 import dev.segually.sbamodloader.ui.compose.BrowseHeader;
 import dev.segually.sbamodloader.ui.compose.BrowseHeaderActions;
 import dev.segually.sbamodloader.ui.compose.BrowseItem;
 import dev.segually.sbamodloader.ui.compose.BrowseListActions;
 import dev.segually.sbamodloader.ui.compose.BrowseListState;
+import dev.segually.sbamodloader.ui.compose.BrowseNav;
 import dev.segually.sbamodloader.ui.compose.BrowseScreenHost;
 import dev.segually.sbamodloader.ui.compose.DetailActions;
 import dev.segually.sbamodloader.ui.compose.DetailState;
@@ -85,12 +83,17 @@ public class BrowseFragment extends Fragment implements BrowseHeaderActions, Bro
     private int kindChoice;
     private int categoryChoice;
 
-    private View detailPage; // null when the list and the detail share the screen
+    /** True when the list and the store page share the screen (landscape, wide windows); otherwise they take turns. */
+    private boolean twoPane() {
+        android.content.res.Configuration c = getResources().getConfiguration();
+        return c.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || c.screenWidthDp >= 840;
+    }
 
     private final androidx.compose.runtime.MutableState<BrowseHeader> headerState = state(new BrowseHeader());
     private final androidx.compose.runtime.MutableState<BrowseListState> listState = state(new BrowseListState());
     private final androidx.compose.runtime.MutableState<DetailState> detailState = state(null);
     private final androidx.compose.runtime.MutableState<ViewerRequest> viewerState = state(null);
+    private final androidx.compose.runtime.MutableState<BrowseNav> navState = state(new BrowseNav(false));
 
     private static <T> androidx.compose.runtime.MutableState<T> state(T initial) {
         return androidx.compose.runtime.SnapshotStateKt.mutableStateOf(initial, androidx.compose.runtime.SnapshotStateKt.structuralEqualityPolicy());
@@ -108,27 +111,11 @@ public class BrowseFragment extends Fragment implements BrowseHeaderActions, Bro
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_browse, container, false);
         visible = new java.lang.ref.WeakReference<>(this);
-        detailPage = v.findViewById(R.id.detail_page);
-
-        Insets.padForChrome(v.findViewById(R.id.browse_list_page), 0, 0, false);
-        if (detailPage != null) Insets.padForChrome(detailPage, 0);
-        else Insets.padForChrome(v.findViewById(R.id.detail_root), 0);
-
-        androidx.compose.ui.platform.ComposeView header = v.findViewById(R.id.browse_header);
-        androidx.compose.ui.platform.ComposeView list = v.findViewById(R.id.browse_content);
-        androidx.compose.ui.platform.ComposeView detail = v.findViewById(R.id.detail_content);
-        for (androidx.compose.ui.platform.ComposeView c : new androidx.compose.ui.platform.ComposeView[]{header, list, detail}) {
-            c.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
-        }
-        BrowseScreenHost.header(header, headerState, this);
-        BrowseScreenHost.list(list, listState, this);
-        BrowseScreenHost.detail(detail, detailState, this, getString(R.string.browse_select_prompt), viewerState, () -> viewerState.setValue(null));
+        androidx.compose.ui.platform.ComposeView root = v.findViewById(R.id.browse_root);
+        BrowseScreenHost.root(root, headerState, this, listState, this, detailState, this, getString(R.string.browse_select_prompt),
+                navState, this::closeDetail, viewerState, () -> viewerState.setValue(null));
         updateHeader();
-
-        if (detailPage != null) {
-            ((MaterialToolbar) v.findViewById(R.id.detail_toolbar)).setNavigationOnClickListener(x -> closeDetail());
-            requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backCallback);
-        }
+        if (!twoPane()) requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backCallback);
 
         loadRepository();
         return v;
@@ -286,7 +273,7 @@ public class BrowseFragment extends Fragment implements BrowseHeaderActions, Bro
             items.add(new BrowseItem(e.id, e.name.substring(0, 1).toUpperCase(Locale.ROOT),
                     new kotlin.Pair<>(tint(e.id, 0.55f), tint(e.id + "b", 0.35f)), iconOf(e, 112),
                     e.name, e.author + " \u00b7 " + kindLabel(e.kind) + (e.official() ? "" : " \u00b7 " + e.repoName),
-                    e.official(), e.summary, stats.toString(), e.id.equals(selectedId) && detailPage == null));
+                    e.official(), e.summary, stats.toString(), e.id.equals(selectedId) && twoPane()));
         }
         String message = null;
         if (!loading && items.isEmpty()) message = getString(all.isEmpty() ? R.string.browse_repository_empty : R.string.browse_no_results);
@@ -313,11 +300,8 @@ public class BrowseFragment extends Fragment implements BrowseHeaderActions, Bro
     private void select(Entry e) {
         selectedId = e.id;
         updateDetail();
-        if (detailPage != null) {
-            ViewGroup root = (ViewGroup) requireView();
-            androidx.transition.TransitionManager.beginDelayedTransition(root, new com.google.android.material.transition.MaterialFadeThrough());
-            requireView().findViewById(R.id.browse_list_page).setVisibility(View.GONE);
-            detailPage.setVisibility(View.VISIBLE);
+        if (!twoPane()) {
+            navState.setValue(new BrowseNav(true));
             backCallback.setEnabled(true);
         } else {
             updateList();
@@ -329,11 +313,8 @@ public class BrowseFragment extends Fragment implements BrowseHeaderActions, Bro
     }
 
     private void closeDetail() {
-        if (detailPage == null) return;
-        ViewGroup root = (ViewGroup) requireView();
-        androidx.transition.TransitionManager.beginDelayedTransition(root, new com.google.android.material.transition.MaterialFadeThrough());
-        detailPage.setVisibility(View.GONE);
-        requireView().findViewById(R.id.browse_list_page).setVisibility(View.VISIBLE);
+        if (twoPane()) return;
+        navState.setValue(new BrowseNav(false));
         backCallback.setEnabled(false);
     }
 

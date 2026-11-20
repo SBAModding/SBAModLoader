@@ -14,7 +14,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -229,23 +239,32 @@ private fun ToggleRow(labels: List<String>, selected: Int, onSelect: (Int) -> Un
     }
 }
 
+/** The list. [leading] (the page title, the search and the filters) is its first item, so it scrolls away with it. */
 @Composable
-fun BrowseList(state: BrowseListState, actions: BrowseListActions) {
+fun BrowseList(state: BrowseListState, actions: BrowseListActions, modifier: Modifier = Modifier, leading: @Composable () -> Unit = {}) {
     val colors = MaterialTheme.colorScheme
-    Box(Modifier.boundedHeight().fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, bottom = 96.dp)) {
-            itemsIndexed(state.items, key = { _, item -> item.id }) { index, item ->
-                BrowseCard(item, index) { actions.open(item.id) }
+    LazyColumn(
+        modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp),
+    ) {
+        item(key = "leading") { leading() }
+        state.message?.let { message ->
+            item(key = "message") {
+                SbaText(
+                    message, Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 48.dp), color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
+                )
             }
         }
-        state.message?.let {
-            SbaText(
-                it, Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(top = 48.dp), color = colors.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
-            )
-        }
         if (state.retry) {
-            TonalAction(stringResource(R.string.browse_retry), actions::retry, Modifier.align(Alignment.TopCenter).padding(top = 120.dp))
+            item(key = "retry") {
+                Box(Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) {
+                    TonalAction(stringResource(R.string.browse_retry), actions::retry)
+                }
+            }
+        }
+        itemsIndexed(state.items, key = { _, item -> item.id }) { index, item ->
+            Box(Modifier.padding(horizontal = 20.dp)) { BrowseCard(item, index) { actions.open(item.id) } }
         }
     }
 }
@@ -341,15 +360,15 @@ interface DetailActions {
 }
 
 @Composable
-fun BrowseDetail(state: DetailState?, actions: DetailActions, prompt: String) {
+fun BrowseDetail(state: DetailState?, actions: DetailActions, prompt: String, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     if (state == null) {
-        Box(Modifier.boundedHeight().fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(modifier.boundedHeight().fillMaxSize(), contentAlignment = Alignment.Center) {
             SbaText(prompt, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
         }
         return
     }
-    Column(Modifier.boundedHeight().fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 112.dp)) {
+    Column(modifier.boundedHeight().fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 112.dp)) {
         DetailHeader(state)
         if (state.badges.isNotEmpty()) {
             FlowRow(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -588,25 +607,87 @@ fun ScreenshotViewer(base: String?, paths: List<String>, start: Int, onClose: ()
     }
 }
 
+/** Whether the page is open on a phone-sized layout, where the list and the store page take turns. */
+class BrowseNav(val detailOpen: Boolean = false)
+
+private fun androidx.compose.ui.platform.ComposeView.configure() {
+    setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+}
+
+/** Two panes (list and store page side by side) in landscape and on wide windows, one at a time otherwise. */
+@OptIn(androidx.compose.animation.ExperimentalAnimationApi::class)
+@Composable
+fun BrowseRoot(
+    header: BrowseHeader, headerActions: BrowseHeaderActions,
+    list: BrowseListState, listActions: BrowseListActions,
+    detail: DetailState?, detailActions: DetailActions, prompt: String,
+    nav: BrowseNav, onBack: () -> Unit, viewer: ViewerRequest?, closeViewer: () -> Unit,
+) {
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+    val twoPane = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || config.screenWidthDp >= 840
+    val colors = MaterialTheme.colorScheme
+    val sides = WindowInsets.systemBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)
+    val bottom = WindowInsets.systemBars.only(WindowInsetsSides.Bottom)
+    Box(Modifier.boundedHeight().fillMaxSize().windowInsetsPadding(sides)) {
+        if (twoPane) {
+            Row(Modifier.fillMaxSize()) {
+                Box(Modifier.width(400.dp).fillMaxHeight().windowInsetsPadding(bottom)) {
+                    BrowseList(list, listActions) {
+                        Column {
+                            SbaText(
+                                stringResource(R.string.nav_browse), Modifier.padding(start = 20.dp, top = 16.dp, bottom = 12.dp),
+                                color = colors.onSurface, style = LocalSbaText.current.pageTitle,
+                            )
+                            BrowseHeaderView(header, headerActions)
+                        }
+                    }
+                }
+                Box(Modifier.width(1.dp).fillMaxHeight().background(colors.outlineVariant))
+                Box(Modifier.weight(1f).fillMaxHeight()) { BrowseDetail(detail, detailActions, prompt, Modifier.windowInsetsPadding(bottom)) }
+            }
+        } else {
+            androidx.compose.animation.AnimatedContent(
+                nav.detailOpen,
+                transitionSpec = {
+                    // Fade through: the old page leaves quickly, the new one grows in from 92%.
+                    (androidx.compose.animation.fadeIn(tween(210, delayMillis = 90)) + androidx.compose.animation.scaleIn(tween(300), initialScale = 0.92f))
+                        .togetherWith(androidx.compose.animation.fadeOut(tween(90)))
+                },
+                label = "browsePage",
+            ) { open ->
+                if (open) {
+                    Column(Modifier.fillMaxSize().background(colors.background).windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))) {
+                        Row(Modifier.fillMaxWidth().height(64.dp).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onBack) { Icon(painterResource(R.drawable.ic_back), stringResource(R.string.browse_back), tint = colors.onSurface) }
+                        }
+                        Box(Modifier.weight(1f)) { BrowseDetail(detail, detailActions, prompt, Modifier.windowInsetsPadding(bottom)) }
+                    }
+                } else {
+                    PageFrame(stringResource(R.string.nav_browse), 10000.dp) {
+                        BrowseList(list, listActions, Modifier.windowInsetsPadding(bottom)) { BrowseHeaderView(header, headerActions) }
+                    }
+                }
+            }
+        }
+        viewer?.let { ScreenshotViewer(it.base, it.paths, it.start, closeViewer) }
+    }
+}
+
 /** The Java fragment's way in. */
 object BrowseScreenHost {
     @JvmStatic
-    fun header(view: androidx.compose.ui.platform.ComposeView, state: androidx.compose.runtime.State<BrowseHeader>, actions: BrowseHeaderActions) {
-        view.setContent { SbaTheme { BrowseHeaderView(state.value, actions) } }
-    }
-
-    @JvmStatic
-    fun list(view: androidx.compose.ui.platform.ComposeView, state: androidx.compose.runtime.State<BrowseListState>, actions: BrowseListActions) {
-        view.setContent { SbaTheme { BrowseList(state.value, actions) } }
-    }
-
-    @JvmStatic
-    fun detail(view: androidx.compose.ui.platform.ComposeView, state: androidx.compose.runtime.State<DetailState?>, actions: DetailActions, prompt: String,
-               viewer: androidx.compose.runtime.State<ViewerRequest?>, closeViewer: Runnable) {
+    fun root(
+        view: androidx.compose.ui.platform.ComposeView,
+        header: androidx.compose.runtime.State<BrowseHeader>, headerActions: BrowseHeaderActions,
+        list: androidx.compose.runtime.State<BrowseListState>, listActions: BrowseListActions,
+        detail: androidx.compose.runtime.State<DetailState?>, detailActions: DetailActions, prompt: String,
+        nav: androidx.compose.runtime.State<BrowseNav>, onBack: Runnable,
+        viewer: androidx.compose.runtime.State<ViewerRequest?>, closeViewer: Runnable,
+    ) {
+        view.configure()
         view.setContent {
             SbaTheme {
-                BrowseDetail(state.value, actions, prompt)
-                viewer.value?.let { ScreenshotViewer(it.base, it.paths, it.start) { closeViewer.run() } }
+                BrowseRoot(header.value, headerActions, list.value, listActions, detail.value, detailActions, prompt, nav.value, { onBack.run() }, viewer.value) { closeViewer.run() }
             }
         }
     }
