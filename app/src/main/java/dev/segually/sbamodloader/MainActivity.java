@@ -50,6 +50,10 @@ public class MainActivity extends AppCompatActivity {
         } else {
             // Debug builds: --ez sba_developer true|false turns developer features on or off before the page is built.
             dev.segually.sbamodloader.ui.compose.SbaDebug.collapse = BuildConfig.DEBUG && getIntent().getBooleanExtra("sba_collapse", false);
+            if (BuildConfig.DEBUG && getIntent().hasExtra("sba_fusion")) {
+                SBASettings.setFusionEnabled(this, getIntent().getBooleanExtra("sba_fusion", false));
+                SBASettings.setFusionWarningShown(this, true);
+            }
             if (BuildConfig.DEBUG && getIntent().hasExtra("sba_developer")) {
                 SBASettings.setDeveloperFeatures(this, getIntent().getBooleanExtra("sba_developer", false));
             }
