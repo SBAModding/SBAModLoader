@@ -73,7 +73,7 @@ object ModSettingsSheet {
             }
         }
         Surface(
-            Modifier.fillMaxWidth().heightIn(max = 720.dp),
+            Modifier.fillMaxWidth().heightIn(max = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp),
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             color = colors.surfaceContainerLow,
         ) {
@@ -92,7 +92,7 @@ object ModSettingsSheet {
                         }
                     }
                 }
-                Row(Modifier.padding(top = 16.dp)) {
+                Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
                     DialogButton(stringResource(R.string.mod_settings_reset), {
                         try {
                             ModSettingsStore.reset(settings)
@@ -172,7 +172,8 @@ object ModSettingsSheet {
 
     @Composable
     private fun StringRow(f: ModSettings.Field, saved: String, onChange: (String) -> Unit) {
-        var text by remember(f.key) { mutableStateOf(saved) }
+        // A single-line field shows a line break as a space.
+        var text by remember(f.key) { mutableStateOf(saved.replace('\n', ' ')) }
         Titles(f)
         OutlinedTextField(
             value = text,

@@ -100,7 +100,7 @@ object AppDialogs {
         SbaDialogs.show(context, sheet = true) { dismiss ->
             val colors = MaterialTheme.colorScheme
             Surface(
-                Modifier.fillMaxWidth().heightIn(max = 720.dp),
+                Modifier.fillMaxWidth().heightIn(max = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp),
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 color = colors.surfaceContainerLow,
             ) {
