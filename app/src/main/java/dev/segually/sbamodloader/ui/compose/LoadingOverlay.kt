@@ -40,7 +40,10 @@ object LoadingOverlay {
         val state = mutableStateOf(LoadingState())
         states[activity] = state
         val decor = activity.window.decorView as ViewGroup
-        GameOverlayHost.attachContent(decor, GameOverlayHost.env(activity)) { Content(state.value) }
+        // Built from the app's own context: the game activity's has no application context, which Compose needs.
+        val host = android.widget.FrameLayout(ui)
+        decor.addView(host, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        GameOverlayHost.attachContent(host, GameOverlayHost.env(activity)) { Content(state.value) }
     }
 
     /** Shows or hides it. Returns false when there is none (no Fusion, or not yet attached). */
