@@ -252,9 +252,7 @@ public final class GameRuntime {
                 if (target.hasExtra(InstrumentationHooks.EXTRA_SBA_CONFIG)) {
                     // Fusion is what hides the loading view when it finishes, so without Fusion it would spin forever.
                     if (target.getBooleanExtra(InstrumentationHooks.EXTRA_FUSION_ENABLED, true)) {
-                        ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
-                        Context loadingTheme = dev.segually.sbamodloader.ui.Theming.wrap(sbaBase);
-                        decor.addView(LayoutInflater.from(loadingTheme).inflate(R.layout.loading_view, decor, false));
+                        dev.segually.sbamodloader.ui.compose.LoadingOverlay.attach(activity, dev.segually.sbamodloader.ui.Theming.wrap(sbaBase));
                     }
                     overlays.put(activity, dev.segually.sbamodloader.ui.GameOverlay.install(activity, sbaBase));
                 }

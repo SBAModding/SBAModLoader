@@ -232,21 +232,43 @@ object GameOverlayHost {
         }
     }
 
-    /** Puts the overlay into [host], a view inside the game's window. */
+    /** What Compose needs inside one game window: a lifecycle and a recomposer, shared by everything drawn there. */
+    class Env {
+        val owner = OverlayOwner()
+        val session = Session()
+        fun destroy() { session.close(); owner.destroy() }
+    }
+
+    private val envs = java.util.WeakHashMap<android.app.Activity, Env>()
+
     @JvmStatic
-    fun attach(host: android.view.ViewGroup, owner: OverlayOwner, session: Session, state: androidx.compose.runtime.State<OverlayState>, actions: OverlayActions): androidx.compose.ui.platform.ComposeView {
+    @Synchronized
+    fun env(activity: android.app.Activity): Env = envs.getOrPut(activity) { Env() }
+
+    @JvmStatic
+    @Synchronized
+    fun release(activity: android.app.Activity) {
+        envs.remove(activity)?.destroy()
+    }
+
+    /** Puts Compose content into [host], a view inside the game's window. */
+    fun attachContent(host: android.view.ViewGroup, env: Env, content: @Composable () -> Unit): androidx.compose.ui.platform.ComposeView {
         // Compose looks for the owners from the top of the window, so they go on the decor view, as ComponentActivity does.
         val root = host.rootView
-        root.setViewTreeLifecycleOwner(owner)
-        root.setViewTreeViewModelStoreOwner(owner)
-        root.setViewTreeSavedStateRegistryOwner(owner)
+        root.setViewTreeLifecycleOwner(env.owner)
+        root.setViewTreeViewModelStoreOwner(env.owner)
+        root.setViewTreeSavedStateRegistryOwner(env.owner)
         val view = androidx.compose.ui.platform.ComposeView(host.context)
-        view.setParentCompositionContext(session.recomposer)
+        view.setParentCompositionContext(env.session.recomposer)
         view.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-        view.setContent { SbaTheme { GameOverlayScreen(state.value, actions) } }
+        view.setContent { SbaTheme(content) }
         host.addView(view, android.widget.FrameLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT))
         return view
     }
+
+    @JvmStatic
+    fun attach(host: android.view.ViewGroup, env: Env, state: androidx.compose.runtime.State<OverlayState>, actions: OverlayActions) =
+        attachContent(host, env) { GameOverlayScreen(state.value, actions) }
 }
 
 /** Reads this process's log in the background, a line at a time, keeping the last few hundred. */

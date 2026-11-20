@@ -21,7 +21,6 @@ import android.window.OnBackInvokedDispatcher;
 import dev.segually.sbamodloader.ui.compose.GameOverlayHost;
 import dev.segually.sbamodloader.ui.compose.LogcatSource;
 import dev.segually.sbamodloader.ui.compose.OverlayActions;
-import dev.segually.sbamodloader.ui.compose.OverlayOwner;
 import dev.segually.sbamodloader.ui.compose.OverlayState;
 
 import java.lang.reflect.Field;
@@ -47,8 +46,7 @@ public final class GameOverlay {
 
     private final androidx.compose.runtime.MutableState<OverlayState> uiState =
             androidx.compose.runtime.SnapshotStateKt.mutableStateOf(new OverlayState(), androidx.compose.runtime.SnapshotStateKt.structuralEqualityPolicy());
-    private final OverlayOwner owner = new OverlayOwner();
-    private final GameOverlayHost.Session session = new GameOverlayHost.Session();
+    private final GameOverlayHost.Env env;
     private final LogcatSource logSource = new LogcatSource(lines -> {
         uiState.setValue(copy(uiState.getValue(), null, null, null, null, lines));
         return kotlin.Unit.INSTANCE;
@@ -78,6 +76,7 @@ public final class GameOverlay {
     private GameOverlay(Activity activity, Context sbaBase) {
         this.activity = activity;
         this.ui = Theming.wrap(sbaBase);
+        this.env = GameOverlayHost.env(activity);
         this.host = new FrameLayout(ui);
     }
 
@@ -94,7 +93,7 @@ public final class GameOverlay {
         decor.addView(host, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         uiState.setValue(copy(uiState.getValue(), null, null,
                 dev.segually.sbamodloader.SBASettings.getDeveloperFeatures(ui), null, null));
-        GameOverlayHost.attach(host, owner, session, uiState, actions);
+        GameOverlayHost.attach(host, env, uiState, actions);
     }
 
     /** Debug builds: a marker file in the app's files folder opens the menu (and the log) a few seconds in, for layout checks. */
@@ -257,8 +256,7 @@ public final class GameOverlay {
 
     public void destroy() {
         logSource.stop();
-        session.close();
-        owner.destroy();
+        GameOverlayHost.release(activity);
         if (Build.VERSION.SDK_INT >= 33 && backCallback != null) {
             try {
                 activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback((OnBackInvokedCallback) backCallback);

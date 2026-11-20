@@ -19,13 +19,11 @@ public class JniBridge {
 
     public static void SetLoadingState(Activity activity, boolean enabled) {
         activity.runOnUiThread(() -> {
-            View view = activity.findViewById(R.id.loader);
-            if (view == null) {
-                Log.e(TAG, "Could not set loading state, view is null!");
+            if (!dev.segually.sbamodloader.ui.compose.LoadingOverlay.setVisible(activity, enabled)) {
+                Log.e(TAG, "Could not set loading state, there is no loading view!");
                 return;
             }
 
-            view.setVisibility(enabled ? View.VISIBLE : View.GONE);
             Log.i(TAG, "Set loading state to "+enabled);
 
             if (!enabled && timerRunnable != null) {
@@ -36,13 +34,10 @@ public class JniBridge {
 
     public static void SetLoadingText(Activity activity, String text) {
         activity.runOnUiThread(() -> {
-            TextView view = activity.findViewById(R.id.loadingText);
-            if (view == null) {
-                Log.e(TAG, "Could not set loading text, view is null!");
+            if (!dev.segually.sbamodloader.ui.compose.LoadingOverlay.setText(activity, text)) {
+                Log.e(TAG, "Could not set loading text, there is no loading view!");
                 return;
             }
-
-            view.setText(text);
             Log.i(TAG, "Set loading text to "+text);
 
             // reset timer
@@ -62,7 +57,7 @@ public class JniBridge {
                     String timeString = String.format(Locale.getDefault(),
                             " (%02d:%02d)", minutes, seconds);
 
-                    view.setText(text + timeString);
+                    dev.segually.sbamodloader.ui.compose.LoadingOverlay.setText(activity, text + timeString);
 
                     handler.postDelayed(this, 1000);
                 }
