@@ -437,7 +437,12 @@ private fun FabItem(label: String, @DrawableRes icon: Int, onClick: () -> Unit) 
 object ModsScreenHost {
     @JvmStatic
     fun setContent(view: androidx.compose.ui.platform.ComposeView, state: androidx.compose.runtime.State<ModsState>, actions: ModsActions) {
-        view.setContent { SbaTheme { ModsScreen(state.value, actions) } }
+        view.setContent {
+            SbaTheme {
+                val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
+                ScrollingPage(androidx.compose.ui.res.stringResource(R.string.nav_mods), if (wide) 1100.dp else 760.dp) { ModsScreen(state.value, actions) }
+            }
+        }
     }
 
     @JvmStatic

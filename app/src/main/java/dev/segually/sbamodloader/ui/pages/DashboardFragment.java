@@ -23,7 +23,6 @@ import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.PatchManager;
 import dev.segually.sbamodloader.tools.AppUpdater;
 import dev.segually.sbamodloader.ui.UpdatePrompt;
-import dev.segually.sbamodloader.ui.Insets;
 import dev.segually.sbamodloader.ui.compose.DashboardState;
 import dev.segually.sbamodloader.ui.compose.DashboardScreenHost;
 import dev.segually.sbamodloader.ui.compose.SetupStep;
@@ -46,7 +45,6 @@ public class DashboardFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_dashboard, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), requireContext().getResources().getConfiguration().screenWidthDp >= 840 ? 1100 : 760, false, v.findViewById(R.id.page_appbar));
         androidx.compose.ui.platform.ComposeView compose = v.findViewById(R.id.dashboard_content);
         compose.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
         DashboardScreenHost.setContent(compose, uiState, this::startBootstrap, this::syncPatches,

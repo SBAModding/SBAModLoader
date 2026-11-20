@@ -361,6 +361,10 @@ object SettingsScreenHost {
         state: androidx.compose.runtime.State<SettingsState>,
         actions: SettingsActions,
     ) {
-        view.setContent { SbaTheme { SettingsScreen(state.value, actions) } }
+        view.setContent {
+            SbaTheme {
+                ScrollingPage(androidx.compose.ui.res.stringResource(R.string.nav_settings), 720.dp) { SettingsScreen(state.value, actions) }
+            }
+        }
     }
 }

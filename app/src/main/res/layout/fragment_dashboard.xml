@@ -1,44 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/page_root"
+<!-- The page, its large collapsing title and its content are Jetpack Compose: PageFrame / ScrollingPage. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/page_appbar"
-        style="@style/Widget.Material3Expressive.AppBarLayout"
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/dashboard_content"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        app:liftOnScroll="false">
-
-        <com.google.android.material.appbar.CollapsingToolbarLayout
-            style="@style/Widget.SBA.CollapsingBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
-            app:title="@string/nav_dashboard">
-
-            <com.google.android.material.appbar.MaterialToolbar
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                app:layout_collapseMode="pin" />
-        </com.google.android.material.appbar.CollapsingToolbarLayout>
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/page_scroll"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingHorizontal="20dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <!-- The page's content is Jetpack Compose: DashboardScreen. -->
-        <androidx.compose.ui.platform.ComposeView
-            android:id="@+id/dashboard_content"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-    </androidx.core.widget.NestedScrollView>
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+        android:layout_height="match_parent" />
+</FrameLayout>

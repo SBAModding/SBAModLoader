@@ -253,7 +253,10 @@ object DashboardScreenHost {
     ) {
         view.setContent {
             SbaTheme {
-                DashboardScreen(state.value, { onLaunch.run() }, { onRetry.run() }, { onModUpdates.run() })
+                val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
+                ScrollingPage(androidx.compose.ui.res.stringResource(R.string.nav_dashboard), if (wide) 1100.dp else 760.dp) {
+                    DashboardScreen(state.value, { onLaunch.run() }, { onRetry.run() }, { onModUpdates.run() })
+                }
             }
         }
     }

@@ -28,7 +28,6 @@ import dev.segually.sbamodloader.ui.compose.SettingsActions;
 import dev.segually.sbamodloader.ui.compose.SettingsScreenHost;
 import dev.segually.sbamodloader.ui.compose.SettingsState;
 import dev.segually.sbamodloader.ui.compose.SourceRow;
-import dev.segually.sbamodloader.ui.Insets;
 import dev.segually.sbamodloader.ui.Theming;
 
 public class SettingsFragment extends Fragment implements SettingsActions {
@@ -74,7 +73,6 @@ public class SettingsFragment extends Fragment implements SettingsActions {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_settings, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), 720, false, v.findViewById(R.id.page_appbar));
         updateButton = getString(R.string.updates_check_now);
         androidx.compose.ui.platform.ComposeView compose = v.findViewById(R.id.settings_content);
         compose.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);

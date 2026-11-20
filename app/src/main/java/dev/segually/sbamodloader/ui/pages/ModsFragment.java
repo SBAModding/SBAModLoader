@@ -39,7 +39,6 @@ import dev.segually.sbamodloader.TargetGame;
 import dev.segually.sbamodloader.tools.ModFiles;
 import dev.segually.sbamodloader.tools.ModPacks;
 import dev.segually.sbamodloader.tools.Utilities;
-import dev.segually.sbamodloader.ui.Insets;
 import dev.segually.sbamodloader.ui.compose.ModChip;
 import dev.segually.sbamodloader.ui.compose.ModRow;
 import dev.segually.sbamodloader.ui.compose.ModsActions;
@@ -78,7 +77,6 @@ public class ModsFragment extends Fragment implements ModsActions {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         View v = inflater.inflate(R.layout.fragment_mods, container, false);
-        Insets.padForChrome(v.findViewById(R.id.page_scroll), Insets.navClearance(requireContext()), requireContext().getResources().getConfiguration().screenWidthDp >= 840 ? 1100 : 760, false, v.findViewById(R.id.page_appbar));
         androidx.compose.ui.platform.ComposeView content = v.findViewById(R.id.mods_content);
         content.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed.INSTANCE);
         androidx.compose.ui.platform.ComposeView fab = v.findViewById(R.id.mods_fab);
