@@ -73,7 +73,7 @@ fun PageFrame(
     }
     val sides = WindowInsets.systemBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)
     Box(modifier.boundedHeight().fillMaxSize().windowInsetsPadding(sides), contentAlignment = Alignment.TopCenter) {
-        Column(Modifier.fillMaxSize().widthIn(max = maxContentWidth + 40.dp)) {
+        Column(Modifier.widthIn(max = maxContentWidth + 40.dp).fillMaxSize()) {
             val fraction = behavior.state.collapsedFraction
             Bar(title, fraction)
             Box(Modifier.weight(1f).fillMaxWidth().nestedScroll(behavior.nestedScrollConnection)) {
